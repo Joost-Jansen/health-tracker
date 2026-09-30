@@ -92,3 +92,67 @@ export function zoneRanges(bounds: number[]): Record<Zone, string> {
   const [b2, b3, b4, b5] = bounds;
   return { Z1: `< ${b2}`, Z2: `${b2}-${b3 - 1}`, Z3: `${b3}-${b4 - 1}`, Z4: `${b4}-${b5 - 1}`, Z5: `≥ ${b5}` };
 }
+
+// ── Historie (T4) ────────────────────────────────────────────────────────────
+
+export type ActivityListItem = ActivitySummary & { has_gps?: boolean };
+
+export type Lap = { distance_km?: number; time_s?: number; avg_hr?: number; pace?: string; elevation_gain_m?: number };
+export type KmSplit = { km: number; seconds: number; avg_hr: number | null; elevation_m?: number };
+export type RouteRun = { id: string; date: string; moving_time_s?: number; distance_km?: number; avg_hr?: number; pace_s_per_km: number | null };
+
+export type ActivityDetail = ActivitySummary & {
+  elapsed_time_s?: number;
+  avg_cadence_spm?: number;
+  calories?: number;
+  vo2max?: number;
+  laps: Lap[];
+  zone_bounds: number[] | null;
+  zone_estimate: boolean;
+  track: { latlng: [number, number][]; zone: (Zone | null)[] } | null;
+  series: { time: number[]; heartrate?: (number | null)[]; velocity?: (number | null)[]; altitude?: (number | null)[]; cadence?: (number | null)[]; distance?: (number | null)[] } | null;
+  splits: KmSplit[];
+  decoupling_pct: number | null;
+  same_day: { id: string; start_local: string; sport: string; name?: string; distance_km?: number; moving_time_s?: number }[];
+  route: null | { id: string; name?: string; distance_km?: number; history: RouteRun[] };
+  prev_id: string | null;
+  next_id: string | null;
+};
+
+export type Heatmap = { tracks: [number, number][][] };
+
+export function zoneShare(seconds?: Partial<ZoneSeconds> | null): ZoneShare | null {
+  if (!seconds) return null;
+  const secs = Object.fromEntries(ZONES.map((z) => [z, seconds[z] ?? 0])) as ZoneSeconds;
+  const total = ZONES.reduce((s, z) => s + secs[z], 0);
+  if (!total) return null;
+  const pct = Object.fromEntries(ZONES.map((z) => [z, (secs[z] / total) * 100])) as Record<Zone, number>;
+  return { seconds: secs, total_s: total, pct };
+}
+
+export function fmtClock(seconds?: number | null): string {
+  if (seconds == null) return "–";
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`;
+}
+
+export const fmtPaceS = (s?: number | null) => (s ? `${fmtClock(s)}/km` : "–");
+
+// ── Trends (T5) ──────────────────────────────────────────────────────────────
+
+export type RecordRow = { date: string; seconds: number; activity_id: string };
+export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[] };
+
+export type Trends = {
+  today: string;
+  form: FormRow[];
+  weekly: { week: string; sports: Record<string, Volume> }[];
+  z2_pace: { week: string; pace_s_per_km: number; runs: number; z2_seconds: number }[];
+  vo2max: { date: string; value: number }[];
+  recovery_weekly: { week: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null }[];
+  records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
+  races: Race[];
+};

@@ -156,3 +156,40 @@ export type Trends = {
   records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
   races: Race[];
 };
+
+// ── Schema (T6) ──────────────────────────────────────────────────────────────
+
+export type SessionStatus = "gedaan" | "gemist" | "vandaag" | "gepland" | "rust";
+
+export type PlanSession = {
+  id?: number;
+  date: string;
+  sport: string;
+  kind?: string | null;
+  distance_km?: number | null;
+  duration_min?: number | null;
+  target_zone?: string | null;
+  description?: string | null;
+  route_id?: string | null;
+  status?: SessionStatus;
+  activity_ids?: string[];
+  done?: { distance_km: number; moving_time_s: number; avg_hr?: number; zone_pct: number | null };
+  route_suggestion?: { parts: string[]; names: string[]; total_km: number; deviation_km: number; within_tolerance: boolean; days_since: number };
+};
+
+export type PlanWeek = { week: string; planned_km: number; done_km: number; planned: number; done: number; missed: number };
+
+export type Plan = {
+  id: number;
+  title: string;
+  goal?: string | null;
+  race?: string | null;
+  notes?: string | null;
+  status: "actief" | "afgerond" | "gestopt";
+  author: string;
+  created_at: string;
+  sessions: PlanSession[];
+  weeks: PlanWeek[];
+};
+
+export type PlanListItem = Omit<Plan, "sessions" | "weeks">;

@@ -106,7 +106,7 @@ Planned (frontend can be built against these now; types go in `web/lib/training.
 | GET | `/api/trends` | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` | T5 |
 | GET/PUT | `/api/docs/{profile|goals}` | `{key, body (markdown), updated_at, updated_by}` | T3 |
 | GET/POST | `/api/entries?kind=log|analysis` | entries list / create `{kind, day, title, body}` | T3 |
-| GET/POST | `/api/plans`, `/api/plans/active`, `/api/plans/{id}/sessions` | plans with sessions (`tools/db.py` shapes) | T6 |
+| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active`, `/api/plans/{id}`, `/api/plans/{id}/sessions` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan` | T6 (live) |
 | POST | `/api/plans/import` | CSV or markdown table upload -> plan + sessions | T6 |
 | GET | `/api/routes?sport=`, `/api/routes/suggest?km=&sport=` | routes and suggestions (`tools/routes.py`, `tools/recommend.py` shapes) | T7 |
 

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from api import auth
+from api.content import content_router
 from api.dashboard import build_dashboard
 from api.data import DataStore
 from tools import db
@@ -31,6 +33,7 @@ class Settings:
     jwt_secret: str
     cookie_secure: bool = True
     token_days: int = 30
+    agent_token_hash: str = ""  # sha256 hex of the agents' Bearer token
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -39,6 +42,7 @@ class Settings:
             password_hash=os.environ.get("TRAINING_PASSWORD_HASH", ""),
             jwt_secret=os.environ.get("TRAINING_JWT_SECRET", ""),
             cookie_secure=os.environ.get("COOKIE_SECURE", "true").lower() != "false",
+            agent_token_hash=os.environ.get("TRAINING_AGENT_TOKEN_HASH", ""),
         )
 
 
@@ -57,6 +61,12 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app = FastAPI(title="training", docs_url=None, redoc_url=None, openapi_url=None)
 
     def current_user(request: Request) -> str:
+        header = request.headers.get("authorization", "")
+        if header.lower().startswith("bearer "):
+            token = header[7:].strip()
+            if token and settings.agent_token_hash and auth.same(hashlib.sha256(token.encode()).hexdigest(), settings.agent_token_hash):
+                return "agent"
+            raise HTTPException(status_code=401, detail="ongeldig agent-token")
         user = auth.token_user(request.cookies.get(auth.COOKIE), settings.jwt_secret)
         if not user or not settings.user or not auth.same(user, settings.user):
             raise HTTPException(status_code=401, detail="niet ingelogd")
@@ -94,6 +104,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     @app.get("/api/dashboard")
     def dashboard(user: str = Depends(current_user)):
         return build_dashboard(store.activities, store.wellness, store.zones, datetime.now(TZ).date(), store.last_sync)
+
+    app.include_router(content_router(store, current_user))
 
     static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():

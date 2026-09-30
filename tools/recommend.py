@@ -20,6 +20,7 @@ if __package__ in (None, ""):
 from tools.routes import START_RADIUS_M, haversine_m
 
 ROOT = Path(__file__).resolve().parents[1]
+FALLBACK_MAX_DEVIATION = 0.5  # when nothing fits, still hide options more than 50% off target
 
 
 def _days_since(day: str, today: date) -> int:
@@ -69,7 +70,8 @@ def recommend(
         fitting.sort(key=lambda o: (len(o["parts"]), -o["days_since"], abs(o["deviation_km"])))
         return fitting[:limit]
     options.sort(key=lambda o: (abs(o["deviation_km"]), len(o["parts"])))
-    return options[:limit]
+    close = [o for o in options if abs(o["deviation_km"]) <= FALLBACK_MAX_DEVIATION * target_km]
+    return (close or options[:1])[:limit]
 
 
 def _describe(parts: list[str], by_id: dict) -> str:

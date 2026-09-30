@@ -18,9 +18,9 @@ DLAT = CELL_M / M_PER_DEG_LAT
 DLON = CELL_M / (M_PER_DEG_LAT * math.cos(math.radians(REF_LAT)))
 
 START_RADIUS_M = 300.0
-LOOP_RADIUS_M = 200.0
+LOOP_RADIUS_M = 300.0  # watch is often stopped a few hundred metres before home
 MAX_DISTANCE_DIFF = 0.10
-MIN_OVERLAP = 0.8
+MIN_OVERLAP = 0.75  # real data: same loop with a small detour overlaps ~76%
 MIN_RUNS = 3
 
 

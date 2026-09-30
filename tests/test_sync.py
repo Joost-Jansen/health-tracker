@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from tests.test_store import GARMIN_ACTIVITY, GARMIN_SPLITS, STRAVA_ACTIVITY, STRAVA_STREAMS
 from tools.store import load_activities, load_wellness
-from tools.sync import RateLimited, sync_garmin, sync_strava, write_rotated_token
+from tools.sync import RateLimited, fetch_metric, sync_garmin, sync_strava, write_rotated_token
 
 
 class FakeStrava:
@@ -86,11 +86,35 @@ def test_garmin_sync_stores_activity_fit_and_wellness(tmp_path):
     assert state["garmin"] == {"last_activity_day": "2026-09-30", "last_wellness_day": "2026-09-30"}
 
 
-def test_garmin_wellness_backfill_is_capped_to_a_year(tmp_path):
-    state = {}
+def test_garmin_backfill_honours_explicit_since(tmp_path):
+    state = {"garmin": {"last_activity_day": "2026-09-30", "last_wellness_day": "2026-09-30"}}
     client = FakeGarmin()
-    sync_garmin(tmp_path, client, state, today=date(2026, 9, 30), since=date(2020, 1, 1))
-    assert client.wellness_days[0] == "2025-09-30"
+    sync_garmin(tmp_path, client, state, today=date(2026, 9, 30), since=date(2025, 6, 1))
+    assert client.wellness_days[0] == "2025-06-01"
+    assert len(client.wellness_days) == 487
+
+
+def test_fetch_metric_records_ok_empty_and_errors():
+    stats = {}
+    assert fetch_metric(stats, "hrv", lambda d: {"x": 1}, "2026-09-30") == {"x": 1}
+    assert fetch_metric(stats, "hrv", lambda d: None, "2026-09-30") is None
+
+    def boom(d):
+        raise KeyError("hrvSummary")
+
+    assert fetch_metric(stats, "hrv", boom, "2026-09-30") is None
+    assert stats == {"hrv": {"ok": 1, "leeg": 1, "fout KeyError": 1}}
+
+
+def test_fetch_metric_lets_rate_limit_through():
+    def limited(d):
+        raise RateLimited("429")
+
+    try:
+        fetch_metric({}, "hrv", limited, "2026-09-30")
+        raise AssertionError("expected RateLimited")
+    except RateLimited:
+        pass
 
 
 def test_rotated_token_is_written_only_when_changed(tmp_path):

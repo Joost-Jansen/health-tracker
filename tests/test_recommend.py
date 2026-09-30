@@ -77,3 +77,8 @@ def test_markdown_names_routes_and_deviation():
     text = format_recommendations(recommend(routes, 8, today=TODAY), routes, 8)
     assert "2× Parkrondje" in text
     assert "8.0 km" in text
+
+
+def test_fallback_hides_options_far_off_target():
+    recs = recommend([route("r1", 11.0)], 10, today=TODAY)
+    assert [r["parts"] for r in recs] == [["r1"]]

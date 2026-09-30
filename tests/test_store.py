@@ -127,3 +127,18 @@ def test_wellness_upsert_merges_per_day(tmp_path):
     upsert_wellness(tmp_path, "2026-09-28", {"sleep_h": 7.5})
     upsert_wellness(tmp_path, "2026-09-28", {"resting_hr": 48})
     assert load_wellness(tmp_path) == {"2026-09-28": {"sleep_h": 7.5, "resting_hr": 48}}
+
+
+def test_negative_values_mean_no_data():
+    w = wellness_from_garmin(sleep={}, hrv=None, summary={"averageStressLevel": -1, "totalSteps": 500}, readiness=[])
+    assert w == {"steps": 500}
+
+
+def test_resting_hr_only_kept_on_days_with_sleep_data():
+    # without an overnight recording Garmin estimates resting HR from daytime data (seen: 124, 131)
+    no_sleep = wellness_from_garmin(sleep={}, hrv=None, summary={"restingHeartRate": 124}, readiness=[])
+    assert "resting_hr" not in no_sleep
+    with_sleep = wellness_from_garmin(
+        sleep={"dailySleepDTO": {"sleepTimeSeconds": 25000}}, hrv=None, summary={"restingHeartRate": 45}, readiness=[]
+    )
+    assert with_sleep["resting_hr"] == 45

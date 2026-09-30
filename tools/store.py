@@ -190,7 +190,8 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
     def hours(seconds):
         return round(seconds / 3600, 2) if seconds else None
 
-    return _drop_none(
+    has_sleep = bool(sleep_dto.get("sleepTimeSeconds"))
+    values = _drop_none(
         {
             "sleep_h": hours(sleep_dto.get("sleepTimeSeconds")),
             "deep_sleep_h": hours(sleep_dto.get("deepSleepSeconds")),
@@ -199,7 +200,8 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
             "hrv_last_night": hrv_sum.get("lastNightAvg"),
             "hrv_weekly_avg": hrv_sum.get("weeklyAvg"),
             "hrv_status": hrv_sum.get("status"),
-            "resting_hr": summary.get("restingHeartRate"),
+            # without an overnight recording Garmin estimates resting HR from daytime data, which is unreliable
+            "resting_hr": summary.get("restingHeartRate") if has_sleep else None,
             "body_battery_high": summary.get("bodyBatteryHighestValue"),
             "body_battery_low": summary.get("bodyBatteryLowestValue"),
             "stress_avg": summary.get("averageStressLevel"),
@@ -208,6 +210,8 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
             "readiness_level": ready.get("level"),
         }
     )
+    # Garmin uses negative numbers (e.g. stress -1) for "no data"
+    return {k: v for k, v in values.items() if not (isinstance(v, (int, float)) and v < 0)}
 
 
 def _wellness_dir(root: Path) -> Path:

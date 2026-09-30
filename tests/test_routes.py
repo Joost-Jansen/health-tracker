@@ -81,3 +81,10 @@ def test_two_distinct_routes_get_distinct_ids():
     routes = build_routes(ne + sw, existing=[])
     assert len(routes) == 2
     assert len({r["id"] for r in routes}) == 2
+
+
+def test_run_stopped_just_before_home_still_counts_as_loop():
+    # watch often stopped a few hundred metres before the front door (seen: 203 m, 259 m)
+    track = square_loop()[:-27]  # ends ~260 m before the start
+    runs = [run(f"x{i}", f"2026-09-0{i + 1}", track, 3.7) for i in range(3)]
+    assert build_routes(runs, existing=[])[0]["is_loop"] is True

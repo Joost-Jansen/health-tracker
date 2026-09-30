@@ -28,7 +28,7 @@ uv venv .venv && uv pip install -p .venv -r requirements-dev.txt
    https://github.com/settings/personal-access-tokens: alleen repo `Joost-Jansen/training`, permissie *Secrets: Read and write*. Zet hem als secret:
    `GH_TOKEN=$(gh auth token --user Joost-Jansen) gh secret set SECRETS_PAT --repo Joost-Jansen/training`
 4. **Eerste backfill**: GitHub → Actions → sync → Run workflow, `since` bijvoorbeeld `2023-01-01`.
-   Loopt Garmin tegen een limiet aan, dan gaat de volgende run verder waar deze stopte. Slaap/HRV gaat maximaal 365 dagen terug.
+   Loopt Garmin tegen een limiet aan, dan gaat de volgende run verder waar deze stopte.
 5. **Telefoon**: claude.ai/code → verbind GitHub-account `Joost-Jansen` → kies repo `training`.
 
 ## Handig

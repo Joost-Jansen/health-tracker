@@ -1,7 +1,7 @@
 """Fetch new Garmin and Strava data into data/, then rebuild routes/ and summary/.
 
     python tools/sync.py                      # incremental, both sources
-    python tools/sync.py --since 2024-01-01   # backfill (Garmin wellness is capped to 365 days)
+    python tools/sync.py --since 2025-06-01   # backfill
     python tools/sync.py --source strava
 
 Credentials come only from the environment (GitHub Actions secrets):
@@ -28,13 +28,28 @@ from tools.store import from_garmin, from_strava, upsert_activity, upsert_wellne
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKFILL_DAYS = 90
-MAX_WELLNESS_DAYS = 365
 STRAVA_API = "https://www.strava.com/api/v3"
 STRAVA_STREAM_KEYS = "time,latlng,heartrate,velocity_smooth,altitude,cadence,distance,watts"
 
 
 class RateLimited(Exception):
     """The API asked us to slow down; progress so far is kept and the next run continues."""
+
+
+def fetch_metric(stats: dict, name: str, fn, day: str):
+    """Call one Garmin wellness endpoint; count ok / empty / errors so the log shows why a metric is missing."""
+    counts = stats.setdefault(name, {})
+    try:
+        value = fn(day)
+    except RateLimited:
+        raise
+    except Exception as err:  # a device may not support every metric
+        key = f"fout {type(err).__name__}"
+        counts[key] = counts.get(key, 0) + 1
+        return None
+    key = "ok" if value else "leeg"
+    counts[key] = counts.get(key, 0) + 1
+    return value
 
 
 def _epoch(iso_utc: str) -> int:
@@ -120,6 +135,7 @@ class GarminClient:
         self._Garmin = Garmin
         self.api = Garmin()
         self.api.login(tokens)
+        self.stats: dict = {}
 
     def _call(self, fn, *args, **kwargs):
         from garminconnect import GarminConnectTooManyRequestsError
@@ -139,19 +155,14 @@ class GarminClient:
         return self._call(self.api.download_activity, str(activity_id), dl_fmt=self._Garmin.ActivityDownloadFormat.ORIGINAL)
 
     def wellness(self, day: str) -> dict:
-        def safe(fn):
-            try:
-                return self._call(fn, day)
-            except RateLimited:
-                raise
-            except Exception:  # a device may not support every metric
-                return None
+        def get(name, fn):
+            return fetch_metric(self.stats, name, lambda d: self._call(fn, d), day)
 
         return wellness_from_garmin(
-            sleep=safe(self.api.get_sleep_data),
-            hrv=safe(self.api.get_hrv_data),
-            summary=safe(self.api.get_user_summary),
-            readiness=safe(self.api.get_training_readiness),
+            sleep=get("slaap", self.api.get_sleep_data),
+            hrv=get("hrv", self.api.get_hrv_data),
+            summary=get("dagoverzicht", self.api.get_user_summary),
+            readiness=get("readiness", self.api.get_training_readiness),
         )
 
     def tokens(self) -> str:
@@ -187,7 +198,6 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
     well_start = date.fromisoformat(g["last_wellness_day"]) if "last_wellness_day" in g else default_start
     if since:
         well_start = min(well_start, since)
-    well_start = max(well_start, today - timedelta(days=MAX_WELLNESS_DAYS))
     day = well_start
     while day <= today:
         values = client.wellness(day.isoformat())
@@ -253,6 +263,8 @@ def main(argv=None) -> int:
                 failed.append("garmin")
             finally:
                 if client is not None:
+                    for metric, counts in client.stats.items():
+                        print(f"garmin {metric}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
                     write_rotated_token(token_out, "GARMINTOKENS", tokens, client.tokens())
                 save()
 

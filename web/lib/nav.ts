@@ -21,6 +21,19 @@ export const NAV: NavGroup[] = [
       { id: "historie", label: "Historie", href: "/historie/", icon: "map" },
       { id: "rondjes", label: "Rondjes", href: "/rondjes/", icon: "route" },
       { id: "trends", label: "Trends", href: "/trends/", icon: "chart" },
+      {
+        id: "logboek",
+        label: "Logboek",
+        href: "/log/",
+        icon: "book",
+        extraPaths: ["/analyses/"],
+        tabs: [
+          { id: "log", label: "Log", href: "/log/" },
+          { id: "analyses", label: "Analyses", href: "/analyses/" },
+          { id: "doelen", label: "Doelen", href: "/analyses/doelen/" },
+          { id: "profiel", label: "Profiel", href: "/analyses/profiel/" },
+        ],
+      },
     ],
   },
 ];

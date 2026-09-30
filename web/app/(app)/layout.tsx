@@ -63,7 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="ds-topbar__title truncate">{item?.label ?? "Training"}</h1>
           {tabs.length > 1 ? (
             <nav className="ds-topbar__tabs ml-2 min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar" aria-label={`Aanzichten van ${item?.label}`}>
-              <Tabs items={tabs} value={tabs.find((t) => pathname.startsWith(t.href))?.id} ariaLabel={`Aanzichten van ${item?.label}`} className="h-full whitespace-nowrap" />
+              <Tabs items={tabs} value={tabs.filter((t) => pathname.startsWith(t.href)).sort((a, b) => b.href.length - a.href.length)[0]?.id} ariaLabel={`Aanzichten van ${item?.label}`} className="h-full whitespace-nowrap" />
             </nav>
           ) : (
             <span className="ds-topbar__spacer" />

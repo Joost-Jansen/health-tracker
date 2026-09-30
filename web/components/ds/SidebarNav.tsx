@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { NavGroup } from "@/lib/nav";
 import Logomark from "@/components/ds/Logomark";
-import { ChartLineIcon, ClipboardIcon, LayoutIcon, MapIcon, RouteIcon } from "@/components/icons";
+import { ChartLineIcon, ClipboardIcon, LayoutIcon, MapIcon, NewspaperIcon, RouteIcon } from "@/components/icons";
 
 const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> = {
   layout: LayoutIcon,
@@ -30,6 +30,7 @@ const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> =
   map: MapIcon,
   route: RouteIcon,
   chart: ChartLineIcon,
+  book: NewspaperIcon,
 };
 
 function NavList({

@@ -87,7 +87,7 @@ def from_strava(activity: dict, streams: dict | None) -> dict:
     return _drop_none(record)
 
 
-def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None) -> dict:
+def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None, streams: dict | None = None) -> dict:
     type_key = (activity.get("activityType") or {}).get("typeKey", "other")
     laps = []
     for lap in (splits or {}).get("lapDTOs", []):
@@ -118,6 +118,7 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
         "avg_cadence_spm": _round(cadence),
         "laps": laps or None,
         "fit_file": fit_file,
+        "streams": streams or None,
         "sources": {"garmin": {"id": activity["activityId"], "raw": activity}},
     }
     return _drop_none(record)

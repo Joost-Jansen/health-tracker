@@ -102,3 +102,27 @@ def test_rotated_token_is_written_only_when_changed(tmp_path):
 
 def test_rotated_token_ignored_without_out_dir():
     write_rotated_token(None, "X", old="old", new="new")  # must not raise
+
+
+def test_garmin_sync_stores_gps_streams_from_fit(tmp_path):
+    state = {"garmin": {"last_activity_day": "2026-09-28", "last_wellness_day": "2026-09-30"}}
+    seen = []
+
+    def reader(data):
+        seen.append(data)
+        return {"time": [0, 1], "latlng": [[52.09, 5.12], [52.0901, 5.12]]}
+
+    sync_garmin(tmp_path, FakeGarmin(), state, today=date(2026, 9, 30), read_streams=reader)
+    assert seen == [b"PK-fake-zip"]
+    assert load_activities(tmp_path)[0]["streams"]["latlng"][0] == [52.09, 5.12]
+
+
+def test_garmin_sync_survives_unreadable_fit(tmp_path):
+    state = {"garmin": {"last_activity_day": "2026-09-28", "last_wellness_day": "2026-09-30"}}
+
+    def broken(data):
+        raise ValueError("unreadable FIT file")
+
+    sync_garmin(tmp_path, FakeGarmin(), state, today=date(2026, 9, 30), read_streams=broken)
+    acts = load_activities(tmp_path)
+    assert len(acts) == 1 and "streams" not in acts[0]

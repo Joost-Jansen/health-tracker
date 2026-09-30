@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from tools.fit import read_fit_streams
 from tools.store import from_garmin, from_strava, upsert_activity, upsert_wellness, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,7 +158,7 @@ class GarminClient:
         return self.api.client.dumps()
 
 
-def sync_garmin(root: Path, client, state: dict, today: date, since: date | None = None) -> int:
+def sync_garmin(root: Path, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams) -> int:
     g = state.setdefault("garmin", {})
     default_start = since or today - timedelta(days=DEFAULT_BACKFILL_DAYS)
 
@@ -173,7 +174,12 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
         if not fit_path.exists():
             fit_path.parent.mkdir(parents=True, exist_ok=True)
             fit_path.write_bytes(client.fit(activity_id))
-        upsert_activity(root, from_garmin(activity, client.splits(activity_id), fit_file=fit_rel))
+        try:
+            streams = read_streams(fit_path.read_bytes())
+        except ValueError as err:
+            print(f"garmin: geen streams voor {activity_id} ({err})")
+            streams = None
+        upsert_activity(root, from_garmin(activity, client.splits(activity_id), fit_file=fit_rel, streams=streams))
         g["last_activity_day"] = activity["startTimeLocal"][:10]
         count += 1
     g["last_activity_day"] = today.isoformat()

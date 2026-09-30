@@ -144,7 +144,9 @@ export const fmtPaceS = (s?: number | null) => (s ? `${fmtClock(s)}/km` : "–")
 // ── Trends (T5) ──────────────────────────────────────────────────────────────
 
 export type RecordRow = { date: string; seconds: number; activity_id: string };
-export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[] };
+export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[]; detected?: "naam" | "hartslag" };
+export type Prediction = { seconds: number; pace_s_per_km: number; from: { date: string; km: number; seconds: number; activity_id: string; source: "split" | "wedstrijd" } };
+export type Insight = { level: "goed" | "let_op" | "info"; title: string; text: string };
 
 export type Trends = {
   today: string;
@@ -155,6 +157,8 @@ export type Trends = {
   recovery_weekly: { week: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null }[];
   records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
   races: Race[];
+  predictions: Partial<Record<"5k" | "10k" | "21k" | "42k", Prediction>>;
+  insights: Insight[];
 };
 
 // ── Schema (T6) ──────────────────────────────────────────────────────────────

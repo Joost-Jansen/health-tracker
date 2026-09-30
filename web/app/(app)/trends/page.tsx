@@ -80,6 +80,52 @@ export default function TrendsPage() {
         <Tabs variant="quiet" items={RANGES} value={range} onChange={setRange} ariaLabel="Periode" />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <Card title="Inzichten">
+          {t.insights.length === 0 ? (
+            <p className="text-[13px] text-ink-muted">Niets bijzonders.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {t.insights.map((i) => (
+                <li key={i.title} className="flex gap-3 text-[13px]">
+                  <span className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full" style={{ background: i.level === "goed" ? "var(--zone-2)" : i.level === "let_op" ? "var(--zone-4)" : "var(--zone-1)" }} />
+                  <span><span className="font-medium">{i.title}.</span> <span className="text-ink-muted">{i.text}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="Voorspelde wedstrijdtijden">
+          {Object.keys(t.predictions).length === 0 ? (
+            <p className="text-[13px] text-ink-muted">Geen snelle inspanning in de laatste 180 dagen om van uit te gaan.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {(["5k", "10k", "21k", "42k"] as const).map((k) => {
+                  const p = t.predictions[k];
+                  return (
+                    <div key={k} className="flex flex-col">
+                      <span className="text-[11.5px] text-ink-muted">{{ "5k": "5 km", "10k": "10 km", "21k": "Halve marathon", "42k": "Marathon" }[k]}</span>
+                      <span className="font-display text-[21px] leading-tight tabular-nums">{p ? fmtClock(p.seconds) : "–"}</span>
+                      {p && <span className="text-[11px] tabular-nums text-ink-muted">{fmtClock(p.pace_s_per_km)}/km</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {t.predictions["42k"] && (
+                <p className="mt-3 text-[11.5px] text-ink-muted">
+                  Riegel-formule vanaf je langste snelle inspanning van de laatste 180 dagen:{" "}
+                  <Link className="underline underline-offset-2" href={href(t.predictions["42k"].from.activity_id)}>
+                    {fmtKm(t.predictions["42k"].from.km)} in {fmtClock(t.predictions["42k"].from.seconds)} ({fmtDay(t.predictions["42k"].from.date)})
+                  </Link>
+                  . Voor de marathon optimistisch zonder genoeg lange duurlopen van 30+ km; reken op enkele minuten meer.
+                </p>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
       <Card title="Vorm: fitheid, vermoeidheid en frisheid">
         {now && peakCtl && (
           <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
@@ -194,7 +240,7 @@ export default function TrendsPage() {
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[11.5px] text-ink-muted">Herkend aan zwemmen + fietsen + lopen op één dag, of een naam met race, benchmark, marathon. Tijd is bewegende tijd zonder wissels.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">Herkend aan zwemmen + fietsen + lopen op één dag, een naam met race, benchmark, marathon, of een run van 5+ km met 85%+ in Z4-Z5. Tijd is bewegende tijd zonder wissels.</p>
         </Card>
       </div>
     </div>

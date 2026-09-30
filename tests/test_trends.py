@@ -1,6 +1,6 @@
 from datetime import date
 
-from api.trends import build_trends, races, records, recovery_weekly, standalone_runs, vo2max, weekly_volume, z2_pace
+from api.trends import build_trends, insights, predictions, races, records, recovery_weekly, standalone_runs, vo2max, weekly_volume, z2_pace
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}}
 
@@ -68,3 +68,33 @@ def test_build_trends_shape():
     out = build_trends([act("a", "2026-09-01T08:00:00")], {}, ZONES, lambda aid: None, date(2026, 9, 3))
     assert set(out) >= {"form", "weekly", "z2_pace", "vo2max", "recovery_weekly", "records", "races"}
     assert out["form"][-1]["date"] == "2026-09-03"
+
+
+def hard_run(aid, start, km=21.1, secs=6300):
+    return act(aid, start, distance_km=km, moving_time_s=secs, hr_zones_s={"Z1": 0, "Z2": 0, "Z3": 300, "Z4": 5000, "Z5": 1000})
+
+
+def test_hard_run_is_detected_as_race_but_tempo_run_is_not():
+    tempo = act("t", "2026-09-20T08:00:00", hr_zones_s={"Z1": 600, "Z2": 600, "Z3": 600, "Z4": 1800, "Z5": 0})
+    out = races([hard_run("h", "2026-09-27T11:30:00"), tempo])
+    assert [r["activity_ids"] for r in out] == [["h"]] and out[0]["detected"] == "hartslag"
+
+
+def test_predictions_use_riegel_from_longest_recent_effort():
+    acts = [hard_run("h", "2026-09-27T11:30:00", km=21.0975, secs=6000), act("s", "2026-09-01T08:00:00", raw={"fastestSplit_5000": 1260})]
+    p = predictions(acts, date(2026, 9, 30))
+    assert p["42k"]["from"]["activity_id"] == "h"
+    assert p["42k"]["seconds"] == round(6000 * 2 ** 1.06)
+    assert p["5k"]["seconds"] == 1260 and p["5k"]["from"]["source"] == "split"
+    assert predictions(acts, date(2027, 9, 30)) == {}  # nothing in the last 180 days
+
+
+def test_insights_flag_low_easy_share():
+    acts = [hard_run("h", "2026-09-27T11:30:00")]
+    out = insights([], [], acts, date(2026, 9, 30))
+    assert out[0]["level"] == "let_op" and "rustig" in out[0]["title"]
+
+
+def test_predictions_skip_triathlon_runs():
+    acts = [act("s", "2026-09-27T08:00:00", sport="swim"), hard_run("h", "2026-09-27T11:30:00")]
+    assert predictions(acts, date(2026, 9, 30)) == {}

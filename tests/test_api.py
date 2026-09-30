@@ -128,3 +128,11 @@ def test_plans_import_edit_and_match(client):
     assert len(edited["sessions"]) == 1
     assert client.patch(f"/api/plans/{plan['id']}", json={"status": "fout"}).status_code == 422
     assert client.patch(f"/api/plans/{plan['id']}", json={"goal": "marathon"}).json()["goal"] == "marathon"
+
+
+def test_plan_sessions_replaced_from_table(client):
+    login(client)
+    plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-10-01", "sport": "run"}]}).json()
+    res = client.put(f"/api/plans/{plan['id']}/table", json={"text": "| Datum | Sport | Km |\n|---|---|---|\n| 2026-10-02 | lopen | 12 |\n| 2026-10-03 | rust | |"}).json()
+    assert [s["date"] for s in res["plan"]["sessions"]] == ["2026-10-02", "2026-10-03"]
+    assert client.put(f"/api/plans/{plan['id']}/table", json={"text": "geen tabel"}).status_code == 422

@@ -9,6 +9,7 @@ MIN_RUNS runs becomes a route.
 from __future__ import annotations
 
 import math
+import re
 from statistics import median
 
 CELL_M = 100.0
@@ -22,6 +23,7 @@ LOOP_RADIUS_M = 300.0  # watch is often stopped a few hundred metres before home
 MAX_DISTANCE_DIFF = 0.10
 MIN_OVERLAP = 0.75  # real data: same loop with a small detour overlaps ~76%
 MIN_RUNS = 3
+DEFAULT_NAME = re.compile(r"^\d+\.\d km (rondje|route) \(r\d+\)$")
 
 
 def haversine_m(a, b) -> float:
@@ -110,7 +112,8 @@ def build_routes(runs: list[dict], existing: list[dict]) -> list[dict]:
         match = next((r for r in unmatched if same_shape(_stored_shape(r), rep)), None)
         if match:
             unmatched.remove(match)
-            route_id, name = match["id"], match["name"]
+            route_id = match["id"]
+            name = None if DEFAULT_NAME.match(match["name"]) else match["name"]  # keep only names Joost gave
         else:
             route_id, name = f"r{next_n}", None
             next_n += 1

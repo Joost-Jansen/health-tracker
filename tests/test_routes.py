@@ -88,3 +88,12 @@ def test_run_stopped_just_before_home_still_counts_as_loop():
     track = square_loop()[:-27]  # ends ~260 m before the start
     runs = [run(f"x{i}", f"2026-09-0{i + 1}", track, 3.7) for i in range(3)]
     assert build_routes(runs, existing=[])[0]["is_loop"] is True
+
+
+def test_generated_default_name_follows_new_distance():
+    first = build_routes(_three_ne_loops(), existing=[])
+    assert first[0]["name"] == "4.0 km rondje (r1)"
+    more = _three_ne_loops() + [run(f"n{i}", f"2026-09-2{i}", square_loop(noise_m=5, seed=20 + i), 4.3) for i in range(3)]
+    again = build_routes(more, existing=first)
+    assert again[0]["name"] == f"{again[0]['distance_km']:.1f} km rondje (r1)"
+    assert again[0]["distance_km"] != 4.0

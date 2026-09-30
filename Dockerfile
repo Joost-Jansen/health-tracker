@@ -1,6 +1,5 @@
 # Trainingsdashboard: één image met de statische site (web/out) en de FastAPI-API.
-# Railway bouwt dit bij elke push naar main, dus ook na elke dagelijkse sync: de
-# data in data/ zit in de image, er is geen database of volume.
+# De data staat in Postgres (DATABASE_URL); de image bevat alleen code.
 
 FROM node:22-alpine AS web
 WORKDIR /web
@@ -18,8 +17,6 @@ COPY api/requirements.txt api/requirements.txt
 RUN pip install -r api/requirements.txt
 COPY api/ api/
 COPY tools/ tools/
-COPY data/ data/
-COPY zones.json ./
 COPY --from=web /web/out web/out
 RUN useradd --uid 1000 --create-home appuser
 USER appuser

@@ -1,35 +1,35 @@
-"""Read-only access to the repo's data. Summaries stay in memory; GPS/HR streams are read from disk on demand."""
+"""Read access for the API. Every call reads the database, so a sync or an agent write shows up immediately."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from sqlalchemy.engine import Engine
 
-from tools.store import load_wellness
-from tools.zones import load_zones
+from tools import db
 
 
 class DataStore:
-    def __init__(self, root: Path):
-        self.root = Path(root)
-        self._paths: dict[str, Path] = {}
-        self.activities: list[dict] = []
-        for path in sorted((self.root / "data" / "activities").glob("*/*.json")):
-            a = json.loads(path.read_text())
-            a.pop("streams", None)
-            a["id"] = path.stem
-            self._paths[path.stem] = path
-            self.activities.append(a)
-        self.wellness = load_wellness(self.root)
-        self.zones = load_zones(self.root)
-        state_path = self.root / "data" / "sync_state.json"
-        state = json.loads(state_path.read_text()) if state_path.exists() else {}
-        self.last_sync = state.get("last_sync_local", "nog nooit")
+    def __init__(self, engine: Engine):
+        self.engine = engine
+
+    @property
+    def activities(self) -> list[dict]:
+        return db.load_activities(self.engine)
+
+    @property
+    def wellness(self) -> dict:
+        return db.load_wellness(self.engine)
+
+    @property
+    def zones(self) -> dict:
+        return db.get_setting(self.engine, "zones") or {}
+
+    @property
+    def last_sync(self) -> str:
+        state = db.get_setting(self.engine, "sync_state") or {}
+        text = state.get("last_sync_local", "nog nooit")
         if state.get("last_failed"):
-            self.last_sync += f"; mislukt: {', '.join(state['last_failed'])}"
+            text += f"; mislukt: {', '.join(state['last_failed'])}"
+        return text
 
     def streams(self, activity_id: str) -> dict | None:
-        path = self._paths.get(activity_id)
-        if path is None:
-            return None
-        return json.loads(path.read_text()).get("streams") or {}
+        return db.load_streams(self.engine, activity_id)

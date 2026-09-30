@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from api import auth
 from api.dashboard import build_dashboard
 from api.data import DataStore
+from tools import db
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -46,9 +47,12 @@ class Credentials(BaseModel):
     password: str
 
 
-def create_app(root: Path = ROOT, static_dir: Path | None = None, settings: Settings | None = None) -> FastAPI:
+def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    store = DataStore(root)
+    if engine is None:
+        engine = db.connect(os.environ["DATABASE_URL"])
+    db.create_schema(engine)
+    store = DataStore(engine)
     throttle = auth.Throttle()
     app = FastAPI(title="training", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -91,7 +95,7 @@ def create_app(root: Path = ROOT, static_dir: Path | None = None, settings: Sett
     def dashboard(user: str = Depends(current_user)):
         return build_dashboard(store.activities, store.wellness, store.zones, datetime.now(TZ).date(), store.last_sync)
 
-    static_dir = static_dir or root / "web" / "out"
+    static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="site")
     return app

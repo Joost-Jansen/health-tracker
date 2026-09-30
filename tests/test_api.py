@@ -6,15 +6,17 @@ from fastapi.testclient import TestClient
 
 from api.main import Settings, create_app
 from tests.helpers import square_loop
-from tools.store import upsert_activity
+from tools import db
 
 PASSWORD = "test-wachtwoord-123"
 
 
 @pytest.fixture
-def root(tmp_path):
-    upsert_activity(
-        tmp_path,
+def engine(tmp_path):
+    e = db.connect(f"sqlite:///{tmp_path / 'test.db'}")
+    db.create_schema(e)
+    db.upsert_activity(
+        e,
         {
             "start_utc": "2026-09-29T06:00:00Z",
             "start_local": "2026-09-29T08:00:00",
@@ -27,20 +29,24 @@ def root(tmp_path):
             "sources": {"garmin": {"id": 1, "raw": {}}},
         },
     )
-    (tmp_path / "zones.json").write_text(json.dumps({"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}}))
-    (tmp_path / "data" / "sync_state.json").write_text(json.dumps({"last_sync_local": "2026-09-30 06:02"}))
-    return tmp_path
+    db.set_setting(e, "zones", {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}})
+    db.set_setting(e, "sync_state", {"last_sync_local": "2026-09-30 06:02"})
+    return e
 
 
-@pytest.fixture
-def client(root):
-    settings = Settings(
+def make_settings(**kw):
+    return Settings(
         user="joost",
         password_hash=bcrypt.hashpw(PASSWORD.encode(), bcrypt.gensalt(rounds=4)).decode(),
         jwt_secret="x" * 32,
         cookie_secure=False,
+        **kw,
     )
-    return TestClient(create_app(root=root, static_dir=root / "missing", settings=settings))
+
+
+@pytest.fixture
+def client(engine, tmp_path):
+    return TestClient(create_app(engine=engine, static_dir=tmp_path / "missing", settings=make_settings()))
 
 
 def login(client, password=PASSWORD, user="joost"):
@@ -94,6 +100,12 @@ def test_dashboard_lists_activity_without_gps(client):
     assert "streams" not in client.get("/api/dashboard").json()["recent"][0]
 
 
-def test_missing_settings_refuse_all_logins(root):
-    app = create_app(root=root, static_dir=root / "missing", settings=Settings(user="", password_hash="", jwt_secret="", cookie_secure=False))
+def test_missing_settings_refuse_all_logins(engine, tmp_path):
+    app = create_app(engine=engine, static_dir=tmp_path / "missing", settings=Settings(user="", password_hash="", jwt_secret="", cookie_secure=False))
     assert TestClient(app).post("/api/login", json={"username": "", "password": ""}).status_code == 401
+
+
+def test_dashboard_reads_the_database_live(client, engine):
+    login(client)
+    db.set_setting(engine, "sync_state", {"last_sync_local": "2026-10-01 06:00"})
+    assert client.get("/api/dashboard").json()["last_sync"] == "2026-10-01 06:00"

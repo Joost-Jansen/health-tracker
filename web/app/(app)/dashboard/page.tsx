@@ -73,7 +73,7 @@ export default function DashboardPage() {
               {!multiSport && <p className="-mt-2 text-[11.5px] text-ink-muted">Alleen {sportLabel(zoneSports[0]).toLowerCase()} in deze periode.</p>}
             </div>
           )}
-          <p className="mt-4 text-[11.5px] text-ink-muted">Alle sporten telt elke sport met zijn eigen zones (zones.json). Fiets- en zwemzones zijn geschat.</p>
+          <p className="mt-4 text-[11.5px] text-ink-muted">Alle sporten telt elke sport met zijn eigen zones. Fiets- en zwemzones zijn geschat.</p>
         </Card>
 
         <Card title="Volume deze week">

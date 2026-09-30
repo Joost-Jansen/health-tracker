@@ -382,4 +382,15 @@ def make_router(
         db.replace_sessions(engine(), plan_id, [_check_session(s.model_dump()) for s in body])
         return full(must(plan_id))
 
+    @r.put("/api/plans/{plan_id}/table")
+    def put_table(plan_id: int, body: ImportIn, who: str = Depends(author)):
+        """Replace all sessions from a markdown/CSV table (what agents edit most easily)."""
+        must(plan_id)
+        items, warnings = parse_table(body.text, today().year)
+        if not items:
+            raise HTTPException(status_code=422, detail="; ".join(warnings) or "geen sessies gevonden")
+        if not body.preview:
+            db.replace_sessions(engine(), plan_id, items)
+        return {"sessions": items, "warnings": warnings, "saved": not body.preview, "plan": full(must(plan_id))}
+
     return r

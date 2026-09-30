@@ -159,16 +159,32 @@ def _merge(existing: dict, incoming: dict) -> dict:
     return merged
 
 
-def upsert_activity(root: Path, record: dict) -> Path:
-    """Write the record, merging with an existing file for the same activity (±2 min)."""
+def prepare(record: dict) -> dict:
+    """Keep each source's own scalar values next to it, so a later merge can pick by source priority."""
     (src,) = record["sources"]
     record = dict(record)
     record["sources"] = {src: dict(record["sources"][src], fields={k: record[k] for k in SCALAR_FIELDS if k in record})}
+    return record
 
+
+def activity_id(record: dict) -> str:
+    return record["start_local"][:16].replace("T", "_").replace(":", "") + "_" + record["sport"]
+
+
+def same_start(a: dict, b: dict) -> bool:
+    return abs((_parse_utc(a["start_utc"]) - _parse_utc(b["start_utc"])).total_seconds()) <= MATCH_WINDOW_S
+
+
+def merge(existing: dict, incoming: dict) -> dict:
+    return _merge(existing, incoming)
+
+
+def upsert_activity(root: Path, record: dict) -> Path:
+    """Write the record, merging with an existing file for the same activity (±2 min)."""
+    record = prepare(record)
     path = _find_match(root, record)
     if path is None:
-        stamp = record["start_local"][:16].replace("T", "_").replace(":", "")
-        path = _activities_dir(root) / record["start_local"][:4] / f"{stamp}_{record['sport']}.json"
+        path = _activities_dir(root) / record["start_local"][:4] / f"{activity_id(record)}.json"
         merged = _merge({}, record)
     else:
         merged = _merge(json.loads(path.read_text()), record)

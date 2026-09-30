@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import auth
+from api import auth, routes_api
 from api.content import content_router
 from api.dashboard import build_dashboard
 from api.data import DataStore
@@ -145,6 +145,11 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         plans_router(lambda: engine, lambda: store.activities, lambda: store.routes, lambda: datetime.now(TZ).date(), current_user, persistent=True)
     )
     app.include_router(content_router(store, current_user))
+    app.include_router(
+        routes_api.make_router(
+            lambda: store.routes, lambda: store.activities, store.streams, lambda: datetime.now(TZ).date(), current_user, save=lambda items: db.save_routes(engine, items)
+        )
+    )
 
     static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():

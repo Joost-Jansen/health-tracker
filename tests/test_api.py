@@ -148,3 +148,10 @@ def test_plan_sessions_replaced_from_table(client):
     res = client.put(f"/api/plans/{plan['id']}/table", json={"text": "| Datum | Sport | Km |\n|---|---|---|\n| 2026-10-02 | lopen | 12 |\n| 2026-10-03 | rust | |"}).json()
     assert [s["date"] for s in res["plan"]["sessions"]] == ["2026-10-02", "2026-10-03"]
     assert client.put(f"/api/plans/{plan['id']}/table", json={"text": "geen tabel"}).status_code == 422
+
+
+def test_routes_endpoints_are_wired(client):
+    assert client.get("/api/routes").status_code == 401
+    login(client)
+    assert client.get("/api/routes").json() == []
+    assert client.get("/api/routes/suggest?km=10").json() == {"km": 10.0, "options": []}

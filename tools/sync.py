@@ -24,7 +24,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.fit import read_fit_streams
-from tools.store import from_garmin, from_strava, upsert_activity, upsert_wellness, wellness_from_garmin
+from tools.store import from_garmin, from_strava, upsert_activity, write_wellness, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKFILL_DAYS = 90
@@ -202,7 +202,7 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
     while day <= today:
         values = client.wellness(day.isoformat())
         if values:
-            upsert_wellness(root, day.isoformat(), values)
+            write_wellness(root, day.isoformat(), values)
         g["last_wellness_day"] = day.isoformat()
         day += timedelta(days=1)
     return count

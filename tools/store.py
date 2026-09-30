@@ -218,12 +218,11 @@ def _wellness_dir(root: Path) -> Path:
     return Path(root) / "data" / "wellness"
 
 
-def upsert_wellness(root: Path, day: str, values: dict) -> Path:
+def write_wellness(root: Path, day: str, values: dict) -> Path:
+    """Replace the day: Garmin is the only source, and a refetch must drop values newer cleaning rules reject."""
     path = _wellness_dir(root) / day[:4] / f"{day}.json"
-    current = json.loads(path.read_text()) if path.exists() else {}
-    current.update(values)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(current, ensure_ascii=False, indent=1))
+    path.write_text(json.dumps(values, ensure_ascii=False, indent=1))
     return path
 
 

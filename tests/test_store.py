@@ -1,6 +1,6 @@
 import json
 
-from tools.store import from_garmin, from_strava, load_activities, load_wellness, upsert_activity, upsert_wellness, wellness_from_garmin
+from tools.store import from_garmin, from_strava, load_activities, load_wellness, upsert_activity, write_wellness, wellness_from_garmin
 
 STRAVA_ACTIVITY = {
     "id": 111,
@@ -123,10 +123,11 @@ def test_wellness_tolerates_missing_data():
     assert wellness_from_garmin(sleep={}, hrv=None, summary={}, readiness=[]) == {}
 
 
-def test_wellness_upsert_merges_per_day(tmp_path):
-    upsert_wellness(tmp_path, "2026-09-28", {"sleep_h": 7.5})
-    upsert_wellness(tmp_path, "2026-09-28", {"resting_hr": 48})
-    assert load_wellness(tmp_path) == {"2026-09-28": {"sleep_h": 7.5, "resting_hr": 48}}
+def test_wellness_refetch_replaces_the_day(tmp_path):
+    # a refetch must drop values that newer cleaning rules no longer keep (seen: stale resting HR 131)
+    write_wellness(tmp_path, "2026-09-28", {"resting_hr": 131, "stress_avg": -1})
+    write_wellness(tmp_path, "2026-09-28", {"steps": 500})
+    assert load_wellness(tmp_path) == {"2026-09-28": {"steps": 500}}
 
 
 def test_negative_values_mean_no_data():

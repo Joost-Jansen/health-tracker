@@ -79,3 +79,20 @@ def test_empty_data_does_not_crash():
     d = build_dashboard([], {}, ZONES, TODAY, last_sync="nog nooit")
     assert d["zones"] == {"week": {}, "month": {}}
     assert d["form"] is None
+
+
+def test_all_sports_total_sums_zone_time_of_each_sport():
+    # each activity's hr_zones_s is already computed with its own sport's zones; "all" adds them up
+    acts = [
+        act("2026-09-29", z={"Z1": 600, "Z2": 1800, "Z3": 600, "Z4": 600, "Z5": 0}),
+        act("2026-09-30", sport="ride", z={"Z1": 3600, "Z2": 0, "Z3": 0, "Z4": 0, "Z5": 0}),
+    ]
+    week = build_dashboard(acts, {}, ZONES, TODAY, last_sync="x")["zones"]["week"]
+    assert week["all"]["total_s"] == 7200
+    assert week["all"]["seconds"]["Z1"] == 4200
+    assert week["all"]["pct"]["Z2"] == 25.0
+    assert set(week) == {"all", "run", "ride"}
+
+
+def test_all_sports_absent_without_heart_rate_data():
+    assert "all" not in build_dashboard([], {}, ZONES, TODAY, last_sync="x")["zones"]["week"]

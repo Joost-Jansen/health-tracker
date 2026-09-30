@@ -1,0 +1,361 @@
+// De lijnenset — alleen streken, nergens een emoji. De streek volgt
+// currentColor, zodat de tekstkleur eromheen ze meekleurt.
+//
+// Streekdikte 1,5 en niet 2: Meridian schrijft dat voor, en de reden is te zien
+// zodra je een icoon naast een regel tekst zet — op 2 is de glyph zwaarder dan
+// de letters ernaast en trekt hij de aandacht naar zich toe in plaats van het
+// label te ondersteunen. Iconen zitten in --text-faint; alleen de actieve
+// navigatieglyph krijgt terracotta.
+//
+// Maten: 16 in chroom, 15 in een knop, 22 in een lege staat.
+
+import type { SVGProps } from "react";
+
+type IconProps = SVGProps<SVGSVGElement>;
+
+function Icon({ children, ...props }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export function TrendingUpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M17 7h4v4" />
+    </Icon>
+  );
+}
+
+export function TrendingDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 7l6 6 4-4 8 8" />
+      <path d="M17 17h4v-4" />
+    </Icon>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
+      <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+    </Icon>
+  );
+}
+
+export function NewspaperIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5h13v15H5a1 1 0 0 1-1-1z" />
+      <path d="M17 8h3v10a2 2 0 0 1-2 2" />
+      <path d="M7 9h7M7 12.5h7M7 16h4" />
+    </Icon>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 15V3M7 8l5-5 5 5" />
+      <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+    </Icon>
+  );
+}
+
+export function RefreshIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+    </Icon>
+  );
+}
+
+export function MoonIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </Icon>
+  );
+}
+
+export function SunIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Icon>
+  );
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </Icon>
+  );
+}
+
+export function InboxIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 12h4l2 3h4l2-3h4" />
+      <path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7z" />
+    </Icon>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M4 19v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" transform="translate(0 -2)" />
+    </Icon>
+  );
+}
+
+export function FolderIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </Icon>
+  );
+}
+
+/** Two opposed arrows — "this control swaps between two things". */
+export function SwapIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 4v16" />
+      <path d="M4 7l3-3 3 3" />
+      <path d="M17 20V4" />
+      <path d="M14 17l3 3 3-3" />
+    </Icon>
+  );
+}
+
+export function InfoIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-5" />
+      <path d="M12 8h.01" />
+    </Icon>
+  );
+}
+
+// De vraagtekenvariant. Dezelfde cirkel op dezelfde straal als InfoIcon, want
+// de twee staan nooit ver uit elkaar: de "i" hoort bij één getal, de "?" bij
+// een heel scherm. Alleen wat erin staat verschilt, en dat is precies het
+// verschil in reikwijdte dat de gebruiker moet kunnen zien.
+export function HelpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.4a2.5 2.5 0 0 1 4.86.83c0 1.67-2.5 2.5-2.5 2.5" />
+      <path d="M12 16.5h.01" />
+    </Icon>
+  );
+}
+
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M15 5l-7 7 7 7" />
+    </Icon>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 5l7 7-7 7" />
+    </Icon>
+  );
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 9l7 7 7-7" />
+    </Icon>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </Icon>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Navigatie: één glyph per bestemming in de zijbalk, en de hamburger die hem
+// op een telefoon openvouwt.
+// ---------------------------------------------------------------------------
+
+export function MenuIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Icon>
+  );
+}
+
+/** Vandaag — het overzicht van vlakken. */
+export function LayoutIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+    </Icon>
+  );
+}
+
+/** Portefeuille — een lijst posities. */
+export function ListIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+    </Icon>
+  );
+}
+
+/** Rendement — een lijn die klimt. */
+export function ChartLineIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4v15a1 1 0 0 0 1 1h15" />
+      <path d="M7.5 15.5l4-4.5 3 2.5 4.5-6" />
+    </Icon>
+  );
+}
+
+/** Spreiding — de verdelingsbalk zelf, in het klein. */
+export function SegmentsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="9.5" width="7" height="5" rx="1.5" />
+      <rect x="11.5" y="9.5" width="4.5" height="5" rx="1.5" />
+      <rect x="17.5" y="9.5" width="3.5" height="5" rx="1.5" />
+    </Icon>
+  );
+}
+
+/** Dividend — geld dat binnenkomt zonder dat je iets verkoopt. */
+export function CoinsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <ellipse cx="12" cy="6.5" rx="7" ry="2.75" />
+      <path d="M5 6.5v5c0 1.5 3.1 2.75 7 2.75s7-1.25 7-2.75v-5" />
+      <path d="M5 11.5v5c0 1.5 3.1 2.75 7 2.75s7-1.25 7-2.75v-5" />
+    </Icon>
+  );
+}
+
+export function SettingsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3" />
+    </Icon>
+  );
+}
+
+/** Rekeningen — een portemonnee: geld dat niet in effecten zit. */
+export function WalletIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 0 1 1 1v2" />
+      <path d="M3 7.5V17a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-2" />
+      <path d="M20 9.5h-4a2.5 2.5 0 0 0 0 5h4a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1Z" />
+    </Icon>
+  );
+}
+
+/** Uitgaven — een labeltje: waar het geld heen ging. */
+export function TagIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M11.6 3.5H5.5A2 2 0 0 0 3.5 5.5v6.1a2 2 0 0 0 .6 1.4l7 7a2 2 0 0 0 2.8 0l6.1-6.1a2 2 0 0 0 0-2.8l-7-7a2 2 0 0 0-1.4-.6Z" />
+      <path d="M7.8 7.8h.01" />
+    </Icon>
+  );
+}
+
+/** Vermogen — een lijn die stijgt, met de vlakken eronder. */
+export function GrowthIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 19.5h18" />
+      <path d="M3.5 15.5l5-5 4 3 7-7" />
+      <path d="M15.5 6.5h4v4" />
+    </Icon>
+  );
+}
+
+/** Hardlopen, fietsen, zwemmen en de trainingsbestemmingen. */
+export function HeartPulseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M19.5 12.6 12 20l-7.5-7.4A4.6 4.6 0 0 1 12 6.5a4.6 4.6 0 0 1 7.5 6.1Z" />
+      <path d="M3.5 12.5h4l1.5-2.5 2.5 5 2-3.5h7" />
+    </Icon>
+  );
+}
+
+export function MapIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2Z" />
+      <path d="M9 4.5v13M15 6.5v13" />
+    </Icon>
+  );
+}
+
+export function RouteIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <path d="M8 18h7.5a3 3 0 0 0 0-6h-7a3 3 0 0 1 0-6H16" />
+    </Icon>
+  );
+}
+
+export function ClipboardIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3.5h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4" />
+    </Icon>
+  );
+}

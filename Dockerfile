@@ -1,0 +1,30 @@
+# Trainingsdashboard: één image met de statische site (web/out) en de FastAPI-API.
+# Railway bouwt dit bij elke push naar main, dus ook na elke dagelijkse sync: de
+# data in data/ zit in de image, er is geen database of volume.
+
+FROM node:22-alpine AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM python:3.12-slim
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 TZ=Europe/Amsterdam
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY api/requirements.txt api/requirements.txt
+RUN pip install -r api/requirements.txt
+COPY api/ api/
+COPY tools/ tools/
+COPY data/ data/
+COPY zones.json ./
+COPY --from=web /web/out web/out
+RUN useradd --uid 1000 --create-home appuser
+USER appuser
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import os,urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:%s/api/health' % os.environ.get('PORT','8000')).getcode()==200 else 1)"
+# HOST 0.0.0.0, niet :: (zie een eerder project/DEPLOY.md: anders faalt de IPv4-healthcheck op Railway).
+CMD ["sh", "-c", "exec uvicorn api.main:create_app --factory --host \"${HOST:-0.0.0.0}\" --port \"${PORT:-8000}\""]

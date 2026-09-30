@@ -41,12 +41,16 @@ def _zone_share(activities: list[dict]) -> dict:
     for a in activities:
         for z, secs in (a.get("hr_zones_s") or {}).items():
             per_sport[a["sport"]][z] += secs
-    out = {}
-    for sport, secs in per_sport.items():
-        total = sum(secs.values())
-        if total:
-            out[sport] = {"seconds": secs, "total_s": total, "pct": {z: round(s / total * 100, 1) for z, s in secs.items()}}
+    out = {sport: _share(secs) for sport, secs in per_sport.items() if sum(secs.values())}
+    if out:
+        # every sport's seconds were counted with its own zones, so the total is a plain sum
+        out["all"] = _share({z: sum(v["seconds"][z] for v in out.values()) for z in NAMES})
     return out
+
+
+def _share(secs: dict[str, int]) -> dict:
+    total = sum(secs.values())
+    return {"seconds": secs, "total_s": total, "pct": {z: round(s / total * 100, 1) for z, s in secs.items()}}
 
 
 def _volume(activities: list[dict], weeks: int = 1) -> dict:

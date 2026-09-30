@@ -23,7 +23,8 @@ from api.content import content_router
 from api.dashboard import build_dashboard
 from api.data import DataStore
 from api.history import activity_detail, heatmap, list_activities
-from api.plans import make_router as plans_router
+from api.plans import enrich, make_router as plans_router
+from api.readiness import readiness
 from api.trends import build_trends
 from tools import db
 
@@ -108,7 +109,15 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     @app.get("/api/dashboard")
     def dashboard(user: str = Depends(current_user)):
-        return build_dashboard(store.activities, store.wellness, store.zones, datetime.now(TZ).date(), store.last_sync)
+        today = datetime.now(TZ).date()
+        out = build_dashboard(store.activities, store.wellness, store.zones, today, store.last_sync)
+        out["readiness"] = readiness(store.wellness, today, out["form"]["tsb"] if out["form"] else None)
+        plan = db.active_plan(engine)
+        if plan:
+            sessions = enrich(plan, store.activities, store.routes, today)["sessions"]
+            out["upcoming"] = [s for s in sessions if s["date"] >= today.isoformat()][:5]
+            out["plan_title"] = plan["title"]
+        return out
 
     cache: dict = {}
 

@@ -155,3 +155,12 @@ def test_routes_endpoints_are_wired(client):
     login(client)
     assert client.get("/api/routes").json() == []
     assert client.get("/api/routes/suggest?km=10").json() == {"km": 10.0, "options": []}
+
+
+def test_dashboard_has_upcoming_sessions_and_readiness(client):
+    login(client)
+    assert client.get("/api/dashboard").json()["upcoming"] == []
+    client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2020-01-01", "sport": "run"}, {"date": "2099-01-01", "sport": "run", "distance_km": 10}]})
+    d = client.get("/api/dashboard").json()
+    assert [s["date"] for s in d["upcoming"]] == ["2099-01-01"] and d["plan_title"] == "Blok"
+    assert "readiness" in d

@@ -51,7 +51,16 @@ export type Dashboard = {
   form: null | { ctl: number; atl: number; tsb: number; status: string; ctl_peak: number; ctl_peak_date: string; series: FormRow[] };
   recent: ActivitySummary[];
   recovery: { days: ({ date: string } & Record<string, number | string>)[]; baseline_rhr: number | null };
-  upcoming: unknown[];
+  upcoming: PlanSession[];
+  plan_title?: string;
+  readiness?: Readiness | null;
+};
+
+export type Readiness = {
+  verdict: "klaar" | "rustig aan" | "herstel" | "onbekend";
+  text: string;
+  date: string | null;
+  signals: { key: string; label: string; value: string; note: string; level: "ok" | "attention" | "warn" }[];
 };
 
 export function fmtDuration(seconds?: number): string {

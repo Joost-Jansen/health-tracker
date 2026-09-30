@@ -4,6 +4,7 @@
 // hoe fris je bent, en je laatste activiteiten en herstel.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
@@ -15,8 +16,65 @@ import {
   fmtDuration,
   fmtIntensity,
   fmtKm,
+  type PlanSession,
+  type Readiness,
   sportLabel,
 } from "@/lib/training";
+
+const VERDICT: Record<Readiness["verdict"], { label: string; colour: string }> = {
+  klaar: { label: "Klaar voor training", colour: "var(--zone-2)" },
+  "rustig aan": { label: "Rustig aan", colour: "var(--zone-3)" },
+  herstel: { label: "Herstel eerst", colour: "var(--zone-5)" },
+  onbekend: { label: "Geen nachtdata", colour: "var(--zone-1)" },
+};
+const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
+
+function ReadinessCard({ r }: { r: Readiness }) {
+  const v = VERDICT[r.verdict];
+  return (
+    <Card title="Klaar voor vandaag?">
+      <div className="flex items-center gap-2.5">
+        <span className="inline-block h-3 w-3 rounded-full" style={{ background: v.colour }} />
+        <span className="font-display text-[23px] font-light">{v.label}</span>
+      </div>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">{r.text}</p>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] tabular-nums">
+        {r.signals.map((s) => (
+          <div key={s.key}>
+            <dt className="flex items-center gap-1.5 text-ink-muted"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />{s.label}</dt>
+            <dd><span className="text-[15px]">{s.value}</span> {s.note && <span className="text-[11px] text-ink-muted">{s.note}</span>}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-[11px] text-ink-muted">Vergelijkt afgelopen nacht met je eigen normaal. Geen medisch advies: voel je je ziek of heb je pijn, train niet.</p>
+    </Card>
+  );
+}
+
+function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string }) {
+  return (
+    <Card title="Komende trainingen" more="Schema" moreHref="/plan/">
+      {sessions.length === 0 ? (
+        <p className="text-[13px] text-ink-muted">{title ? "Geen sessies meer in het schema." : "Nog geen actief schema."} <Link href="/plan/" className="underline underline-offset-2">Schema</Link></p>
+      ) : (
+        <ul className="flex flex-col">
+          {sessions.map((s, i) => (
+            <li key={`${s.date}-${i}`} className="grid grid-cols-[92px_1fr] gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
+              <span className={s.status === "vandaag" ? "font-semibold" : "text-ink-muted"}>{s.status === "vandaag" ? "Vandaag" : fmtDate(s.date)}</span>
+              <span>
+                <span className="font-medium">{s.sport === "rest" ? "Rust" : sportLabel(s.sport)}</span>
+                {[s.kind, s.distance_km ? fmtKm(s.distance_km) : null, s.duration_min ? `${s.duration_min} min` : null, s.target_zone].filter(Boolean).map((x) => <span key={String(x)} className="text-ink-muted"> · {x}</span>)}
+                {s.status === "gedaan" && <span className="text-gain"> · gedaan</span>}
+                {s.route_suggestion && <span className="block text-[12px] text-ink-muted">Rondje: {s.route_suggestion.names.join(" + ")}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {title && <p className="mt-2 text-[11.5px] text-ink-muted">Uit: {title}</p>}
+    </Card>
+  );
+}
 
 const SPORT_ORDER = ["run", "ride", "swim"];
 const bySportOrder = (a: string, b: string) =>
@@ -58,6 +116,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[12.5px] text-ink-muted">Laatste sync: {d.last_sync} (Europe/Amsterdam)</p>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+        {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
+        <Upcoming sessions={d.upcoming} title={d.plan_title} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card title="Tijd per hartslagzone" action={

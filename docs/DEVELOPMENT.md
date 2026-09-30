@@ -28,7 +28,7 @@ Railway project "training" (EU, europe-west4)
 GitHub Joost-Jansen/training (private): code only; every push to main redeploys web
 ```
 
-Current state: `web` reads Postgres (T1 done). The daily Garmin sync still runs as a GitHub Action writing to the legacy files in `data/` until T2 moves it to a Railway cron writing Postgres; until then Postgres is refreshed by re-running the migration. Build nothing new on the file layer (`tools/store.py` load/write functions, `data/`, `summary/`); use `tools/db.py`.
+Current state: `web` reads Postgres (T1 done). The Railway cron `sync` writes Garmin data into Postgres (T2); it goes live once Joost has set the Garmin tokens, after which the legacy GitHub Action and the `data/` files are removed. Never write to Postgres from outside Railway except through the API; a temporary TCP proxy was used once for the migration and removed. Build nothing new on the file layer (`tools/store.py` load/write functions, `data/`, `summary/`); use `tools/db.py`.
 
 Region: `web` and `Postgres` run in `us-west2` because the Postgres volume did not move with a region change; moving the volume to `europe-west4` is an open item for Joost (see `docs/WORK.md`).
 
@@ -43,7 +43,8 @@ Coaching agents use `tools/tr.py` with `TRAINING_API_URL` and `TRAINING_API_TOKE
 | Project | `training`, id `<project-id>`, workspace "Joost Jansen's Projects" |
 | Environment | `production`, id `<environment-id>` |
 | Service `web` | id `<service-id>`, source `Joost-Jansen/training@main`, healthcheck `/api/health` |
-| Service `Postgres` | id `<service-id>` (template `postgres`, volume) |
+| Service `Postgres` | id `<service-id>` (template `postgres`, volume, us-west2, private network only) |
+| Service `sync` | id `<service-id>`, `Dockerfile.sync`, cron `0 4 * * *` (UTC), variables `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, `GARMINTOKENS` (initial only; the database keeps the rotated copy, encrypted) |
 | Domain | https://your-domain.example |
 | Variables on `web` | `PORT=8000`, `HOST=0.0.0.0`, `TZ`, `TRAINING_USER`, `TRAINING_PASSWORD_HASH`, `TRAINING_JWT_SECRET` (set by Joost via `tools/set_dashboard_password.py`), `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_AGENT_TOKEN_HASH` (via `tools/set_agent_token.py`) |
 

@@ -1,0 +1,71 @@
+import hashlib
+
+import pytest
+from fastapi.testclient import TestClient
+
+from api.main import create_app
+from tests.test_api import engine, make_settings  # noqa: F401  (engine is a fixture)
+
+TOKEN = "mcp-test-token"
+
+
+@pytest.fixture
+def client(engine, tmp_path):  # noqa: F811
+    settings = make_settings(agent_token_hash=hashlib.sha256(TOKEN.encode()).hexdigest())
+    return TestClient(create_app(engine=engine, static_dir=tmp_path / "missing", settings=settings))
+
+
+def rpc(client, method, params=None, mid=1, path="/api/mcp", auth=True):
+    headers = {"Authorization": f"Bearer {TOKEN}"} if auth else {}
+    return client.post(path, headers=headers, json={"jsonrpc": "2.0", "id": mid, "method": method, "params": params or {}})
+
+
+def call(client, name, **args):
+    res = rpc(client, "tools/call", {"name": name, "arguments": args}).json()["result"]
+    return res["content"][0]["text"], res["isError"]
+
+
+def test_requires_token(client):
+    assert rpc(client, "tools/list", auth=False).status_code == 401
+    assert rpc(client, "tools/list", auth=False, path="/api/mcp/fout").status_code == 401
+    assert rpc(client, "tools/list", auth=False, path=f"/api/mcp/{TOKEN}").status_code == 200
+
+
+def test_initialize_and_list(client):
+    init = rpc(client, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}).json()["result"]
+    assert init["protocolVersion"] == "2025-03-26" and "tools" in init["capabilities"]
+    note = client.post("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json={"jsonrpc": "2.0", "method": "notifications/initialized"})
+    assert note.status_code == 202
+    names = {t["name"] for t in rpc(client, "tools/list").json()["result"]["tools"]}
+    assert {"get_context", "get_plan", "create_plan", "replace_plan_sessions", "add_log", "update_doc"} <= names
+    assert rpc(client, "nope").json()["error"]["code"] == -32601
+
+
+def test_tools_read_and_write(client):
+    text, err = call(client, "list_activities", sport="run")
+    assert not err and "Ochtendloop" in text
+    aid = text.splitlines()[2].split("|")[1].strip()
+    assert "Ochtendloop" in call(client, "get_activity", id=aid)[0]
+    assert call(client, "get_activity", id="bestaat-niet")[1] is True
+
+    table = "| Datum | Sport | Km | Zone |\n|---|---|---|---|\n| 2026-09-29 | lopen | 10 | Z2 |\n| 2026-10-02 | lopen | 14 | Z2 |"
+    text, err = call(client, "create_plan", title="Blok 1", table=table, goal="marathon 3:45")
+    assert not err and "gedaan" in text and "door agent" in text
+    text, _ = call(client, "replace_plan_sessions", table=table.replace("14", "16"))
+    assert "| 16.0 |" in text
+    assert "afgerond" in call(client, "set_plan_status", status="afgerond")[0]
+    assert call(client, "get_plan")[0] == "Geen actief schema."
+
+    call(client, "add_log", title="Sessie", body="Advies: rustig aan", day="2026-09-30")
+    assert "Advies: rustig aan" in call(client, "list_log")[0]
+    call(client, "update_doc", key="goals", body="# Doelen\nMarathon 3:45")
+    assert call(client, "get_doc", key="goals")[0].endswith("3:45")
+
+    ctx, err = call(client, "get_context")
+    assert not err and ctx.startswith("# Trainingscontext") and "Marathon 3:45" in ctx and "Sessie" in ctx
+    assert '"predictions"' in call(client, "get_trends")[0]
+
+
+def test_batch(client):
+    res = client.post("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json=[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}])
+    assert res.json() == [{"jsonrpc": "2.0", "id": 1, "result": {}}]

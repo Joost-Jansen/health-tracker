@@ -117,4 +117,21 @@ Planned (types go in `web/lib/training.ts`):
 | GET | `/api/trends` | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` | T5 |
 | GET | `/api/routes?sport=`, `/api/routes/suggest?km=&sport=` | routes and suggestions (`tools/routes.py`, `tools/recommend.py` shapes) | T7 |
 
+### MCP (T9)
+
+`api/mcp.py`: Model Context Protocol over streamable HTTP (stateless, JSON responses, no SSE). `POST /api/mcp` with
+`Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers.
+Tools: `get_context`, `list_activities`, `get_activity`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
+(markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
+Results are markdown text (trends as JSON). Writes are authored `agent`.
+
+Connect:
+
+- Claude Code (laptop): `claude mcp add --transport http training https://your-domain.example/api/mcp --header "Authorization: Bearer $TRAINING_API_TOKEN"`.
+- claude.ai / Claude app: Settings, Connectors, Add custom connector, URL `https://your-domain.example/api/mcp/<token>`.
+  The token then sits in the connector URL; treat that URL as a password (it is stored in your claude.ai account only).
+  Rotate with `tools/set_agent_token.py` if it leaks.
+
+Tested with the official `mcp` Python SDK client (initialize, tools/list, tools/call) and in `tests/test_mcp.py`.
+
 If a contract needs to change, write it in `docs/WORK.md` under Messages and update this table in the same commit.

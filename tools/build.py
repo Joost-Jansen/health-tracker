@@ -16,6 +16,7 @@ if __package__ in (None, ""):
 from tools.routes import build_routes
 from tools.store import load_activities, load_wellness
 from tools.summarize import last_90_days_md, this_week_md
+from tools.zones import load_zones, zone_seconds
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,9 +62,25 @@ def routes_md(routes: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def store_zone_seconds(root: Path, zones: dict) -> None:
+    """Write hr_zones_s (own zones) into each activity file; only rewrites files whose value changed."""
+    for path in sorted((root / "data" / "activities").glob("*/*.json")):
+        a = json.loads(path.read_text())
+        s = a.get("streams") or {}
+        z = zone_seconds(zones, a["sport"], s["heartrate"], s["time"]) if s.get("heartrate") and s.get("time") else None
+        if a.get("hr_zones_s") != z:
+            if z is None:
+                a.pop("hr_zones_s", None)
+            else:
+                a["hr_zones_s"] = z
+            path.write_text(json.dumps(a, ensure_ascii=False, indent=1))
+
+
 def build(root: Path = ROOT, today: date | None = None) -> None:
     root = Path(root)
     today = today or date.today()
+    zones = load_zones(root if (root / "zones.json").exists() else ROOT)
+    store_zone_seconds(root, zones)
     activities = load_activities(root)
     wellness = load_wellness(root)
 
@@ -83,8 +100,8 @@ def build(root: Path = ROOT, today: date | None = None) -> None:
 
     summary = root / "summary"
     summary.mkdir(parents=True, exist_ok=True)
-    (summary / "this-week.md").write_text(this_week_md(activities, wellness, today, last_sync))
-    (summary / "last-90-days.md").write_text(last_90_days_md(activities, wellness, today))
+    (summary / "this-week.md").write_text(this_week_md(activities, wellness, today, last_sync, zones))
+    (summary / "last-90-days.md").write_text(last_90_days_md(activities, wellness, today, zones))
 
 
 if __name__ == "__main__":

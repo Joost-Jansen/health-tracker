@@ -6,24 +6,16 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from statistics import mean, median
 
-# Keep in sync with profile.md
-ZONES = [("Z1", 0, 130), ("Z2", 131, 144), ("Z3", 145, 159), ("Z4", 160, 173), ("Z5", 174, 999)]
-AEROBIC_HR = (145, 155)
+from tools.zones import NAMES, load_zones
+
 SESSION_GAP = timedelta(minutes=30)  # runs saved in pieces with short stops count as one session
 
 
-def _zone(hr: float) -> str:
-    for name, low, high in ZONES:
-        if hr <= high:
-            return name
-    return ZONES[-1][0]
-
-
-def hr_zone_seconds(heartrate: list, time: list) -> dict[str, int]:
-    out = {name: 0 for name, _, _ in ZONES}
-    for i in range(len(heartrate) - 1):
-        out[_zone(heartrate[i])] += time[i + 1] - time[i]
-    return out
+def _sum_zones(activities: list[dict]) -> dict[str, int] | None:
+    with_zones = [a["hr_zones_s"] for a in activities if a.get("hr_zones_s")]
+    if not with_zones:
+        return None
+    return {z: sum(x.get(z, 0) for x in with_zones) for z in NAMES}
 
 
 def run_sessions(activities: list[dict]) -> list[dict]:
@@ -54,6 +46,7 @@ def run_sessions(activities: list[dict]) -> list[dict]:
                 "distance_km": round(sum(a.get("distance_km") or 0 for a in g), 2),
                 "moving_time_s": secs,
                 "avg_hr": round(sum(h * t for h, t in timed_hr) / hr_time) if hr_time else None,
+                "hr_zones_s": _sum_zones(g),
                 "parts": len(g),
             }
         )
@@ -82,7 +75,8 @@ def _fmt(value, digits=1) -> str:
     return f"{value:.{digits}f}" if isinstance(value, float) else str(value)
 
 
-def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync: str) -> str:
+def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync: str, zones: dict | None = None) -> str:
+    zones = zones if zones is not None else load_zones()
     monday = today - timedelta(days=today.weekday())
     week = sorted((a for a in activities if monday <= _day(a) <= today), key=lambda a: a["start_local"])
 
@@ -111,15 +105,13 @@ def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync:
             f"{_pace(a.get('moving_time_s') or 0, a.get('distance_km'))} | {_fmt(a.get('avg_hr'))} |"
         )
 
-    zones = {name: 0 for name, _, _ in ZONES}
-    for a in week:
-        s = a.get("streams") or {}
-        if a["sport"] == "run" and s.get("heartrate") and s.get("time"):
-            for z, secs in hr_zone_seconds(s["heartrate"], s["time"]).items():
-                zones[z] += secs
-    if any(zones.values()):
-        lines += ["", "## Hartslagzones hardlopen", "", "| Zone | Tijd |", "|---|---|"]
-        lines += [f"| {z} | {_hm(secs)} |" for z, secs in zones.items()]
+    order = ["run", "ride", "swim"]
+    sports = [sp for sp in sorted(by_sport, key=lambda x: (order.index(x) if x in order else 99, x)) if sp in zones and _sum_zones(by_sport[sp])]
+    if sports:
+        per_sport = {sp: _sum_zones(by_sport[sp]) for sp in sports}
+        lines += ["", "## Hartslagzones (eigen zones, zie zones.json)", "", "| Zone | " + " | ".join(sports) + " |"]
+        lines += ["|---|" + "---|" * len(sports)]
+        lines += [f"| {z} | " + " | ".join(_hm(per_sport[sp][z]) for sp in sports) + " |" for z in NAMES]
 
     lines += [
         "",
@@ -139,7 +131,8 @@ def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync:
     return "\n".join(lines) + "\n"
 
 
-def last_90_days_md(activities: list[dict], wellness: dict, today: date) -> str:
+def last_90_days_md(activities: list[dict], wellness: dict, today: date, zones: dict | None = None) -> str:
+    zones = zones if zones is not None else load_zones()
     this_monday = today - timedelta(days=today.weekday())
     weeks = [this_monday - timedelta(weeks=i) for i in range(12, -1, -1)]
     first = weeks[0]
@@ -167,8 +160,16 @@ def last_90_days_md(activities: list[dict], wellness: dict, today: date) -> str:
         long_run = max(runs, key=lambda a: a.get("distance_km") or 0)
         lines += ["", f"Langste run: {long_run['distance_km']:.1f} km op {_day(long_run).isoformat()}"]
 
-    low, high = AEROBIC_HR
-    lines += ["", f"## Tempo bij {low}-{high} bpm (aerobe efficiëntie, per 4 weken)", "", "| Periode | Mediaan tempo/km | Runs |", "|---|---|---|"]
+    lines += ["", "## Hardlopen per week in eigen zones (% van de tijd)", "", "| Week vanaf | Z1 | Z2 | Z3 | Z4-5 |", "|---|---|---|---|---|"]
+    for monday in weeks:
+        z = _sum_zones([a for a in runs if monday <= _day(a) < monday + timedelta(days=7)])
+        total = sum(z.values()) if z else 0
+        if total:
+            share = [z["Z1"], z["Z2"], z["Z3"], z["Z4"] + z["Z5"]]
+            lines.append(f"| {monday.isoformat()} | " + " | ".join(f"{round(x / total * 100)}%" for x in share) + " |")
+
+    low, high = zones["run"]["bounds"][0], zones["run"]["bounds"][1] - 1
+    lines += ["", f"## Tempo in Z2 hardlopen ({low}-{high} bpm), aerobe efficiëntie per 4 weken", "", "| Periode | Mediaan tempo/km | Runs |", "|---|---|---|"]
     for start in range(len(weeks) % 4, len(weeks), 4):  # anchored at the end: latest block is 4 full weeks
         block = weeks[start : start + 4]
         begin, end = block[0], block[-1] + timedelta(days=6)

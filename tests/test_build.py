@@ -52,3 +52,13 @@ def test_build_without_data_still_writes_files(tmp_path):
     build(tmp_path, today=date(2026, 9, 30))
     assert "nog geen" in (tmp_path / "routes" / "routes.md").read_text().lower()
     assert "Laatste sync: nog nooit" in (tmp_path / "summary" / "this-week.md").read_text()
+
+
+def test_build_stores_own_zone_seconds_on_each_activity(tmp_path):
+    rec = _run("2026-09-20", 1)
+    rec["streams"]["heartrate"] = [140, 150, 150]
+    rec["streams"]["time"] = [0, 10, 20]
+    path = upsert_activity(tmp_path, rec)
+    (tmp_path / "zones.json").write_text(json.dumps({"run": {"bounds": [149, 158, 166, 175]}}))
+    build(tmp_path, today=date(2026, 9, 30))
+    assert json.loads(path.read_text())["hr_zones_s"] == {"Z1": 10, "Z2": 10, "Z3": 0, "Z4": 0, "Z5": 0}

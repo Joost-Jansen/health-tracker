@@ -1,0 +1,147 @@
+"""Markdown summaries the AI reads at the start of every session."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from datetime import date, timedelta
+from statistics import mean, median
+
+# Keep in sync with profile.md
+ZONES = [("Z1", 0, 130), ("Z2", 131, 144), ("Z3", 145, 159), ("Z4", 160, 173), ("Z5", 174, 999)]
+AEROBIC_HR = (145, 155)
+
+
+def _zone(hr: float) -> str:
+    for name, low, high in ZONES:
+        if hr <= high:
+            return name
+    return ZONES[-1][0]
+
+
+def hr_zone_seconds(heartrate: list, time: list) -> dict[str, int]:
+    out = {name: 0 for name, _, _ in ZONES}
+    for i in range(len(heartrate) - 1):
+        out[_zone(heartrate[i])] += time[i + 1] - time[i]
+    return out
+
+
+def _day(activity: dict) -> date:
+    return date.fromisoformat(activity["start_local"][:10])
+
+
+def _hm(seconds: float) -> str:
+    minutes = round(seconds / 60)
+    return f"{minutes // 60}:{minutes % 60:02d}"
+
+
+def _pace(seconds: float, km: float) -> str:
+    if not km:
+        return "-"
+    total = round(seconds / km)
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def _fmt(value, digits=1) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.{digits}f}" if isinstance(value, float) else str(value)
+
+
+def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync: str) -> str:
+    monday = today - timedelta(days=today.weekday())
+    week = sorted((a for a in activities if monday <= _day(a) <= today), key=lambda a: a["start_local"])
+
+    lines = [
+        f"# Deze week ({monday.isoformat()} t/m {(monday + timedelta(days=6)).isoformat()})",
+        "",
+        f"Laatste sync: {last_sync} (Europe/Amsterdam)",
+        "",
+        "## Totalen",
+        "",
+        "| Sport | Aantal | km | Tijd |",
+        "|---|---|---|---|",
+    ]
+    by_sport = defaultdict(list)
+    for a in week:
+        by_sport[a["sport"]].append(a)
+    for sport, acts in sorted(by_sport.items()):
+        km = sum(a.get("distance_km") or 0 for a in acts)
+        secs = sum(a.get("moving_time_s") or 0 for a in acts)
+        lines.append(f"| {sport} | {len(acts)} | {km:.1f} | {_hm(secs)} |")
+
+    lines += ["", "## Activiteiten", "", "| Datum | Sport | Naam | km | Tempo/km | Gem. HR |", "|---|---|---|---|---|---|"]
+    for a in week:
+        lines.append(
+            f"| {_day(a).isoformat()} | {a['sport']} | {a.get('name', '')} | {a.get('distance_km', 0):.1f} | "
+            f"{_pace(a.get('moving_time_s') or 0, a.get('distance_km'))} | {_fmt(a.get('avg_hr'))} |"
+        )
+
+    zones = {name: 0 for name, _, _ in ZONES}
+    for a in week:
+        s = a.get("streams") or {}
+        if a["sport"] == "run" and s.get("heartrate") and s.get("time"):
+            for z, secs in hr_zone_seconds(s["heartrate"], s["time"]).items():
+                zones[z] += secs
+    if any(zones.values()):
+        lines += ["", "## Hartslagzones hardlopen", "", "| Zone | Tijd |", "|---|---|"]
+        lines += [f"| {z} | {_hm(secs)} |" for z, secs in zones.items()]
+
+    lines += [
+        "",
+        "## Herstel, laatste 7 dagen",
+        "",
+        "| Datum | Slaap (u) | Slaapscore | HRV | Rust-HR | Body Battery max | Readiness |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for offset in range(6, -1, -1):
+        d = (today - timedelta(days=offset)).isoformat()
+        w = wellness.get(d)
+        if w:
+            lines.append(
+                f"| {d} | {_fmt(w.get('sleep_h'))} | {_fmt(w.get('sleep_score'))} | {_fmt(w.get('hrv_last_night'))} | "
+                f"{_fmt(w.get('resting_hr'))} | {_fmt(w.get('body_battery_high'))} | {_fmt(w.get('readiness_score'))} |"
+            )
+    return "\n".join(lines) + "\n"
+
+
+def last_90_days_md(activities: list[dict], wellness: dict, today: date) -> str:
+    this_monday = today - timedelta(days=today.weekday())
+    weeks = [this_monday - timedelta(weeks=i) for i in range(12, -1, -1)]
+    first = weeks[0]
+    runs = [a for a in activities if a["sport"] == "run" and first <= _day(a) <= today]
+
+    lines = [f"# Laatste 13 weken ({first.isoformat()} t/m {today.isoformat()})", "", "## Hardlopen per week", ""]
+    lines += ["| Week vanaf | km | Runs | Langste (km) | Gem. HR | Gem. slaap (u) | Gem. HRV | Gem. rust-HR |", "|---|---|---|---|---|---|---|---|"]
+    for monday in weeks:
+        in_week = [a for a in runs if monday <= _day(a) < monday + timedelta(days=7)]
+        days = [(monday + timedelta(days=i)).isoformat() for i in range(7)]
+        ws = [wellness[d] for d in days if d in wellness]
+
+        def avg(key, source):
+            values = [x[key] for x in source if x.get(key) is not None]
+            return round(mean(values), 1) if values else None
+
+        km = sum(a.get("distance_km") or 0 for a in in_week)
+        longest = max((a.get("distance_km") or 0 for a in in_week), default=0)
+        lines.append(
+            f"| {monday.isoformat()} | {km:.1f} | {len(in_week)} | {longest:.1f} | {_fmt(avg('avg_hr', in_week))} | "
+            f"{_fmt(avg('sleep_h', ws))} | {_fmt(avg('hrv_last_night', ws))} | {_fmt(avg('resting_hr', ws))} |"
+        )
+
+    if runs:
+        long_run = max(runs, key=lambda a: a.get("distance_km") or 0)
+        lines += ["", f"Langste run: {long_run['distance_km']:.1f} km op {_day(long_run).isoformat()}"]
+
+    low, high = AEROBIC_HR
+    lines += ["", f"## Tempo bij {low}-{high} bpm (aerobe efficiëntie, per 4 weken)", "", "| Periode | Mediaan tempo/km | Runs |", "|---|---|---|"]
+    for start in range(len(weeks) % 4, len(weeks), 4):  # anchored at the end: latest block is 4 full weeks
+        block = weeks[start : start + 4]
+        begin, end = block[0], block[-1] + timedelta(days=6)
+        paces = [
+            a["moving_time_s"] / a["distance_km"]
+            for a in runs
+            if begin <= _day(a) <= end and a.get("avg_hr") and low <= a["avg_hr"] <= high and a.get("distance_km")
+        ]
+        if paces:
+            lines.append(f"| {begin.isoformat()} t/m {min(end, today).isoformat()} | {_pace(median(paces), 1)} | {len(paces)} |")
+    return "\n".join(lines) + "\n"

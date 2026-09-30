@@ -31,6 +31,7 @@ def test_summary_best_run_and_track_from_latest_run():
 def test_detail_history_oldest_first():
     d = route_detail(ROUTES[0], ACTS, streams)
     assert [h["id"] for h in d["history"]] == ["a", "b"]
+    assert d["history"][1]["m_per_beat"] == round(4000 / (1200 / 60 * 138), 3)
 
 
 def test_suggest_prefers_single_route_and_adds_tracks():

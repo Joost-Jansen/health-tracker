@@ -34,6 +34,13 @@ def _pace(a: dict) -> int | None:
     return None
 
 
+def _efficiency(a: dict) -> float | None:
+    """Metres per heartbeat: speed divided by heart rate. Higher at the same route = fitter, whatever the effort."""
+    if a.get("moving_time_s") and a.get("distance_km") and a.get("avg_hr"):
+        return round(a["distance_km"] * 1000 / (a["moving_time_s"] / 60 * a["avg_hr"]), 3)
+    return None
+
+
 def _track(route: dict, runs: list[dict], streams_fn: Callable, limit: int) -> list[list[float]]:
     """GPS track of the most recent run on the route that has one."""
     for a in reversed(runs):
@@ -49,12 +56,15 @@ def route_summary(route: dict, activities: list[dict], streams_fn: Callable, poi
     best = min(paces, key=lambda x: x[1]) if paces else None
     recent = [p for _, p in paces[-5:]]
     earlier = [p for _, p in paces[:-5]]
+    eff = [e for e in (_efficiency(a) for a in runs) if e]
     return {
         **{k: route.get(k) for k in ("id", "name", "distance_km", "is_loop", "elevation_gain_m", "runs", "first_run", "last_run", "median_pace", "median_hr", "start")},
         "sport": route.get("sport", "run"),
         "best": {"activity_id": best[0]["id"], "date": best[0]["start_local"][:10], "pace_s_per_km": best[1], "moving_time_s": best[0].get("moving_time_s")} if best else None,
         "recent_pace_s_per_km": round(median(recent)) if recent else None,
         "earlier_pace_s_per_km": round(median(earlier)) if earlier else None,
+        "recent_efficiency": round(median(eff[-5:]), 3) if eff[:-5] else None,
+        "earlier_efficiency": round(median(eff[:-5]), 3) if eff[:-5] else None,
         "track": _track(route, runs, streams_fn, points),
     }
 
@@ -63,7 +73,7 @@ def route_detail(route: dict, activities: list[dict], streams_fn: Callable) -> d
     runs = _runs(route, activities)
     out = route_summary(route, activities, streams_fn, TRACK_POINTS)
     out["history"] = [
-        {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s"), "avg_hr": a.get("avg_hr"), "pace_s_per_km": _pace(a), "hr_zones_s": a.get("hr_zones_s")}
+        {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s"), "avg_hr": a.get("avg_hr"), "pace_s_per_km": _pace(a), "m_per_beat": _efficiency(a), "hr_zones_s": a.get("hr_zones_s")}
         for a in runs
     ]
     return out

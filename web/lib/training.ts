@@ -193,3 +193,40 @@ export type Plan = {
 };
 
 export type PlanListItem = Omit<Plan, "sessions" | "weeks">;
+
+// ── Rondjes (T7) ─────────────────────────────────────────────────────────────
+
+export type RouteSummary = {
+  id: string;
+  name?: string;
+  sport: string;
+  distance_km: number;
+  is_loop?: boolean;
+  elevation_gain_m?: number;
+  runs: number;
+  first_run?: string;
+  last_run?: string;
+  median_pace?: string;
+  median_hr?: number;
+  start?: [number, number];
+  best: null | { activity_id: string; date: string; pace_s_per_km: number; moving_time_s?: number };
+  recent_pace_s_per_km: number | null;
+  earlier_pace_s_per_km: number | null;
+  recent_efficiency: number | null;
+  earlier_efficiency: number | null;
+  track: [number, number][];
+};
+
+export type RouteDetail = RouteSummary & {
+  history: { id: string; date: string; distance_km?: number; moving_time_s?: number; avg_hr?: number; pace_s_per_km: number | null; m_per_beat: number | null; hr_zones_s?: ZoneSeconds }[];
+};
+
+export type RouteOption = {
+  parts: string[];
+  names: string[];
+  total_km: number;
+  deviation_km: number;
+  within_tolerance: boolean;
+  days_since: number;
+  tracks: Record<string, [number, number][]>;
+};

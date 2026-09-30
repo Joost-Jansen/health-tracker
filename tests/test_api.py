@@ -97,3 +97,16 @@ def test_dashboard_lists_activity_without_gps(client):
 def test_missing_settings_refuse_all_logins(root):
     app = create_app(root=root, static_dir=root / "missing", settings=Settings(user="", password_hash="", jwt_secret="", cookie_secure=False))
     assert TestClient(app).post("/api/login", json={"username": "", "password": ""}).status_code == 401
+
+
+def test_history_and_trends_endpoints(client):
+    for path in ("/api/activities", "/api/heatmap", "/api/trends"):
+        assert client.get(path).status_code == 401
+    login(client)
+    items = client.get("/api/activities").json()
+    assert [a["name"] for a in items] == ["Ochtendloop"]
+    detail = client.get(f"/api/activities/{items[0]['id']}").json()
+    assert detail["track"]["latlng"] and len(detail["track"]["zone"]) == len(detail["track"]["latlng"])
+    assert client.get("/api/activities/bestaat-niet").status_code == 404
+    assert len(client.get("/api/heatmap").json()["tracks"]) == 1
+    assert "form" in client.get("/api/trends").json()

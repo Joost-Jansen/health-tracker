@@ -69,3 +69,13 @@ def test_tools_read_and_write(client):
 def test_batch(client):
     res = client.post("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}, json=[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}])
     assert res.json() == [{"jsonrpc": "2.0", "id": 1, "result": {}}]
+
+
+def test_token_in_path_is_redacted_in_access_log():
+    import logging
+
+    from api.mcp import RedactToken
+
+    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4", "POST", "/api/mcp/geheim123", "1.1", 200), None)
+    RedactToken().filter(rec)
+    assert "geheim123" not in rec.getMessage() and "/api/mcp/***" in rec.getMessage()

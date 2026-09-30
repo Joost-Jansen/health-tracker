@@ -10,6 +10,8 @@ Tools read and write the same data as the website: what an agent changes, Joost 
 from __future__ import annotations
 
 import json
+import logging
+import re
 from datetime import date
 from typing import Callable
 
@@ -315,10 +317,26 @@ class Server:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
+class RedactToken(logging.Filter):
+    """Access logs print the request path; keep the token of /api/mcp/<token> out of them."""
+
+    PATTERN = re.compile(r"(/api/mcp/)[^/?\s\"]+")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(self.PATTERN.sub(r"\1***", a) if isinstance(a, str) else a for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = self.PATTERN.sub(r"\1***", record.msg)
+        return True
+
+
 def make_router(store, today: Callable[[], date], bearer_user: Callable[[Request], str], token_user: Callable[[str], str | None]) -> APIRouter:
     """`bearer_user(request)` authenticates the header (raises 401); `token_user(token)` checks a token from the path."""
     r = APIRouter()
     server = Server(store, today)
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, RedactToken) for f in access.filters):
+        access.addFilter(RedactToken())
 
     async def serve(request: Request, who: str) -> Response:
         try:

@@ -114,7 +114,7 @@ def main(argv: list[str]) -> int:
         for e in call("GET", f"/api/entries{kind}"):
             print(f"{e['day']} [{e['kind']}] {e['title']} ({e['author']})")
     elif cmd == "plan" and rest == ["show"]:
-        print(json.dumps(call("GET", "/api/plans/active"), indent=1, ensure_ascii=False))
+        print(json.dumps(call("GET", "/api/plans/active")["plan"], indent=1, ensure_ascii=False))
     elif cmd == "plan" and rest == ["create"]:
         p = call("POST", "/api/plans", json.load(sys.stdin))
         print(f"schema {p['id']} aangemaakt en actief, {len(p['sessions'])} sessies")

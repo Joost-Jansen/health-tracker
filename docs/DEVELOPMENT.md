@@ -28,7 +28,13 @@ Railway project "training" (EU, europe-west4)
 GitHub Joost-Jansen/training (private): code only; every push to main redeploys web
 ```
 
-Current state (transition): `web` still reads the JSON files in `data/` (baked into the image) and the daily sync still runs as a GitHub Action writing to `data/`. The switch to Postgres is task T1/T2 in `docs/WORK.md`. Until that lands, do not build new features on the file layer (`tools/store.py` load/write functions); use `tools/db.py`.
+Current state: `web` reads Postgres (T1 done). The daily Garmin sync still runs as a GitHub Action writing to the legacy files in `data/` until T2 moves it to a Railway cron writing Postgres; until then Postgres is refreshed by re-running the migration. Build nothing new on the file layer (`tools/store.py` load/write functions, `data/`, `summary/`); use `tools/db.py`.
+
+Region: `web` and `Postgres` run in `us-west2` because the Postgres volume did not move with a region change; moving the volume to `europe-west4` is an open item for Joost (see `docs/WORK.md`).
+
+### Agents
+
+Coaching agents use `tools/tr.py` with `TRAINING_API_URL` and `TRAINING_API_TOKEN` (Bearer). The token is created by Joost with `tools/set_agent_token.py`; only its SHA-256 hash is stored on Railway (`TRAINING_AGENT_TOKEN_HASH`). Writes by the token are recorded with author `agent`, writes from the browser with author `joost`.
 
 ### Railway (no secrets here)
 
@@ -39,7 +45,7 @@ Current state (transition): `web` still reads the JSON files in `data/` (baked i
 | Service `web` | id `<service-id>`, source `Joost-Jansen/training@main`, healthcheck `/api/health` |
 | Service `Postgres` | id `<service-id>` (template `postgres`, volume) |
 | Domain | https://your-domain.example |
-| Variables on `web` | `PORT=8000`, `HOST=0.0.0.0`, `TZ`, `TRAINING_USER`, `TRAINING_PASSWORD_HASH`, `TRAINING_JWT_SECRET` (set by Joost via `tools/set_dashboard_password.py`), later `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_AGENT_TOKEN_HASH` |
+| Variables on `web` | `PORT=8000`, `HOST=0.0.0.0`, `TZ`, `TRAINING_USER`, `TRAINING_PASSWORD_HASH`, `TRAINING_JWT_SECRET` (set by Joost via `tools/set_dashboard_password.py`), `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_AGENT_TOKEN_HASH` (via `tools/set_agent_token.py`) |
 
 Lessons carried over from `DEPLOY.md`: `HOST` must be `0.0.0.0` (not `::`), set `PORT` explicitly, service config lives on the service (no railway.toml).
 
@@ -65,7 +71,7 @@ uv venv .venv && uv pip install -p .venv -r requirements-dev.txt
 cd web && npm ci && npm run build        # static export to web/out
 ```
 
-Local run: create `.env.dev` (git-ignored) with `TRAINING_USER`, a bcrypt `TRAINING_PASSWORD_HASH`, a random `TRAINING_JWT_SECRET` and `COOKIE_SECURE=false`, then
+Local run: build a local database from the repo files with `DATABASE_URL=sqlite:///dev.db .venv/bin/python tools/migrate_files_to_db.py && DATABASE_URL=sqlite:///dev.db .venv/bin/python tools/derive.py` (`dev.db` is git-ignored), create `.env.dev` (git-ignored) with `DATABASE_URL=sqlite:///<absolute path>/dev.db`, `TRAINING_USER`, a bcrypt `TRAINING_PASSWORD_HASH`, a random `TRAINING_JWT_SECRET` and `COOKIE_SECURE=false`, then
 `set -a; . ./.env.dev; set +a; .venv/bin/uvicorn api.main:create_app --factory --port 8765` and open http://localhost:8765.
 For frontend work with hot reload: run the API on port 8000 and `cd web && npm run dev` (dev rewrites `/api/*` to :8000).
 
@@ -95,18 +101,19 @@ Existing:
 | POST | `/api/logout` | clears cookie |
 | GET | `/api/me` | `{username}` |
 | GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` |
+| GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first |
+| GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
+| GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
+| GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
+| GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
+| GET/POST | `/api/plans`, `/api/plans/active`, `/api/plans/{id}`, PUT `/api/plans/{id}/sessions`, POST `/api/plans/{id}/status` | plans with sessions |
+| GET | `/api/context` | bundle for coaching agents (profile, goals, zones, active plan, dashboard, routes, recent log/analyses) |
 
-Planned (frontend can be built against these now; types go in `web/lib/training.ts`):
+Planned (types go in `web/lib/training.ts`):
 
 | Method | Path | Returns | Task |
 |---|---|---|---|
-| GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first | T4 (API: Claude) |
-| GET | `/api/activities/{id}` | `ActivitySummary` + `laps` + `track: {latlng: [lat,lon][], zone: ("Z1".."Z5")[]}` (≤ 1500 points, same length) + `series: {time, heartrate, velocity, altitude}` (≤ 1500 points) | T4 |
-| GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) | T4 |
 | GET | `/api/trends` | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` | T5 |
-| GET/PUT | `/api/docs/{profile|goals}` | `{key, body (markdown), updated_at, updated_by}` | T3 |
-| GET/POST | `/api/entries?kind=log|analysis` | entries list / create `{kind, day, title, body}` | T3 |
-| GET/POST | `/api/plans`, `/api/plans/active`, `/api/plans/{id}/sessions` | plans with sessions (`tools/db.py` shapes) | T6 |
 | POST | `/api/plans/import` | CSV or markdown table upload -> plan + sessions | T6 |
 | GET | `/api/routes?sport=`, `/api/routes/suggest?km=&sport=` | routes and suggestions (`tools/routes.py`, `tools/recommend.py` shapes) | T7 |
 

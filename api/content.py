@@ -1,4 +1,6 @@
-"""Routes that agents and Joost both use: documents (profile, goals), log and analyses, plans, and the agent context."""
+"""Routes that agents and Joost both use: documents (profile, goals), log and analyses, and the agent context.
+
+Plans live in api/plans.py."""
 
 from __future__ import annotations
 
@@ -26,29 +28,6 @@ class EntryIn(BaseModel):
     title: str
     body: str
     day: str | None = None
-
-
-class SessionIn(BaseModel):
-    date: str
-    sport: str
-    kind: str | None = None
-    distance_km: float | None = None
-    duration_min: int | None = None
-    target_zone: str | None = None
-    description: str | None = None
-    route_id: str | None = None
-
-
-class PlanIn(BaseModel):
-    title: str
-    goal: str | None = None
-    race: str | None = None
-    notes: str | None = None
-    sessions: list[SessionIn] = []
-
-
-class StatusIn(BaseModel):
-    status: Literal["actief", "afgerond", "gestopt"]
 
 
 def author_of(user: str) -> str:
@@ -82,39 +61,6 @@ def content_router(store: DataStore, current_user) -> APIRouter:
         day = entry.day or datetime.now(TZ).date().isoformat()
         eid = db.add_entry(engine, kind=entry.kind, title=entry.title, body=entry.body, author=author_of(user), day=day)
         return {"id": eid}
-
-    @r.get("/plans")
-    def plans(user: str = Depends(current_user)):
-        return db.list_plans(engine)
-
-    @r.get("/plans/active")
-    def active(user: str = Depends(current_user)):
-        return db.active_plan(engine)
-
-    @r.get("/plans/{plan_id}")
-    def plan(plan_id: int, user: str = Depends(current_user)):
-        p = db.get_plan(engine, plan_id)
-        if not p:
-            raise HTTPException(404, "schema bestaat niet")
-        return p
-
-    @r.post("/plans")
-    def create_plan(p: PlanIn, user: str = Depends(current_user)):
-        pid = db.create_plan(engine, title=p.title, goal=p.goal, race=p.race, notes=p.notes, author=author_of(user))
-        db.add_sessions(engine, pid, [s.model_dump() for s in p.sessions])
-        return db.get_plan(engine, pid)
-
-    @r.put("/plans/{plan_id}/sessions")
-    def replace_sessions(plan_id: int, items: list[SessionIn], user: str = Depends(current_user)):
-        if not db.get_plan(engine, plan_id):
-            raise HTTPException(404, "schema bestaat niet")
-        db.replace_sessions(engine, plan_id, [s.model_dump() for s in items])
-        return db.get_plan(engine, plan_id)
-
-    @r.post("/plans/{plan_id}/status")
-    def set_status(plan_id: int, s: StatusIn, user: str = Depends(current_user)):
-        db.set_plan_status(engine, plan_id, s.status)
-        return db.get_plan(engine, plan_id)
 
     @r.get("/context")
     def context(user: str = Depends(current_user)):

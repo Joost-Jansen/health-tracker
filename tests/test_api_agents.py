@@ -61,32 +61,6 @@ def test_entry_kind_is_validated(client):
     assert agent(client).post("/api/entries", json={"kind": "spam", "title": "x", "body": "y"}).status_code == 422
 
 
-def test_create_plan_with_sessions_and_read_active(client):
-    agent(client)
-    r = client.post("/api/plans", json={
-        "title": "Marathon 3:45", "goal": "sub 3:45", "race": "Rotterdam, 2027-04-11",
-        "sessions": [
-            {"date": "2026-10-04", "sport": "run", "kind": "duurloop", "distance_km": 18, "target_zone": "Z2"},
-            {"date": "2026-10-02", "sport": "run", "kind": "herstel", "duration_min": 40, "target_zone": "Z1"},
-        ],
-    })
-    assert r.status_code == 200
-    active = client.get("/api/plans/active").json()
-    assert active["title"] == "Marathon 3:45" and active["author"] == "agent"
-    assert [s["date"] for s in active["sessions"]] == ["2026-10-02", "2026-10-04"]
-
-
-def test_replace_sessions_of_a_plan(client):
-    agent(client)
-    pid = client.post("/api/plans", json={"title": "A", "sessions": [{"date": "2026-10-02", "sport": "run"}]}).json()["id"]
-    client.put(f"/api/plans/{pid}/sessions", json=[{"date": "2026-10-09", "sport": "ride", "duration_min": 90}])
-    assert [s["sport"] for s in client.get(f"/api/plans/{pid}").json()["sessions"]] == ["ride"]
-
-
-def test_no_active_plan_is_null(client):
-    assert agent(client).get("/api/plans/active").json() is None
-
-
 def test_context_bundles_what_an_agent_needs(client, engine):  # noqa: F811
     db.put_document(engine, "profile", "# Profiel", author="joost")
     db.put_document(engine, "goals", "# Doelen", author="joost")

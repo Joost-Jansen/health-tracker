@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from statistics import mean, median
 
 # Keep in sync with profile.md
 ZONES = [("Z1", 0, 130), ("Z2", 131, 144), ("Z3", 145, 159), ("Z4", 160, 173), ("Z5", 174, 999)]
 AEROBIC_HR = (145, 155)
+SESSION_GAP = timedelta(minutes=30)  # runs saved in pieces with short stops count as one session
 
 
 def _zone(hr: float) -> str:
@@ -23,6 +24,40 @@ def hr_zone_seconds(heartrate: list, time: list) -> dict[str, int]:
     for i in range(len(heartrate) - 1):
         out[_zone(heartrate[i])] += time[i + 1] - time[i]
     return out
+
+
+def run_sessions(activities: list[dict]) -> list[dict]:
+    """Merge consecutive runs with at most SESSION_GAP between end and next start into one session."""
+    runs = sorted((a for a in activities if a["sport"] == "run"), key=lambda a: a["start_local"])
+    groups: list[list[dict]] = []
+    for a in runs:
+        if groups:
+            prev = groups[-1][-1]
+            prev_end = datetime.fromisoformat(prev["start_local"]) + timedelta(
+                seconds=prev.get("elapsed_time_s") or prev.get("moving_time_s") or 0
+            )
+            if datetime.fromisoformat(a["start_local"]) - prev_end <= SESSION_GAP:
+                groups[-1].append(a)
+                continue
+        groups.append([a])
+
+    sessions = []
+    for g in groups:
+        secs = sum(a.get("moving_time_s") or 0 for a in g)
+        timed_hr = [(a["avg_hr"], a.get("moving_time_s") or 0) for a in g if a.get("avg_hr")]
+        hr_time = sum(t for _, t in timed_hr)
+        sessions.append(
+            {
+                "start_local": g[0]["start_local"],
+                "sport": "run",
+                "name": g[0].get("name"),
+                "distance_km": round(sum(a.get("distance_km") or 0 for a in g), 2),
+                "moving_time_s": secs,
+                "avg_hr": round(sum(h * t for h, t in timed_hr) / hr_time) if hr_time else None,
+                "parts": len(g),
+            }
+        )
+    return sessions
 
 
 def _day(activity: dict) -> date:
@@ -108,7 +143,7 @@ def last_90_days_md(activities: list[dict], wellness: dict, today: date) -> str:
     this_monday = today - timedelta(days=today.weekday())
     weeks = [this_monday - timedelta(weeks=i) for i in range(12, -1, -1)]
     first = weeks[0]
-    runs = [a for a in activities if a["sport"] == "run" and first <= _day(a) <= today]
+    runs = [a for a in run_sessions(activities) if first <= _day(a) <= today]
 
     lines = [f"# Laatste 13 weken ({first.isoformat()} t/m {today.isoformat()})", "", "## Hardlopen per week", ""]
     lines += ["| Week vanaf | km | Runs | Langste (km) | Gem. HR | Gem. slaap (u) | Gem. HRV | Gem. rust-HR |", "|---|---|---|---|---|---|---|---|"]

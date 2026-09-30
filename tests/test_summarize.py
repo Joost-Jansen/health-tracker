@@ -57,3 +57,22 @@ def test_90_days_tracks_pace_at_aerobic_heart_rate():
     md = last_90_days_md(acts, {}, TODAY)
     assert "Tempo bij 145-155 bpm" in md
     assert "5:25" in md  # median of 5:20 and 5:30; the 170 bpm run is excluded
+
+
+def test_split_run_counts_as_one_session_for_longest_run_and_count():
+    # a long run saved as pieces with short stops (seen: 29 km in 5 parts on 2026-01-25)
+    parts = [
+        dict(act("2026-09-20", km=10, secs=3000), start_local="2026-09-20T08:00:00", elapsed_time_s=3000),
+        dict(act("2026-09-20", km=12, secs=3600), start_local="2026-09-20T08:52:00", elapsed_time_s=3600),
+    ]
+    md = last_90_days_md(parts, {}, TODAY)
+    assert "Langste run: 22.0 km op 2026-09-20" in md
+    assert "| 2026-09-14 | 22.0 | 1 |" in md
+
+
+def test_runs_hours_apart_stay_separate_sessions():
+    runs = [
+        dict(act("2026-09-20", km=10), start_local="2026-09-20T08:00:00", elapsed_time_s=3200),
+        dict(act("2026-09-20", km=5), start_local="2026-09-20T18:00:00", elapsed_time_s=1600),
+    ]
+    assert "| 2026-09-14 | 15.0 | 2 |" in last_90_days_md(runs, {}, TODAY)

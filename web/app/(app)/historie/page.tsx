@@ -1,9 +1,141 @@
-import Card from "@/components/Card";
+"use client";
 
-export default function Page() {
+// Historie: alle activiteiten, te filteren op sport, periode en naam, per maand gegroepeerd.
+// Tweede aanzicht: de heatmap van alle routes.
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
+import Card from "@/components/Card";
+import { Tabs } from "@/components/ds";
+import { api } from "@/lib/api";
+import { type ActivityListItem, type Heatmap, fmtDate, fmtDuration, fmtIntensity, fmtKm, sportLabel, ZONE_COLOUR, ZONES } from "@/lib/training";
+
+const HeatMap = dynamic(() => import("@/components/map/HeatMap"), { ssr: false });
+
+const PERIODS = [
+  { id: "all", label: "Alles" },
+  { id: "30", label: "30 dagen" },
+  { id: "90", label: "90 dagen" },
+  { id: "365", label: "Jaar" },
+];
+
+function ZoneStrip({ a }: { a: ActivityListItem }) {
+  const z = a.hr_zones_s;
+  const total = z ? ZONES.reduce((s, k) => s + (z[k] ?? 0), 0) : 0;
+  if (!z || !total) return <span className="block h-1.5 w-full rounded-full" style={{ background: "var(--surface-inset)" }} />;
   return (
-    <Card title="Historie met kaarten">
-      <p className="text-[13px] text-ink-muted">Deze pagina komt in fase 2.</p>
+    <span className="flex h-1.5 w-full overflow-hidden rounded-full" title={ZONES.map((k) => `${k} ${Math.round((z[k] / total) * 100)}%`).join(" · ")}>
+      {ZONES.map((k) => (z[k] ? <span key={k} style={{ width: `${(z[k] / total) * 100}%`, background: ZONE_COLOUR[k] }} /> : null))}
+    </span>
+  );
+}
+
+function monthLabel(iso: string) {
+  return new Date(iso.slice(0, 7) + "-15T12:00:00").toLocaleDateString("nl-NL", { month: "long", year: "numeric" });
+}
+
+function ListView() {
+  const [sport, setSport] = useState("all");
+  const [period, setPeriod] = useState("90");
+  const [search, setSearch] = useState("");
+  const q = useQuery({ queryKey: ["activities"], queryFn: () => api.get<ActivityListItem[]>("/api/activities") });
+
+  const sports = useMemo(() => {
+    const count = new Map<string, number>();
+    (q.data ?? []).forEach((a) => count.set(a.sport, (count.get(a.sport) ?? 0) + 1));
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }, [q.data]);
+
+  const items = useMemo(() => {
+    const from = period === "all" ? "" : new Date(Date.now() - Number(period) * 86400000).toISOString().slice(0, 10);
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(
+      (a) => (sport === "all" || a.sport === sport) && (!from || a.start_local.slice(0, 10) >= from) && (!needle || (a.name ?? "").toLowerCase().includes(needle) || a.start_local.includes(needle)),
+    );
+  }, [q.data, sport, period, search]);
+
+  const groups = useMemo(() => {
+    const out: { month: string; items: ActivityListItem[]; km: number; seconds: number }[] = [];
+    for (const a of items) {
+      const m = a.start_local.slice(0, 7);
+      let g = out[out.length - 1];
+      if (!g || g.month !== m) out.push((g = { month: m, items: [], km: 0, seconds: 0 }));
+      g.items.push(a);
+      g.km += a.distance_km ?? 0;
+      g.seconds += a.moving_time_s ?? 0;
+    }
+    return out;
+  }, [items]);
+
+  if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">Kon de activiteiten niet laden.</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <select className="ds-select h-9 w-auto text-[13px]" value={sport} onChange={(e) => setSport(e.target.value)} aria-label="Sport">
+          <option value="all">Alle sporten</option>
+          {sports.map((s) => (
+            <option key={s} value={s}>{sportLabel(s)}</option>
+          ))}
+        </select>
+        <Tabs variant="quiet" items={PERIODS} value={period} onChange={setPeriod} ariaLabel="Periode" />
+        <input className="ds-input h-9 min-w-0 flex-1 text-[13px] sm:max-w-[240px]" placeholder="Zoek op naam of datum" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <span className="ml-auto text-[12px] text-ink-muted tabular-nums">{items.length} activiteiten</span>
+      </div>
+
+      {groups.length === 0 && <p className="text-sm text-ink-muted">Niets gevonden met deze filters.</p>}
+      {groups.map((g) => (
+        <Card key={g.month} title={monthLabel(g.month)} action={<span className="text-[12px] tabular-nums text-ink-muted">{g.items.length}× · {fmtKm(g.km)} · {fmtDuration(g.seconds)} u</span>}>
+          <ul className="flex flex-col">
+            {g.items.map((a) => (
+              <li key={a.id} className="border-t border-border first:border-t-0">
+                <Link href={`/historie/activiteit/?id=${encodeURIComponent(a.id)}`} className="grid grid-cols-[76px_1fr] items-center gap-x-3 gap-y-1 py-2.5 text-[13px] hover:bg-[var(--surface-hover)] sm:grid-cols-[92px_1fr_auto_120px] sm:px-1">
+                  <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
+                  <span className="truncate">
+                    <span className="font-medium">{sportLabel(a.sport)}</span>
+                    {a.name && <span className="text-ink-muted"> · {a.name}</span>}
+                    {a.has_gps && <span className="ml-1.5 text-[11px] text-ink-muted" title="Met kaart">◉</span>}
+                  </span>
+                  <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
+                    {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}
+                    {a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
+                  </span>
+                  <span className="col-start-2 sm:col-start-auto"><ZoneStrip a={a} /></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function HeatView() {
+  const [sport, setSport] = useState("run");
+  const q = useQuery({ queryKey: ["heatmap", sport], queryFn: () => api.get<Heatmap>(`/api/heatmap?sport=${sport}`) });
+  return (
+    <Card
+      title="Waar je traint"
+      action={<Tabs variant="segmented" items={[{ id: "run", label: "Lopen" }, { id: "ride", label: "Fietsen" }, { id: "swim", label: "Zwemmen" }]} value={sport} onChange={setSport} ariaLabel="Sport" />}
+    >
+      {q.isLoading ? <p className="text-sm text-ink-muted">Laden…</p> : <HeatMap tracks={q.data?.tracks ?? []} />}
+      <p className="mt-3 text-[11.5px] text-ink-muted">
+        {q.data ? `${q.data.tracks.length} routes. ` : ""}Hoe vaker je ergens langs komt, hoe voller de lijn. De kaart start bij thuis; zoom uit voor vakanties.
+      </p>
     </Card>
+  );
+}
+
+export default function HistoriePage() {
+  const [view, setView] = useState("list");
+  return (
+    <div className="flex flex-col gap-4">
+      <Tabs items={[{ id: "list", label: "Activiteiten" }, { id: "heat", label: "Heatmap" }]} value={view} onChange={setView} />
+      {view === "list" ? <ListView /> : <HeatView />}
+    </div>
   );
 }

@@ -106,7 +106,7 @@ Existing:
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
-| GET/POST | `/api/plans`, `/api/plans/active`, `/api/plans/{id}`, PUT `/api/plans/{id}/sessions`, POST `/api/plans/{id}/status` | plans with sessions |
+| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active` (`{persistent, plan}`), `/api/plans/{id}`, `/api/plans/{id}/sessions`, POST `/api/plans/import` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan` |
 | GET | `/api/context` | bundle for coaching agents (profile, goals, zones, active plan, dashboard, routes, recent log/analyses) |
 
 Planned (types go in `web/lib/training.ts`):
@@ -114,7 +114,6 @@ Planned (types go in `web/lib/training.ts`):
 | Method | Path | Returns | Task |
 |---|---|---|---|
 | GET | `/api/trends` | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` | T5 |
-| POST | `/api/plans/import` | CSV or markdown table upload -> plan + sessions | T6 |
 | GET | `/api/routes?sport=`, `/api/routes/suggest?km=&sport=` | routes and suggestions (`tools/routes.py`, `tools/recommend.py` shapes) | T7 |
 
 If a contract needs to change, write it in `docs/WORK.md` under Messages and update this table in the same commit.

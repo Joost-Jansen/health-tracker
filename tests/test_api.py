@@ -109,3 +109,34 @@ def test_dashboard_reads_the_database_live(client, engine):
     login(client)
     db.set_setting(engine, "sync_state", {"last_sync_local": "2026-10-01 06:00"})
     assert client.get("/api/dashboard").json()["last_sync"] == "2026-10-01 06:00"
+
+
+def test_history_and_trends_endpoints(client):
+    for path in ("/api/activities", "/api/heatmap", "/api/trends"):
+        assert client.get(path).status_code == 401
+    login(client)
+    items = client.get("/api/activities").json()
+    assert [a["name"] for a in items] == ["Ochtendloop"]
+    detail = client.get(f"/api/activities/{items[0]['id']}").json()
+    assert detail["track"]["latlng"] and len(detail["track"]["zone"]) == len(detail["track"]["latlng"])
+    assert client.get("/api/activities/bestaat-niet").status_code == 404
+    assert len(client.get("/api/heatmap").json()["tracks"]) == 1
+    assert "form" in client.get("/api/trends").json()
+
+
+def test_plans_import_edit_and_match(client):
+    assert client.get("/api/plans/active").status_code == 401
+    login(client)
+    assert client.get("/api/plans/active").json() == {"persistent": True, "plan": None}
+    text = "datum,sport,km,zone\n2026-09-29,lopen,10,Z2\n2026-09-30,lopen,8,Z2"
+    preview = client.post("/api/plans/import", json={"text": text, "preview": True}).json()
+    assert preview["saved"] is False and len(preview["sessions"]) == 2
+    res = client.post("/api/plans/import", json={"text": text, "title": "Test"}).json()
+    plan = res["plan"]
+    assert plan["title"] == "Test" and plan["status"] == "actief"
+    assert plan["sessions"][0]["status"] == "gedaan"  # the 10 km run on 2026-09-29 in the fixture
+    sessions = [{k: s[k] for k in ("date", "sport", "distance_km")} for s in plan["sessions"]][:1]
+    edited = client.put(f"/api/plans/{plan['id']}/sessions", json=sessions).json()
+    assert len(edited["sessions"]) == 1
+    assert client.patch(f"/api/plans/{plan['id']}", json={"status": "fout"}).status_code == 422
+    assert client.patch(f"/api/plans/{plan['id']}", json={"goal": "marathon"}).json()["goal"] == "marathon"

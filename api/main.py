@@ -1,6 +1,8 @@
 """Training dashboard API. Serves /api/* and the static site from web/out.
 
     uvicorn api.main:create_app --factory --host 0.0.0.0 --port 8000
+
+Data comes from the database (DATABASE_URL). Auth: session cookie (Joost, browser) or Bearer agent token.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -20,6 +22,9 @@ from api import auth
 from api.content import content_router
 from api.dashboard import build_dashboard
 from api.data import DataStore
+from api.history import activity_detail, heatmap, list_activities
+from api.plans import make_router as plans_router
+from api.trends import build_trends
 from tools import db
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +110,40 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def dashboard(user: str = Depends(current_user)):
         return build_dashboard(store.activities, store.wellness, store.zones, datetime.now(TZ).date(), store.last_sync)
 
+    cache: dict = {}
+
+    def cached(key: tuple, fn):
+        # streams-heavy results (trends, heatmap) only change after a sync or at midnight
+        key = (*key, store.last_sync, len(store.activities))
+        if key not in cache:
+            if len(cache) > 32:
+                cache.clear()
+            cache[key] = fn()
+        return cache[key]
+
+    @app.get("/api/activities")
+    def activities(sport: str | None = None, start: str | None = Query(None, alias="from"), end: str | None = Query(None, alias="to"), user: str = Depends(current_user)):
+        return list_activities(store.activities, sport, start, end)
+
+    @app.get("/api/activities/{activity_id}")
+    def activity(activity_id: str, user: str = Depends(current_user)):
+        out = activity_detail(activity_id, store.activities, store.streams, store.zones, store.routes)
+        if out is None:
+            raise HTTPException(status_code=404, detail="activiteit niet gevonden")
+        return out
+
+    @app.get("/api/heatmap")
+    def heatmap_route(sport: str | None = "run", user: str = Depends(current_user)):
+        return cached(("heatmap", sport), lambda: heatmap(store.activities, store.streams, sport or None))
+
+    @app.get("/api/trends")
+    def trends(user: str = Depends(current_user)):
+        today = datetime.now(TZ).date()
+        return cached(("trends", today), lambda: build_trends(store.activities, store.wellness, store.zones, store.streams, today))
+
+    app.include_router(
+        plans_router(lambda: engine, lambda: store.activities, lambda: store.routes, lambda: datetime.now(TZ).date(), current_user, persistent=True)
+    )
     app.include_router(content_router(store, current_user))
 
     static_dir = static_dir or ROOT / "web" / "out"

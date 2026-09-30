@@ -14,3 +14,4 @@ web/out/
 web/next-env.d.ts
 web/tsconfig.tsbuildinfo
 dev.db
+data/training.db

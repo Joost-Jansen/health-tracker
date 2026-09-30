@@ -110,3 +110,21 @@ def test_history_and_trends_endpoints(client):
     assert client.get("/api/activities/bestaat-niet").status_code == 404
     assert len(client.get("/api/heatmap").json()["tracks"]) == 1
     assert "form" in client.get("/api/trends").json()
+
+
+def test_plans_import_edit_and_match(client):
+    assert client.get("/api/plans/active").status_code == 401
+    login(client)
+    assert client.get("/api/plans/active").json() == {"persistent": False, "plan": None}
+    text = "datum,sport,km,zone\n2026-09-29,lopen,10,Z2\n2026-09-30,lopen,8,Z2"
+    preview = client.post("/api/plans/import", json={"text": text, "preview": True}).json()
+    assert preview["saved"] is False and len(preview["sessions"]) == 2
+    res = client.post("/api/plans/import", json={"text": text, "title": "Test"}).json()
+    plan = res["plan"]
+    assert plan["title"] == "Test" and plan["status"] == "actief"
+    assert plan["sessions"][0]["status"] == "gedaan"  # the 10 km run on 2026-09-29 in the fixture
+    sessions = [{k: s[k] for k in ("date", "sport", "distance_km")} for s in plan["sessions"]][:1]
+    edited = client.put(f"/api/plans/{plan['id']}/sessions", json=sessions).json()
+    assert len(edited["sessions"]) == 1
+    assert client.patch(f"/api/plans/{plan['id']}", json={"status": "fout"}).status_code == 422
+    assert client.patch(f"/api/plans/{plan['id']}", json={"goal": "marathon"}).json()["goal"] == "marathon"

@@ -19,8 +19,10 @@ from pydantic import BaseModel
 from api import auth
 from api.dashboard import build_dashboard
 from api.data import DataStore
+from api.plans import make_router as plans_router
 from api.history import activity_detail, heatmap, list_activities
 from api.trends import build_trends
+from tools import db
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -128,6 +130,22 @@ def create_app(root: Path = ROOT, static_dir: Path | None = None, settings: Sett
     def trends(user: str = Depends(current_user)):
         today = datetime.now(TZ).date()
         return cached(("trends", today), lambda: build_trends(store.activities, store.wellness, store.zones, store.streams, today))
+
+    # Plans live in the database. Without DATABASE_URL (local dev, or before T1) a SQLite file is used,
+    # which does not survive a redeploy; the API reports that as persistent: false.
+    database_url = os.environ.get("DATABASE_URL")
+    engine_holder: dict = {}
+
+    def engine():
+        if "e" not in engine_holder:
+            (root / "data").mkdir(exist_ok=True)
+            engine_holder["e"] = db.connect(database_url or f"sqlite:///{root / 'data' / 'training.db'}")
+            db.create_schema(engine_holder["e"])
+        return engine_holder["e"]
+
+    app.include_router(
+        plans_router(engine, lambda: store.activities, routes, lambda: datetime.now(TZ).date(), current_user, persistent=bool(database_url))
+    )
 
     static_dir = static_dir or root / "web" / "out"
     if static_dir.exists():

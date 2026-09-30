@@ -200,9 +200,7 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
         well_start = min(well_start, since)
     day = well_start
     while day <= today:
-        values = client.wellness(day.isoformat())
-        if values:
-            write_wellness(root, day.isoformat(), values)
+        write_wellness(root, day.isoformat(), client.wellness(day.isoformat()))
         g["last_wellness_day"] = day.isoformat()
         day += timedelta(days=1)
     return count

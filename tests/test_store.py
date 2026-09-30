@@ -143,3 +143,9 @@ def test_resting_hr_only_kept_on_days_with_sleep_data():
         sleep={"dailySleepDTO": {"sleepTimeSeconds": 25000}}, hrv=None, summary={"restingHeartRate": 45}, readiness=[]
     )
     assert with_sleep["resting_hr"] == 45
+
+
+def test_wellness_refetch_without_data_removes_stale_day(tmp_path):
+    write_wellness(tmp_path, "2026-07-03", {"stress_avg": -1})
+    write_wellness(tmp_path, "2026-07-03", {})
+    assert load_wellness(tmp_path) == {}

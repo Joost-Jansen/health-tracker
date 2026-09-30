@@ -221,6 +221,9 @@ def _wellness_dir(root: Path) -> Path:
 def write_wellness(root: Path, day: str, values: dict) -> Path:
     """Replace the day: Garmin is the only source, and a refetch must drop values newer cleaning rules reject."""
     path = _wellness_dir(root) / day[:4] / f"{day}.json"
+    if not values:
+        path.unlink(missing_ok=True)
+        return path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(values, ensure_ascii=False, indent=1))
     return path

@@ -199,6 +199,11 @@ def put_fit(engine: Engine, aid: str, data: bytes) -> None:
         conn.execute(insert(fit_files).values(activity_id=aid, data=data))
 
 
+def get_fit(engine: Engine, key: str) -> bytes | None:
+    with engine.connect() as conn:
+        return conn.execute(select(fit_files.c.data).where(fit_files.c.activity_id == key)).scalar_one_or_none()
+
+
 def has_fit(engine: Engine, aid: str) -> bool:
     with engine.connect() as conn:
         return conn.execute(select(fit_files.c.activity_id).where(fit_files.c.activity_id == aid)).first() is not None

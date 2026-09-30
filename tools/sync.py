@@ -23,8 +23,11 @@ from zoneinfo import ZoneInfo
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from tools import db, store
+from tools.derive import derive
 from tools.fit import read_fit_streams
-from tools.store import from_garmin, from_strava, upsert_activity, write_wellness, wellness_from_garmin
+from tools.secretbox import decrypt, encrypt
+from tools.store import from_garmin, from_strava, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKFILL_DAYS = 90
@@ -50,6 +53,61 @@ def fetch_metric(stats: dict, name: str, fn, day: str):
     key = "ok" if value else "leeg"
     counts[key] = counts.get(key, 0) + 1
     return value
+
+
+class FileSink:
+    """Legacy target: JSON files in the repo (data/)."""
+
+    def __init__(self, root: Path):
+        self.root = Path(root)
+
+    def upsert_activity(self, record: dict) -> str:
+        return str(store.upsert_activity(self.root, record))
+
+    def write_wellness(self, day: str, values: dict) -> None:
+        store.write_wellness(self.root, day, values)
+
+    def get_fit(self, garmin_id, year: str) -> bytes | None:
+        path = self.root / self.fit_key(garmin_id, year)
+        return path.read_bytes() if path.exists() else None
+
+    def put_fit(self, garmin_id, year: str, data: bytes) -> str:
+        path = self.root / self.fit_key(garmin_id, year)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return self.fit_key(garmin_id, year)
+
+    @staticmethod
+    def fit_key(garmin_id, year: str) -> str:
+        return f"data/raw/fit/{year}/{garmin_id}.zip"
+
+
+class DbSink:
+    """Target: the training database (tools/db.py)."""
+
+    def __init__(self, engine):
+        self.engine = engine
+
+    def upsert_activity(self, record: dict) -> str:
+        return db.upsert_activity(self.engine, record)
+
+    def write_wellness(self, day: str, values: dict) -> None:
+        db.write_wellness(self.engine, day, values)
+
+    def get_fit(self, garmin_id, year: str) -> bytes | None:
+        return db.get_fit(self.engine, self.fit_key(garmin_id, year))
+
+    def put_fit(self, garmin_id, year: str, data: bytes) -> str:
+        db.put_fit(self.engine, self.fit_key(garmin_id, year), data)
+        return self.fit_key(garmin_id, year)
+
+    @staticmethod
+    def fit_key(garmin_id, year: str) -> str:
+        return f"garmin-{garmin_id}"
+
+
+def as_sink(target):
+    return FileSink(target) if isinstance(target, (str, Path)) else target
 
 
 def _epoch(iso_utc: str) -> int:
@@ -109,7 +167,8 @@ class StravaClient:
         return self._get(f"/activities/{activity_id}/streams", keys=STRAVA_STREAM_KEYS, key_by_type="true")
 
 
-def sync_strava(root: Path, client, state: dict, since: date | None = None) -> int:
+def sync_strava(target, client, state: dict, since: date | None = None) -> int:
+    sink = as_sink(target)
     s = state.setdefault("strava", {})
     if "last_start_epoch" not in s:
         start = since or date.today() - timedelta(days=DEFAULT_BACKFILL_DAYS)
@@ -120,7 +179,7 @@ def sync_strava(root: Path, client, state: dict, since: date | None = None) -> i
     activities = sorted(client.list_activities(s["last_start_epoch"]), key=lambda a: a["start_date"])
     for activity in activities:
         streams = client.streams(activity["id"])  # may raise RateLimited; progress so far is kept
-        upsert_activity(root, from_strava(activity, streams))
+        sink.upsert_activity(from_strava(activity, streams))
         s["last_start_epoch"] = _epoch(activity["start_date"])
     return len(activities)
 
@@ -169,7 +228,8 @@ class GarminClient:
         return self.api.client.dumps()
 
 
-def sync_garmin(root: Path, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams) -> int:
+def sync_garmin(target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams) -> int:
+    sink = as_sink(target)
     g = state.setdefault("garmin", {})
     default_start = since or today - timedelta(days=DEFAULT_BACKFILL_DAYS)
 
@@ -180,17 +240,17 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
     for activity in sorted(client.activities(act_start, today), key=lambda a: a["startTimeLocal"]):
         activity_id = activity["activityId"]
         year = activity["startTimeLocal"][:4]
-        fit_rel = f"data/raw/fit/{year}/{activity_id}.zip"
-        fit_path = Path(root) / fit_rel
-        if not fit_path.exists():
-            fit_path.parent.mkdir(parents=True, exist_ok=True)
-            fit_path.write_bytes(client.fit(activity_id))
+        fit = sink.get_fit(activity_id, year)
+        if fit is None:
+            fit = client.fit(activity_id)
+            sink.put_fit(activity_id, year, fit)
+        fit_rel = sink.fit_key(activity_id, year)
         try:
-            streams = read_streams(fit_path.read_bytes())
+            streams = read_streams(fit)
         except ValueError as err:
             print(f"garmin: geen streams voor {activity_id} ({err})")
             streams = None
-        upsert_activity(root, from_garmin(activity, client.splits(activity_id), fit_file=fit_rel, streams=streams))
+        sink.upsert_activity(from_garmin(activity, client.splits(activity_id), fit_file=fit_rel, streams=streams))
         g["last_activity_day"] = activity["startTimeLocal"][:10]
         count += 1
     g["last_activity_day"] = today.isoformat()
@@ -200,10 +260,50 @@ def sync_garmin(root: Path, client, state: dict, today: date, since: date | None
         well_start = min(well_start, since)
     day = well_start
     while day <= today:
-        write_wellness(root, day.isoformat(), client.wellness(day.isoformat()))
+        sink.write_wellness(day.isoformat(), client.wellness(day.isoformat()))
         g["last_wellness_day"] = day.isoformat()
         day += timedelta(days=1)
     return count
+
+
+# --- database mode (Railway cron) ----------------------------------------------------
+
+
+def run_db_sync(engine, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
+                read_streams=read_fit_streams, since: date | None = None) -> int:
+    """Garmin -> database, then derived data. Tokens: the encrypted copy in the database wins over GARMINTOKENS,
+    because Garmin rotates the refresh token and only the database copy is kept up to date."""
+    client_factory = client_factory or GarminClient
+    tz = ZoneInfo("Europe/Amsterdam")
+    today = today or datetime.now(tz).date()
+    state = db.get_setting(engine, "sync_state") or {}
+    stored = db.get_setting(engine, "garmin_tokens")
+    tokens = decrypt(stored, key) if stored and key else env_tokens
+    failed, client = [], None
+    try:
+        if not tokens:
+            raise RuntimeError("geen Garmin-tokens: zet GARMINTOKENS (tools/setup_garmin.py --railway)")
+        client = client_factory(tokens)
+        print(f"garmin: {sync_garmin(DbSink(engine), client, state, today, since, read_streams)} activiteiten")
+    except RateLimited:
+        print("garmin: rate limit bereikt, volgende run gaat verder")
+    except Exception as err:
+        print(f"garmin: MISLUKT ({type(err).__name__}: {err})")
+        failed.append("garmin")
+    finally:
+        if client is not None:
+            for metric, counts in getattr(client, "stats", {}).items():
+                print(f"garmin {metric}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
+            if key:
+                db.set_setting(engine, "garmin_tokens", encrypt(client.tokens(), key))
+        state["last_sync_local"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
+        if failed:
+            state["last_failed"] = failed
+        else:
+            state.pop("last_failed", None)
+        db.set_setting(engine, "sync_state", state)
+    print(f"derive: {derive(engine)}")
+    return 1 if failed else 0
 
 
 # --- CLI ----------------------------------------------------------------------------
@@ -214,7 +314,13 @@ def main(argv=None) -> int:
     parser.add_argument("--since", type=date.fromisoformat, help="backfill vanaf deze datum (YYYY-MM-DD)")
     parser.add_argument("--source", choices=["all", "strava", "garmin"], default="all")
     parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--files", action="store_true", help="schrijf naar de bestanden in data/ (oude modus) ook als DATABASE_URL gezet is")
     args = parser.parse_args(argv)
+
+    if os.environ.get("DATABASE_URL") and not args.files:
+        engine = db.connect(os.environ["DATABASE_URL"])
+        db.create_schema(engine)
+        return run_db_sync(engine, os.environ.get("TOKEN_ENCRYPTION_KEY", ""), os.environ.get("GARMINTOKENS"), since=args.since)
 
     root = args.root
     token_out = os.environ.get("TOKEN_OUT_DIR")

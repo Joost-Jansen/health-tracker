@@ -34,6 +34,7 @@ export const NAV: NavGroup[] = [
           { id: "profiel", label: "Profiel", href: "/analyses/profiel/" },
         ],
       },
+      { id: "instellingen", label: "Instellingen", href: "/instellingen/", icon: "settings" },
     ],
   },
 ];

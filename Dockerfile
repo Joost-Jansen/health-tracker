@@ -1,5 +1,5 @@
 # Trainingsdashboard: één image met de statische site (web/out) en de FastAPI-API.
-# De data staat in Postgres (DATABASE_URL); de image bevat alleen code.
+# De data staat in Postgres (DATABASE_URL). Tijdelijk (T10) ook data/ om nieuwe sync-bestanden te importeren.
 
 FROM node:22-alpine AS web
 WORKDIR /web
@@ -18,6 +18,10 @@ RUN pip install -r api/requirements.txt
 COPY api/ api/
 COPY tools/ tools/
 COPY --from=web /web/out web/out
+# T10 bridge: the GitHub Action still syncs Garmin into data/; web imports new files into Postgres on startup.
+COPY data/activities data/activities
+COPY data/wellness data/wellness
+COPY data/sync_state.json data/sync_state.json
 RUN useradd --uid 1000 --create-home appuser
 USER appuser
 EXPOSE 8000

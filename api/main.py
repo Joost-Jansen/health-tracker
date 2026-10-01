@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -18,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import auth, mcp, routes_api
+from api import agent_tokens, auth, mcp, routes_api
 from api.content import content_router
 from api.dashboard import build_dashboard
 from api.data import DataStore
@@ -27,6 +28,7 @@ from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
 from api.trends import build_trends
 from tools import db
+from tools.import_files import import_files
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -52,6 +54,21 @@ class Settings:
         )
 
 
+def start_file_import(engine, store: DataStore) -> None:
+    """T10 bridge: import what the GitHub Action synced into data/ (baked into the image) in the background."""
+    if not (ROOT / "data" / "activities").exists():
+        return
+
+    def run():
+        try:
+            print(f"file import: {import_files(engine, ROOT)}", flush=True)
+            store._cache.clear()
+        except Exception as err:  # never take the site down for the bridge
+            print(f"file import MISLUKT: {type(err).__name__}: {err}", flush=True)
+
+    threading.Thread(target=run, name="file-import", daemon=True).start()
+
+
 class Credentials(BaseModel):
     username: str
     password: str
@@ -59,10 +76,13 @@ class Credentials(BaseModel):
 
 def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    if engine is None:
+    from_env = engine is None
+    if from_env:
         engine = db.connect(os.environ["DATABASE_URL"])
     db.create_schema(engine)
     store = DataStore(engine)
+    if from_env and os.environ.get("IMPORT_FILES_ON_START", "true") != "false":
+        start_file_import(engine, store)
     throttle = auth.Throttle()
     app = FastAPI(title="training", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -71,6 +91,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         if header.lower().startswith("bearer "):
             token = header[7:].strip()
             if token and settings.agent_token_hash and auth.same(hashlib.sha256(token.encode()).hexdigest(), settings.agent_token_hash):
+                return "agent"
+            if agent_tokens.token_matches(engine, token):  # made on the site (Instellingen)
                 return "agent"
             raise HTTPException(status_code=401, detail="ongeldig agent-token")
         user = auth.token_user(request.cookies.get(auth.COOKIE), settings.jwt_secret)
@@ -162,8 +184,9 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     def path_token_user(token: str) -> str | None:
         ok = token and settings.agent_token_hash and auth.same(hashlib.sha256(token.encode()).hexdigest(), settings.agent_token_hash)
-        return "agent" if ok else None
+        return "agent" if ok or agent_tokens.token_matches(engine, token) else None
 
+    app.include_router(agent_tokens.make_router(engine, current_user))
     app.include_router(mcp.make_router(store, lambda: datetime.now(TZ).date(), current_user, path_token_user))
 
     static_dir = static_dir or ROOT / "web" / "out"

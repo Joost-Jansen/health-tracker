@@ -79,3 +79,21 @@ def test_token_in_path_is_redacted_in_access_log():
     rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4", "POST", "/api/mcp/geheim123", "1.1", 200), None)
     RedactToken().filter(rec)
     assert "geheim123" not in rec.getMessage() and "/api/mcp/***" in rec.getMessage()
+
+
+def test_tokens_made_on_the_site_work_for_api_and_mcp(client):
+    assert client.post("/api/agent-tokens", json={"name": "x"}).status_code == 401
+    bearer = {"Authorization": f"Bearer {TOKEN}"}
+    assert client.post("/api/agent-tokens", headers=bearer, json={"name": "x"}).status_code == 403  # agents cannot mint
+    client.post("/api/login", json={"username": "joost", "password": "test-wachtwoord-123"})
+    made = client.post("/api/agent-tokens", json={"name": "Claude app"}).json()
+    assert made["token"].startswith("tr_") and made["name"] == "Claude app"
+    assert "hash" not in client.get("/api/agent-tokens").json()[0]
+
+    fresh = TestClient(client.app)  # no cookie
+    assert fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).json() == {"username": "agent"}
+    assert rpc(fresh, "tools/list", auth=False, path=f"/api/mcp/{made['token']}").status_code == 200
+
+    assert client.delete(f"/api/agent-tokens/{made['id']}").json() == {"ok": True}
+    assert fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).status_code == 401
+    assert client.delete(f"/api/agent-tokens/{made['id']}").status_code == 404

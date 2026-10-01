@@ -84,7 +84,7 @@ def _describe(parts: list[str], by_id: dict) -> str:
 def format_recommendations(recs: list[dict], routes: list[dict], target_km: float) -> str:
     by_id = {r["id"]: r for r in routes}
     if not recs:
-        return f"Geen vaste rondjes gevonden voor {target_km} km. Draai eerst de sync zodat routes/routes.json gevuld is."
+        return f"Geen vaste rondjes gevonden voor {target_km} km. Er zijn nog geen vaste rondjes (minstens 3 keer dezelfde route nodig)."
     lines = [f"Aanbeveling voor {target_km} km:"]
     if not recs[0]["within_tolerance"]:
         lines.append("Geen combinatie binnen de tolerantie; dit zijn de dichtstbijzijnde opties.")

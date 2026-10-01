@@ -28,9 +28,13 @@ Railway project "training" (EU, europe-west4)
 GitHub Joost-Jansen/training (private): code only; every push to main redeploys web
 ```
 
-Current state: `web` reads Postgres (T1 done). The Railway cron `sync` writes Garmin data into Postgres (T2); it goes live once Joost has set the Garmin tokens, after which the legacy GitHub Action and the `data/` files are removed. Never write to Postgres from outside Railway except through the API; a temporary TCP proxy was used once for the migration and removed. Build nothing new on the file layer (`tools/store.py` load/write functions, `data/`, `summary/`); use `tools/db.py`.
+Current state (2026-10-01): everything runs on Railway. `sync` (cron) writes Garmin data into Postgres and runs derive; `web` serves the site and API from Postgres. The GitHub Action and the repo's data files are gone (T12); they remain in git history. File-mode code (`FileSink`, `tools/build.py`, `tools/summarize.py` markdown, `tools/migrate_files_to_db.py`) is kept for tests and for rebuilding a database from history.
 
 Region: `web` and `Postgres` run in `us-west2` because the Postgres volume did not move with a region change; moving the volume to `europe-west4` is an open item for Joost (see `docs/WORK.md`).
+
+### Garmin opnieuw koppelen
+
+The sync tries the encrypted tokens in `settings.garmin_tokens` (rotated after every run) first and falls back to `GARMINTOKENS`. If Garmin invalidates the session, the run logs `MISLUKT: garmin` and the site shows it; Joost runs `tools/setup_garmin.py` (sets a fresh `GARMINTOKENS` on `sync`) and the next run uses it and stores its rotation.
 
 ### Agents
 
@@ -61,7 +65,7 @@ Lessons carried over from `DEPLOY.md`: `HOST` must be `0.0.0.0` (not `::`), set 
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
 | `tools/migrate_files_to_db.py` | One-time move of `data/` and the markdown files into the database |
 | `tests/` | pytest, one file per module |
-| `data/`, `routes/`, `summary/`, `profile.md`, `goals.md`, `log/`, `zones.json` | Legacy file data; moves to the database (T1) |
+| `zones.json` | Seed for the zones setting of a fresh database; the live zones are in the `settings` table |
 
 ## Working on it
 

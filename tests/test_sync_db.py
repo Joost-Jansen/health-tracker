@@ -85,3 +85,21 @@ def test_run_db_sync_falls_back_to_env_tokens_and_records_failure():
 
     assert run_db_sync(e, key, env_tokens="from-env", client_factory=broken, today=date(2026, 9, 30)) == 1
     assert db.get_setting(e, "sync_state")["last_failed"] == ["garmin"]
+
+
+def test_stale_database_tokens_fall_back_to_fresh_env_tokens():
+    # after Garmin invalidates the session, Joost re-runs setup_garmin which only updates GARMINTOKENS
+    e = engine()
+    key = Fernet.generate_key().decode()
+    db.set_setting(e, "garmin_tokens", encrypt("stale", key))
+    tried = []
+
+    def factory(tokens):
+        tried.append(tokens)
+        if tokens == "stale":
+            raise RuntimeError("401 from Garmin")
+        return FakeClientWithTokens(tokens)
+
+    assert run_db_sync(e, key, env_tokens="fresh", client_factory=factory, today=date(2026, 9, 30), read_streams=streams) == 0
+    assert tried == ["stale", "fresh"]
+    assert decrypt(db.get_setting(e, "garmin_tokens"), key) == "rotated-fresh"

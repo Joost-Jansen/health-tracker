@@ -2,8 +2,7 @@
 
 Run it yourself in a terminal (it asks for your password and MFA code):
 
-    .venv/bin/python tools/setup_garmin.py --railway   # for the Railway sync (current)
-    .venv/bin/python tools/setup_garmin.py             # for the old GitHub Action
+    .venv/bin/python tools/setup_garmin.py
 
 Your password is only sent to Garmin; it is not stored. Re-run when the sync reports a Garmin login error.
 """
@@ -16,8 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from garminconnect import Garmin  # noqa: E402
-
-from tools.gh_secrets import set_secret  # noqa: E402
 
 PROJECT = "<project-id>"
 
@@ -34,11 +31,8 @@ def main() -> None:
     password = getpass.getpass("Garmin wachtwoord (niet zichtbaar): ")
     api = Garmin(email, password, prompt_mfa=lambda: input("MFA-code: ").strip())
     api.login()
-    tokens = api.client.dumps()
-    if "--railway" in sys.argv:
-        set_railway("GARMINTOKENS", tokens)
-    else:
-        set_secret("GARMINTOKENS", tokens)
+    # The sync tries its encrypted database copy first and falls back to this fresh login if that copy is stale.
+    set_railway("GARMINTOKENS", api.client.dumps())
 
 
 if __name__ == "__main__":

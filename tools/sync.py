@@ -4,7 +4,7 @@
     python tools/sync.py --since 2025-06-01   # backfill
     python tools/sync.py --source strava
 
-Credentials come only from the environment (GitHub Actions secrets):
+Credentials come only from the environment (Railway variables on the `sync` service):
     STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, GARMINTOKENS
 When TOKEN_OUT_DIR is set, refreshed tokens that changed are written there so the
 workflow can update the secrets. Tokens are never printed or written into the repo.
@@ -278,12 +278,22 @@ def run_db_sync(engine, key: str, env_tokens: str | None, client_factory=None, t
     today = today or datetime.now(tz).date()
     state = db.get_setting(engine, "sync_state") or {}
     stored = db.get_setting(engine, "garmin_tokens")
-    tokens = decrypt(stored, key) if stored and key else env_tokens
+    candidates = [t for t in (decrypt(stored, key) if stored and key else None, env_tokens) if t]
     failed, client = [], None
     try:
-        if not tokens:
-            raise RuntimeError("geen Garmin-tokens: zet GARMINTOKENS (tools/setup_garmin.py --railway)")
-        client = client_factory(tokens)
+        if not candidates:
+            raise RuntimeError("geen Garmin-tokens: zet GARMINTOKENS (tools/setup_garmin.py)")
+        for i, tokens in enumerate(dict.fromkeys(candidates)):
+            try:
+                client = client_factory(tokens)
+                break
+            except RateLimited:
+                raise
+            except Exception as err:
+                # stale database copy: fall back to a fresh GARMINTOKENS from setup_garmin.py
+                if i == len(dict.fromkeys(candidates)) - 1:
+                    raise
+                print(f"garmin: opgeslagen sessie werkt niet meer ({type(err).__name__}), probeer GARMINTOKENS")
         print(f"garmin: {sync_garmin(DbSink(engine), client, state, today, since, read_streams)} activiteiten")
     except RateLimited:
         print("garmin: rate limit bereikt, volgende run gaat verder")

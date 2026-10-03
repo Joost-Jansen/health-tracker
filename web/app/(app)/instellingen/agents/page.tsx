@@ -77,7 +77,7 @@ export default function AgentsPage() {
             </div>
             <div>
               <h3 className="mb-1.5 text-[13px] font-semibold">Claude Code (laptop)</h3>
-              <Copy label="Eén keer uitvoeren in een terminal" value={`claude mcp add --transport http --scope user training ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
+              <Copy label="Eén keer uitvoeren in een terminal" value={`claude mcp add --transport http --scope user health-tracker ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
             </div>
             <div>
               <h3 className="mb-1.5 text-[13px] font-semibold">Claude Code in de cloud of tools/tr.py</h3>

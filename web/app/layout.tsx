@@ -4,9 +4,9 @@ import Providers from "./providers";
 import { fontVariables } from "@/lib/fonts";
 
 export const metadata: Metadata = {
-  title: "training",
-  applicationName: "training",
-  appleWebApp: { capable: true, title: "training" },
+  title: "health-tracker",
+  applicationName: "health-tracker",
+  appleWebApp: { capable: true, title: "health-tracker" },
   robots: { index: false, follow: false },
 };
 

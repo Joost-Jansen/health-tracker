@@ -61,7 +61,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="ds-topbar ds-topbar--flush sticky top-0 z-30 !gap-3 !px-4 sm:!px-6 lg:!px-page">
           <IconButton label="Menu openen" onClick={() => setNavOpen(true)} icon={<MenuIcon className="h-[18px] w-[18px]" />} className="-ml-2 lg:hidden" />
-          <h1 className="ds-topbar__title truncate">{item?.label ?? "Training"}</h1>
+          <h1 className="ds-topbar__title truncate">{item?.label ?? "health-tracker"}</h1>
           {tabs.length > 1 ? (
             <nav className="ds-topbar__tabs ml-2 min-w-0 flex-1 self-stretch overflow-x-auto no-scrollbar" aria-label={`Aanzichten van ${item?.label}`}>
               <Tabs items={tabs} value={tabs.filter((t) => pathname.startsWith(t.href)).sort((a, b) => b.href.length - a.href.length)[0]?.id} ariaLabel={`Aanzichten van ${item?.label}`} className="h-full whitespace-nowrap" />

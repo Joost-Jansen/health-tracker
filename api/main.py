@@ -70,7 +70,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     stores = users.Stores(engine)
     current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash)
-    app = FastAPI(title="training", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine, app.state.stores = engine, stores
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
     app.state.sync = runner

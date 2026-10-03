@@ -284,7 +284,7 @@ function Wordmark() {
   return (
     <div className="ds-sidebar__brand">
       <Logomark height={15} className="ds-sidebar__logo" />
-      <span className="ds-sidebar__wordmark">training</span>
+      <span className="ds-sidebar__wordmark">health-tracker</span>
     </div>
   );
 }

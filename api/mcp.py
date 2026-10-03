@@ -313,7 +313,7 @@ class Server:
                 {
                     "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[0],
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "training", "title": "Training", "version": "1.0"},
+                    "serverInfo": {"name": "health-tracker", "title": "health-tracker", "version": "1.0"},
                     "instructions": instructions(self.user),
                 }
             )

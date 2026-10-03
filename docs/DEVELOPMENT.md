@@ -157,7 +157,7 @@ Results are markdown text (trends as JSON). Writes are authored `agent`.
 
 Connect:
 
-- Claude Code (laptop): `claude mcp add --transport http training https://your-domain.example/api/mcp --header "Authorization: Bearer $TRAINING_API_TOKEN"`.
+- Claude Code (laptop): `claude mcp add --transport http health-tracker https://your-domain.example/api/mcp --header "Authorization: Bearer $TRAINING_API_TOKEN"`.
 - claude.ai / Claude app: Settings, Connectors, Add custom connector, URL `https://your-domain.example/api/mcp/<token>`.
   The token then sits in the connector URL; treat that URL as a password (it is stored in your claude.ai account only).
   Rotate with `tools/set_agent_token.py` if it leaks.

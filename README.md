@@ -1,4 +1,4 @@
-# training
+# health-tracker
 
 Privé trainingsplatform op Joosts Garmin-data: website met dashboard, schema, historie met kaarten, rondjes en trends,
 plus een API, CLI en MCP-server waarmee coachende agents dezelfde data lezen en schrijven.

@@ -36,7 +36,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="flex w-full max-w-[320px] flex-col gap-6">
         <div className="flex flex-col gap-1.5">
           <Logomark height={34} className="mb-3" />
-          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">training</h1>
+          <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">health-tracker</h1>
           <p className="text-[13px] text-ink-muted">Log in om je training te bekijken.</p>
         </div>
         <div className="flex flex-col gap-4">

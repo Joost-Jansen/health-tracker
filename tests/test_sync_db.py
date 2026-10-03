@@ -11,6 +11,7 @@ from tools.sync import DbSink, run_db_sync, sync_garmin
 def engine():
     e = db.connect("sqlite://")
     db.create_schema(e)
+    e = db.Scope(e, 1)
     db.set_setting(e, "zones", {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}})
     return e
 

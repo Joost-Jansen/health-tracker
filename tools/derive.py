@@ -34,31 +34,34 @@ def _run_for_routes(a: dict, latlng: list) -> dict:
     }
 
 
-def derive(engine) -> dict:
-    zones = db.get_setting(engine, "zones")
+def derive(scope: db.Scope) -> dict:
+    zones = db.get_setting(scope, "zones")
     changed = 0
     tracks: dict[str, list[dict]] = {sport: [] for sport in ROUTE_SPORTS}
-    for a in db.load_activities(engine, with_streams=True):
+    for a in db.load_activities(scope, with_streams=True):
         s = a.get("streams") or {}
         if zones:
             z = zone_seconds(zones, a["sport"], s["heartrate"], s["time"]) if s.get("heartrate") and s.get("time") else None
             if a.get("hr_zones_s") != z:
-                db.set_derived(engine, a["id"], hr_zones_s=z)
+                db.set_derived(scope, a["id"], hr_zones_s=z)
                 changed += 1
         if a["sport"] in tracks and s.get("latlng") and a.get("distance_km"):
             tracks[a["sport"]].append(_run_for_routes(a, s["latlng"]))
 
     # save_routes replaces the whole table, so rebuild every sport and save them together;
     # build_routes only matches existing routes of its own sport (ids r.. for runs, f.. for rides)
-    existing = db.load_routes(engine)
+    existing = db.load_routes(scope)
     routes, counts = [], {}
     for sport in ROUTE_SPORTS:
         built = build_routes(tracks[sport], existing, sport=sport)
         counts[sport] = len(built)
         routes += built
-    db.save_routes(engine, routes)
+    db.save_routes(scope, routes)
     return {"zones_updated": changed, "routes": counts}
 
 
 if __name__ == "__main__":
-    print(derive(db.connect(os.environ["DATABASE_URL"])))
+    engine = db.connect(os.environ["DATABASE_URL"])
+    db.create_schema(engine)
+    for user in db.list_users(engine):
+        print(user["username"], derive(db.Scope(engine, user["id"])))

@@ -50,3 +50,30 @@ def run(activity_id, date, latlng, distance_km, **extra):
     }
     base.update(extra)
     return base
+
+
+class FakeStore:
+    """Stands in for api.data.DataStore in router tests."""
+
+    def __init__(self, activities=(), zones=None, routes=(), streams=None, wellness=None, user_id=1):
+        self.activities = list(activities)
+        self.zones = zones or {}
+        self._routes = routes
+        self._streams = streams or (lambda aid: None)
+        self.wellness = wellness or {}
+        self.last_sync = "2026-10-01 06:00"
+        self.scope = type("Scope", (), {"user_id": user_id, "engine": None})()
+
+    @property
+    def routes(self):
+        return [dict(r) for r in self._routes]
+
+    def streams(self, aid):
+        return self._streams(aid)
+
+
+def fake_user_dep(store, via="cookie", username="joost"):
+    """A current_user dependency returning a User around `store`."""
+    from api.users import User
+
+    return lambda: User(store.scope.user_id, username, None, True, via, store)

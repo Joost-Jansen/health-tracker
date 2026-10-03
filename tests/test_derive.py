@@ -22,6 +22,7 @@ def run(day, seed, hr=(140, 150, 150)):
 def setup():
     e = db.connect("sqlite://")
     db.create_schema(e)
+    e = db.Scope(e, 1)
     db.set_setting(e, "zones", ZONES)
     return e
 
@@ -51,6 +52,7 @@ def test_derive_builds_routes_and_keeps_user_names():
 def test_derive_without_zones_setting_leaves_activities_untouched():
     e = db.connect("sqlite://")
     db.create_schema(e)
+    e = db.Scope(e, 1)
     db.upsert_activity(e, run("2026-09-20", 1))
     derive(e)
     assert "hr_zones_s" not in db.load_activities(e)[0]

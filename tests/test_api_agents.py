@@ -22,7 +22,8 @@ def agent(client):
 
 
 def test_agent_token_grants_access(client):
-    assert agent(client).get("/api/me").json() == {"username": "agent"}
+    me = agent(client).get("/api/me").json()
+    assert me["username"] == "joost" and me["via"] == "agent"  # the env token belongs to the first admin
 
 
 def test_wrong_agent_token_is_rejected(client):
@@ -62,9 +63,9 @@ def test_entry_kind_is_validated(client):
 
 
 def test_context_bundles_what_an_agent_needs(client, engine):  # noqa: F811
-    db.put_document(engine, "profile", "# Profiel", author="joost")
-    db.put_document(engine, "goals", "# Doelen", author="joost")
-    db.add_entry(engine, kind="log", title="HM", body="1:43:31", author="agent", day="2026-09-27")
+    db.put_document(db.Scope(engine, 1), "profile", "# Profiel", author="joost")
+    db.put_document(db.Scope(engine, 1), "goals", "# Doelen", author="joost")
+    db.add_entry(db.Scope(engine, 1), kind="log", title="HM", body="1:43:31", author="agent", day="2026-09-27")
     ctx = agent(client).get("/api/context").json()
     assert ctx["profile"] == "# Profiel" and ctx["goals"] == "# Doelen"
     assert ctx["last_sync"] == "2026-09-30 06:02"

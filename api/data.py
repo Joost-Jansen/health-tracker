@@ -1,13 +1,11 @@
-"""Read access for the API.
+"""Read access for the API, for one user (a `db.Scope`).
 
 Activities and wellness (large, change only on a sync) are cached for TTL seconds; everything else is read live,
-so an agent write shows up immediately."""
+so an agent write shows up immediately. One DataStore per user (api/users.py `Stores`)."""
 
 from __future__ import annotations
 
 import time
-
-from sqlalchemy.engine import Engine
 
 from tools import db
 
@@ -16,10 +14,15 @@ TTL = 60
 
 
 class DataStore:
-    def __init__(self, engine: Engine, ttl: float = TTL):
-        self.engine = engine
+    def __init__(self, scope: db.Scope, ttl: float = TTL):
+        self.scope = scope
+        self.engine = scope  # every db call takes the scope; the name stays for older callers
         self.ttl = ttl
         self._cache: dict = {}
+
+    def invalidate(self) -> None:
+        """After a sync: read activities and wellness fresh."""
+        self._cache.clear()
 
     def _cached(self, key: str, load):
         hit = self._cache.get(key)

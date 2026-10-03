@@ -104,22 +104,17 @@ def zone_history(activities: list[dict], period: str, count: int, sport: str, to
     return {"period": period, "sport": sport, "sports": sorted(sports, key=_sport_key), "items": items}
 
 
-def make_router(
-    activities: Callable[[], list[dict]],
-    zones: Callable[[], dict],
-    today: Callable[[], date],
-    author: Callable,
-) -> APIRouter:
+def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
     r = APIRouter()
 
     @r.get("/api/zones")
-    def zones_period(period: Period = "week", offset: int = Query(0, ge=0, le=MAX_OFFSET), who: str = Depends(author)):
-        return zones_for_period(activities(), zones(), period, offset, today())
+    def zones_period(period: Period = "week", offset: int = Query(0, ge=0, le=MAX_OFFSET), u=Depends(current_user)):
+        return zones_for_period(u.store.activities, u.store.zones, period, offset, today())
 
     @r.get("/api/zones/history")
-    def zones_history(period: Period = "week", count: int = Query(12, ge=1), sport: str = "all", who: str = Depends(author)):
+    def zones_history(period: Period = "week", count: int = Query(12, ge=1), sport: str = "all", u=Depends(current_user)):
         if count > MAX_COUNT[period]:
             raise HTTPException(status_code=422, detail=f"maximaal {MAX_COUNT[period]} perioden")
-        return zone_history(activities(), period, count, sport, today())
+        return zone_history(u.store.activities, period, count, sport, today())
 
     return r

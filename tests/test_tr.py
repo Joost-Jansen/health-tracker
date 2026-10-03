@@ -4,9 +4,9 @@ from tools.tr import context_markdown
 
 
 def test_context_markdown_renders_real_api_payload(client, engine):  # noqa: F811
-    db.put_document(engine, "profile", "Max HR 189", author="joost")
-    pid = db.create_plan(engine, title="Marathon", author="agent")
-    db.add_sessions(engine, pid, [{"date": "2026-10-04", "sport": "run", "kind": "duurloop", "distance_km": 18, "target_zone": "Z2"}])
+    db.put_document(db.Scope(engine, 1), "profile", "Max HR 189", author="joost")
+    pid = db.create_plan(db.Scope(engine, 1), title="Marathon", author="agent")
+    db.add_sessions(db.Scope(engine, 1), pid, [{"date": "2026-10-04", "sport": "run", "kind": "duurloop", "distance_km": 18, "target_zone": "Z2"}])
     md = context_markdown(agent(client).get("/api/context").json())
     assert "# Trainingscontext (laatste sync: 2026-09-30 06:02)" in md
     assert "Max HR 189" in md

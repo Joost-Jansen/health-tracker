@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.routes_api import make_router, route_detail, route_summary, suggest
-from tests.helpers import HOME, square_loop
+from tests.helpers import HOME, FakeStore, fake_user_dep, square_loop
 
 ROUTES = [
     {"id": "r1", "name": "Park", "distance_km": 4.0, "is_loop": True, "runs": 2, "last_run": "2026-09-10", "start": list(HOME), "end": list(HOME), "median_pace": "5:00", "median_hr": 140, "activity_ids": ["2026-09-01T08:00:00", "b"]},
@@ -42,10 +42,13 @@ def test_suggest_prefers_single_route_and_adds_tracks():
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    from api import routes_api
+
     saved = {}
+    monkeypatch.setattr(routes_api.db, "save_routes", lambda scope, items: saved.update(items=items))
     app = FastAPI()
-    app.include_router(make_router(lambda: [dict(r) for r in ROUTES], lambda: ACTS, streams, lambda: date(2026, 9, 30), lambda: "joost", save=lambda items: saved.update(items=items)))
+    app.include_router(make_router(lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=ACTS, routes=ROUTES, streams=streams))))
     c = TestClient(app)
     c.saved = saved
     return c
@@ -86,7 +89,7 @@ def test_suggest_is_per_sport():
 @pytest.fixture
 def mixed_client():
     app = FastAPI()
-    app.include_router(make_router(lambda: [dict(r) for r in ROUTES + [RIDE]], lambda: ACTS + RIDE_ACTS, streams, lambda: date(2026, 9, 30), lambda: "joost"))
+    app.include_router(make_router(lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=ACTS + RIDE_ACTS, routes=ROUTES + [RIDE], streams=streams))))
     return TestClient(app)
 
 

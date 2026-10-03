@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
+from tests.helpers import FakeStore, fake_user_dep
 from api.zones_api import make_router, period_bounds, period_label, zone_history, zones_for_period
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}, "ride": {"bounds": [127, 141, 156, 169], "max_hr": 182}}
@@ -139,13 +140,13 @@ def test_month_history_across_year():
 def author(request: Request) -> str:
     if request.headers.get("x-user") != "joost":
         raise HTTPException(status_code=401, detail="niet ingelogd")
-    return "joost"
+    return fake_user_dep(FakeStore(activities=ACTS, zones=ZONES))()
 
 
 @pytest.fixture
 def client():
     app = FastAPI()
-    app.include_router(make_router(lambda: ACTS, lambda: ZONES, lambda: date(2026, 10, 3), author))
+    app.include_router(make_router(lambda: date(2026, 10, 3), author))
     return TestClient(app, headers={"x-user": "joost"})
 
 

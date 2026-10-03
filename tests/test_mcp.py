@@ -91,7 +91,8 @@ def test_tokens_made_on_the_site_work_for_api_and_mcp(client):
     assert "hash" not in client.get("/api/agent-tokens").json()[0]
 
     fresh = TestClient(client.app)  # no cookie
-    assert fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).json() == {"username": "agent"}
+    me = fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).json()
+    assert me["username"] == "joost" and me["via"] == "agent"
     assert rpc(fresh, "tools/list", auth=False, path=f"/api/mcp/{made['token']}").status_code == 200
 
     assert client.delete(f"/api/agent-tokens/{made['id']}").json() == {"ok": True}

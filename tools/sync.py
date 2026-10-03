@@ -26,7 +26,7 @@ if __package__ in (None, ""):
 from tools import db, store
 from tools.derive import derive
 from tools.fit import read_fit_streams
-from tools.secretbox import decrypt, encrypt
+from tools.secretbox import WrongKey, decrypt, default_key, encrypt
 from tools.store import from_garmin, from_strava, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,10 +83,10 @@ class FileSink:
 
 
 class DbSink:
-    """Target: the training database (tools/db.py)."""
+    """Target: one user's data in the training database (tools/db.py)."""
 
-    def __init__(self, engine):
-        self.engine = engine
+    def __init__(self, scope: db.Scope):
+        self.engine = scope  # name kept for the methods below: every db call is scoped to this user
 
     def upsert_activity(self, record: dict) -> str:
         return db.upsert_activity(self.engine, record)
@@ -269,20 +269,27 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
 # --- database mode (Railway cron) ----------------------------------------------------
 
 
-def run_db_sync(engine, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
+def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
                 read_streams=read_fit_streams, since: date | None = None) -> int:
-    """Garmin -> database, then derived data. Tokens: the encrypted copy in the database wins over GARMINTOKENS,
-    because Garmin rotates the refresh token and only the database copy is kept up to date."""
+    """One user: Garmin -> database, then derived data. `s` is that user's Scope. Tokens: the encrypted copy in the
+    database wins over GARMINTOKENS, because Garmin rotates the refresh token and only the database copy is kept up to date.
+    GARMINTOKENS (env) is only offered for the first admin (the account that existed before multi-user)."""
     client_factory = client_factory or GarminClient
     tz = ZoneInfo("Europe/Amsterdam")
     today = today or datetime.now(tz).date()
-    state = db.get_setting(engine, "sync_state") or {}
-    stored = db.get_setting(engine, "garmin_tokens")
-    candidates = [t for t in (decrypt(stored, key) if stored and key else None, env_tokens) if t]
+    state = db.get_setting(s, "sync_state") or {}
+    stored = db.get_setting(s, "garmin_tokens")
+    stored_tokens = None
+    if stored and key:
+        try:
+            stored_tokens = decrypt(stored, key)
+        except WrongKey:
+            print("garmin: opgeslagen sessie is met een andere sleutel versleuteld; koppel Garmin opnieuw op de site")
+    candidates = [t for t in (stored_tokens, env_tokens) if t]
     failed, client = [], None
     try:
         if not candidates:
-            raise RuntimeError("geen Garmin-tokens: zet GARMINTOKENS (tools/setup_garmin.py)")
+            raise RuntimeError("geen Garmin-koppeling: koppel Garmin op de site (Instellingen)")
         for i, tokens in enumerate(dict.fromkeys(candidates)):
             try:
                 client = client_factory(tokens)
@@ -294,7 +301,7 @@ def run_db_sync(engine, key: str, env_tokens: str | None, client_factory=None, t
                 if i == len(dict.fromkeys(candidates)) - 1:
                     raise
                 print(f"garmin: opgeslagen sessie werkt niet meer ({type(err).__name__}), probeer GARMINTOKENS")
-        print(f"garmin: {sync_garmin(DbSink(engine), client, state, today, since, read_streams)} activiteiten")
+        print(f"garmin: {sync_garmin(DbSink(s), client, state, today, since, read_streams)} activiteiten")
     except RateLimited:
         print("garmin: rate limit bereikt, volgende run gaat verder")
     except Exception as err:
@@ -305,15 +312,32 @@ def run_db_sync(engine, key: str, env_tokens: str | None, client_factory=None, t
             for metric, counts in getattr(client, "stats", {}).items():
                 print(f"garmin {metric}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
             if key:
-                db.set_setting(engine, "garmin_tokens", encrypt(client.tokens(), key))
+                db.set_setting(s, "garmin_tokens", encrypt(client.tokens(), key))
         state["last_sync_local"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
         if failed:
             state["last_failed"] = failed
         else:
             state.pop("last_failed", None)
-        db.set_setting(engine, "sync_state", state)
-    print(f"derive: {derive(engine)}")
+        db.set_setting(s, "sync_state", state)
+    print(f"derive: {derive(s)}")
     return 1 if failed else 0
+
+
+def run_all_users(engine, key: str, env_tokens: str | None = None, **kw) -> int:
+    """Sync every user with a Garmin connection (and the first admin, who may still rely on GARMINTOKENS).
+    Suspended users are skipped. Returns 1 when any user failed."""
+    first_admin = next((u["id"] for u in db.list_users(engine) if u["is_admin"]), None)
+    connected = set(db.user_ids_with_setting(engine, "garmin_tokens"))
+    if env_tokens and first_admin:
+        connected.add(first_admin)
+    status = 0
+    for user in db.list_users(engine):
+        if user["id"] not in connected or user["suspended"]:
+            continue
+        print(f"--- {user['username']}")
+        tokens = env_tokens if user["id"] == first_admin else None
+        status |= run_db_sync(db.Scope(engine, user["id"]), key, tokens, **kw)
+    return status
 
 
 # --- CLI ----------------------------------------------------------------------------
@@ -330,7 +354,7 @@ def main(argv=None) -> int:
     if os.environ.get("DATABASE_URL") and not args.files:
         engine = db.connect(os.environ["DATABASE_URL"])
         db.create_schema(engine)
-        return run_db_sync(engine, os.environ.get("TOKEN_ENCRYPTION_KEY", ""), os.environ.get("GARMINTOKENS"), since=args.since)
+        return run_all_users(engine, default_key(), os.environ.get("GARMINTOKENS"), since=args.since)
 
     root = args.root
     token_out = os.environ.get("TOKEN_OUT_DIR")

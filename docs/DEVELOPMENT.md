@@ -50,7 +50,7 @@ Coaching agents use `tools/tr.py` with `TRAINING_API_URL` and `TRAINING_API_TOKE
 | Service `Postgres` | id `<service-id>` (template `postgres`, volume, us-west2, private network only) |
 | Service `sync` | id `<service-id>`, `Dockerfile.sync`, cron `0 4 * * *` (UTC), variables `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, `GARMINTOKENS` (initial only; the database keeps the rotated copy, encrypted) |
 | Domain | https://your-domain.example |
-| Variables on `web` | `PORT=8000`, `HOST=0.0.0.0`, `TZ`, `TRAINING_USER`, `TRAINING_PASSWORD_HASH`, `TRAINING_JWT_SECRET` (set by Joost via `tools/set_dashboard_password.py`), `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_AGENT_TOKEN_HASH` (via `tools/set_agent_token.py`) |
+| Variables on `web` | `PORT=8000`, `HOST=0.0.0.0`, `TZ`, `TRAINING_JWT_SECRET` (signs sessions), `TRAINING_USER` + `TRAINING_PASSWORD_HASH` (only used once: they create the first admin on an empty `users` table; after that logins live in the database), `TOKEN_ENCRYPTION_KEY` (same value as on `sync`; encrypts Garmin sessions), `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_AGENT_TOKEN_HASH` (via `tools/set_agent_token.py`) |
 
 Lessons carried over from `DEPLOY.md`: `HOST` must be `0.0.0.0` (not `::`), set `PORT` explicitly, service config lives on the service (no railway.toml).
 
@@ -95,7 +95,22 @@ Docker check before touching the Dockerfile: `docker build -t training:test . &&
 
 ## API contract
 
-All routes except `/api/health` and `/api/login` need the session cookie (browser) or, once T3 lands, `Authorization: Bearer <agent token>`.
+Multi-user (T19, `docs/2026-10-03-multi-user-design.md`): every route except `/api/health`, `/api/auth/config`, `/api/login`,
+`/api/register` needs the session cookie or `Authorization: Bearer <agent token>`, and sees only the caller's data.
+`current_user` (api/users.py) returns a `User` (id, username, is_admin, via cookie|agent, `store` = that user's `DataStore`,
+`scope` = `db.Scope`); routers read from it, never from a global store. Every `tools/db.py` function for user data takes a
+`Scope(engine, user_id)`.
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/api/auth/config` | `{registration: closed\|invite\|open, first_user}` (public) |
+| POST | `/api/register` | `{username, password, display_name?, invite?}`; first user on an empty install becomes admin |
+| GET | `/api/me` | `{id, username, display_name, is_admin, via}` |
+| PATCH | `/api/account` | `{display_name}` |
+| POST | `/api/account/password` | `{current, new}` |
+| GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
+| GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
+| POST/DELETE | `/api/admin/invites`, `/api/admin/invites/{code}` | invite codes (`{days}`) |
 
 Existing:
 

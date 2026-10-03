@@ -15,9 +15,6 @@ from typing import Callable
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import update
-from sqlalchemy.engine import Engine
-
 from tools import db
 from tools.recommend import recommend
 from tools.zones import NAMES
@@ -315,83 +312,71 @@ def _check_session(s: dict) -> dict:
     return s
 
 
-def make_router(
-    engine: Callable[[], Engine],
-    activities: Callable[[], list[dict]],
-    routes: Callable[[], list[dict]],
-    today: Callable[[], date],
-    author: Callable,
-    persistent: bool,
-) -> APIRouter:
-    """`author` is the auth dependency; it returns who is calling ("joost" or an agent name)."""
+def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
+    """Every route works on the caller's own plans (`current_user` returns an api.users.User)."""
     r = APIRouter()
 
-    def full(plan: dict | None) -> dict | None:
-        return enrich(plan, activities(), routes(), today()) if plan else None
+    def full(u, plan: dict | None) -> dict | None:
+        return enrich(plan, u.store.activities, u.store.routes, today()) if plan else None
 
-    def must(plan_id: int) -> dict:
-        plan = db.get_plan(engine(), plan_id)
+    def must(u, plan_id: int) -> dict:
+        plan = db.get_plan(u.scope, plan_id)
         if not plan:
             raise HTTPException(status_code=404, detail="schema niet gevonden")
         return plan
 
     @r.get("/api/plans")
-    def list_plans(who: str = Depends(author)):
-        return {"persistent": persistent, "plans": db.list_plans(engine())}
+    def list_plans(u=Depends(current_user)):
+        return {"persistent": True, "plans": db.list_plans(u.scope)}
 
     @r.get("/api/plans/active")
-    def active(who: str = Depends(author)):
-        return {"persistent": persistent, "plan": full(db.active_plan(engine()))}
+    def active(u=Depends(current_user)):
+        return {"persistent": True, "plan": full(u, db.active_plan(u.scope))}
 
     @r.get("/api/plans/{plan_id}")
-    def get(plan_id: int, who: str = Depends(author)):
-        return full(must(plan_id))
+    def get(plan_id: int, u=Depends(current_user)):
+        return full(u, must(u, plan_id))
 
     @r.post("/api/plans")
-    def create(body: PlanIn, who: str = Depends(author)):
+    def create(body: PlanIn, u=Depends(current_user)):
         items = [_check_session(s.model_dump()) for s in body.sessions]
-        pid = db.create_plan(engine(), body.title, who, body.goal, body.race, body.notes)
-        db.add_sessions(engine(), pid, items)
-        return full(db.get_plan(engine(), pid))
+        pid = db.create_plan(u.scope, body.title, u.author, body.goal, body.race, body.notes)
+        db.add_sessions(u.scope, pid, items)
+        return full(u, db.get_plan(u.scope, pid))
 
     @r.post("/api/plans/import")
-    def import_plan(body: ImportIn, who: str = Depends(author)):
+    def import_plan(body: ImportIn, u=Depends(current_user)):
         items, warnings = parse_table(body.text, today().year)
         if body.preview or not items:
             return {"sessions": items, "warnings": warnings, "saved": False}
-        pid = db.create_plan(engine(), body.title or f"Schema vanaf {items[0]['date']}", who, body.goal, body.race)
-        db.add_sessions(engine(), pid, items)
-        return {"sessions": items, "warnings": warnings, "saved": True, "plan": full(db.get_plan(engine(), pid))}
+        pid = db.create_plan(u.scope, body.title or f"Schema vanaf {items[0]['date']}", u.author, body.goal, body.race)
+        db.add_sessions(u.scope, pid, items)
+        return {"sessions": items, "warnings": warnings, "saved": True, "plan": full(u, db.get_plan(u.scope, pid))}
 
     @r.patch("/api/plans/{plan_id}")
-    def patch(plan_id: int, body: PlanPatch, who: str = Depends(author)):
-        must(plan_id)
+    def patch(plan_id: int, body: PlanPatch, u=Depends(current_user)):
+        must(u, plan_id)
         values = body.model_dump(exclude_none=True)
         if "status" in values and values["status"] not in STATUSES:
             raise HTTPException(status_code=422, detail=f"status moet een van {', '.join(STATUSES)} zijn")
-        if values.get("status") == "actief":
-            with engine().begin() as conn:
-                conn.execute(update(db.plans).where(db.plans.c.status == "actief").values(status="afgerond"))
-        if values:
-            with engine().begin() as conn:
-                conn.execute(update(db.plans).where(db.plans.c.id == plan_id).values(**values))
-        return full(must(plan_id))
+        db.update_plan(u.scope, plan_id, **values)
+        return full(u, must(u, plan_id))
 
     @r.put("/api/plans/{plan_id}/sessions")
-    def put_sessions(plan_id: int, body: list[SessionIn], who: str = Depends(author)):
-        must(plan_id)
-        db.replace_sessions(engine(), plan_id, [_check_session(s.model_dump()) for s in body])
-        return full(must(plan_id))
+    def put_sessions(plan_id: int, body: list[SessionIn], u=Depends(current_user)):
+        must(u, plan_id)
+        db.replace_sessions(u.scope, plan_id, [_check_session(s.model_dump()) for s in body])
+        return full(u, must(u, plan_id))
 
     @r.put("/api/plans/{plan_id}/table")
-    def put_table(plan_id: int, body: ImportIn, who: str = Depends(author)):
+    def put_table(plan_id: int, body: ImportIn, u=Depends(current_user)):
         """Replace all sessions from a markdown/CSV table (what agents edit most easily)."""
-        must(plan_id)
+        must(u, plan_id)
         items, warnings = parse_table(body.text, today().year)
         if not items:
             raise HTTPException(status_code=422, detail="; ".join(warnings) or "geen sessies gevonden")
         if not body.preview:
-            db.replace_sessions(engine(), plan_id, items)
-        return {"sessions": items, "warnings": warnings, "saved": not body.preview, "plan": full(must(plan_id))}
+            db.replace_sessions(u.scope, plan_id, items)
+        return {"sessions": items, "warnings": warnings, "saved": not body.preview, "plan": full(u, must(u, plan_id))}
 
     return r

@@ -21,7 +21,7 @@ account en bewaart alleen de sessie. Strava wordt niet gebruikt; Garmin levert a
 ## Eenmalig ingesteld (alleen opnieuw als iets verloopt)
 
 ```bash
-.venv/bin/python tools/set_dashboard_password.py   # login van de site
+.venv/bin/python tools/set_dashboard_password.py   # alleen voor de allereerste beheerder; daarna wachtwoorden via de site (Instellingen)
 .venv/bin/python tools/set_agent_token.py          # token voor agents (eenmalig getoond)
 .venv/bin/python tools/setup_garmin.py             # Garmin-login voor de sync (opnieuw als de site "mislukt: garmin" meldt)
 ```

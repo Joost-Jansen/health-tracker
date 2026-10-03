@@ -1,10 +1,8 @@
 """Rondjes: recurring routes (runs and rides) with a map, the history of every run or ride on them, and "a route for X km".
 
-Plain callables in, so it works on routes.json and on the routes table alike. Wire it in api/main.py with:
+The pure functions take plain data; the router reads the caller's routes and activities from their DataStore:
 
-    app.include_router(routes_api.make_router(routes_fn, lambda: store.activities, store.streams, today_fn, current_user, save_fn))
-
-`save_fn(routes)` persists a rename; leave it out and renaming answers 501.
+    app.include_router(routes_api.make_router(today_fn, current_user))
 """
 
 from __future__ import annotations
@@ -17,12 +15,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.history import _pick
+from tools import db
 from tools.recommend import recommend
 
 PREVIEW_POINTS = 150
 TRACK_POINTS = 800
 VARIANT_POINTS = {"preview": 80, "detail": 300}
-_TRACK_CACHE: dict[tuple[str, int], list] = {}  # (activity id, points) -> downsampled track; a stored track never changes
+# (user id, activity id, points) -> downsampled track; a stored track never changes. Keyed by user because activity
+# ids repeat across users; streams_fn is the user's DataStore.streams (plain functions in tests key on themselves).
+_TRACK_CACHE: dict[tuple, list] = {}
 _CACHE_MAX = 4000
 
 
@@ -45,7 +46,9 @@ def _efficiency(a: dict) -> float | None:
 
 
 def _activity_track(aid: str, streams_fn: Callable, limit: int) -> list[list[float]]:
-    key = (aid, limit)
+    owner = getattr(streams_fn, "__self__", None)
+    scope = getattr(owner, "scope", None)
+    key = (scope.user_id if scope is not None else streams_fn, aid, limit)
     if key not in _TRACK_CACHE:
         latlng = [p for p in ((streams_fn(aid) or {}).get("latlng") or []) if p and p[0] is not None]
         if len(_TRACK_CACHE) >= _CACHE_MAX:
@@ -129,27 +132,21 @@ class RouteRename(BaseModel):
     name: str
 
 
-def make_router(
-    routes: Callable[[], list[dict]],
-    activities: Callable[[], list[dict]],
-    streams: Callable,
-    today: Callable[[], date],
-    author: Callable,
-    save: Callable[[list[dict]], None] | None = None,
-) -> APIRouter:
+def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
+    """Routes of the caller (`current_user` returns an api.users.User); a rename is saved in their routes."""
     r = APIRouter()
 
-    def find(route_id: str) -> dict:
-        for route in routes():
+    def find(u, route_id: str) -> dict:
+        for route in u.store.routes:
             if route["id"] == route_id:
                 return route
         raise HTTPException(status_code=404, detail="rondje niet gevonden")
 
     @r.get("/api/routes")
-    def list_routes(sport: str | None = None, who: str = Depends(author)):
-        items = [x for x in routes() if not sport or x.get("sport", "run") == sport]
-        acts = activities()
-        return sorted((route_summary(x, acts, streams) for x in items), key=lambda x: -(x.get("runs") or 0))
+    def list_routes(sport: str | None = None, u=Depends(current_user)):
+        items = [x for x in u.store.routes if not sport or x.get("sport", "run") == sport]
+        acts = u.store.activities
+        return sorted((route_summary(x, acts, u.store.streams) for x in items), key=lambda x: -(x.get("runs") or 0))
 
     # before /{route_id} so "suggest" is not taken for an id
     @r.get("/api/routes/suggest")
@@ -158,27 +155,25 @@ def make_router(
         tolerance: float = Query(0.05, ge=0, le=0.5),
         start: str | None = None,
         sport: str = "run",
-        who: str = Depends(author),
+        u=Depends(current_user),
     ):
-        return {"km": km, "options": suggest(routes(), activities(), streams, km, today(), tolerance, start, sport=sport)}
+        return {"km": km, "options": suggest(u.store.routes, u.store.activities, u.store.streams, km, today(), tolerance, start, sport=sport)}
 
     @r.get("/api/routes/{route_id}")
-    def get_route(route_id: str, who: str = Depends(author)):
-        return route_detail(find(route_id), activities(), streams)
+    def get_route(route_id: str, u=Depends(current_user)):
+        return route_detail(find(u, route_id), u.store.activities, u.store.streams)
 
     @r.patch("/api/routes/{route_id}")
-    def rename(route_id: str, body: RouteRename, who: str = Depends(author)):
-        if save is None:
-            raise HTTPException(status_code=501, detail="hernoemen kan pas als rondjes in de database staan")
+    def rename(route_id: str, body: RouteRename, u=Depends(current_user)):
         name = body.name.strip()
         if not name or len(name) > 80:
             raise HTTPException(status_code=422, detail="naam van 1 tot 80 tekens")
-        items = routes()
+        items = u.store.routes
         for x in items:
             if x["id"] == route_id:
                 x["name"] = name
-                save(items)
-                return route_detail(x, activities(), streams)
+                db.save_routes(u.scope, items)
+                return route_detail(x, u.store.activities, u.store.streams)
         raise HTTPException(status_code=404, detail="rondje niet gevonden")
 
     return r

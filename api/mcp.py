@@ -4,7 +4,7 @@
     POST /api/mcp/<token>    token in the path, for clients that cannot send headers (claude.ai custom connector)
 
 Stateless: every request is one JSON-RPC message (or a batch). No server-sent events, no sessions.
-Tools read and write the same data as the website: what an agent changes, Joost sees on the site.
+Tools read and write the same data as the website: what an agent changes, the user sees on the site.
 """
 
 from __future__ import annotations
@@ -29,12 +29,16 @@ from tools.summarize import last_90_days_md, this_week_md
 
 PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
 INSTRUCTIONS = (
-    "Trainingsdata van Joost (Garmin: lopen, fietsen, zwemmen; slaap en herstel), zijn doelen, trainingsschema en logboek. "
+    "Trainingsdata van {name} (Garmin: lopen, fietsen, zwemmen; slaap en herstel), de doelen, het trainingsschema en het logboek. "
     "Begin een coachingsessie met get_context. Antwoord in het Nederlands, scheid observatie, interpretatie en advies, "
     "reken met de data in plaats van te schatten. Hartslagzones komen uit de eigen zones per sport, nooit uit Garmins hrTimeInZone. "
     "Een run na zwemmen of fietsen op dezelfde dag (triathlon, brick) is niet vergelijkbaar met een losse run. "
     "Schrijf aan het eind van een sessie een logentry (add_log). Geen medisch advies."
 )
+
+
+def instructions(user) -> str:
+    return INSTRUCTIONS.format(name=user.display_name or user.username)
 
 SESSION_TABLE_HELP = (
     "Markdown- of CSV-tabel met kopregel. Kolommen: Datum (verplicht, 2026-10-06 of 6-10), Sport (lopen/fietsen/zwemmen/kracht/rust), "
@@ -186,9 +190,12 @@ def plan_md(plan: dict | None) -> str:
 
 
 class Server:
-    def __init__(self, store, today: Callable[[], date]):
-        self.store = store
-        self.engine = store.engine
+    """Answers MCP messages for one user (an api.users.User): their data, written as `agent`."""
+
+    def __init__(self, user, today: Callable[[], date]):
+        self.user = user
+        self.store = user.store
+        self.engine = user.scope  # every db call takes the user's scope
         self.today = today
 
     def _plan(self, plan_id: int | None) -> dict:
@@ -306,8 +313,8 @@ class Server:
                 {
                     "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[0],
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "training", "title": "Training van Joost", "version": "1.0"},
-                    "instructions": INSTRUCTIONS,
+                    "serverInfo": {"name": "training", "title": "Training", "version": "1.0"},
+                    "instructions": instructions(self.user),
                 }
             )
         if method == "ping":
@@ -336,15 +343,16 @@ class RedactToken(logging.Filter):
         return True
 
 
-def make_router(store, today: Callable[[], date], bearer_user: Callable[[Request], str], token_user: Callable[[str], str | None]) -> APIRouter:
-    """`bearer_user(request)` authenticates the header (raises 401); `token_user(token)` checks a token from the path."""
+def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None]) -> APIRouter:
+    """`bearer_user(request)` authenticates the header (raises 401) and returns the User; `token_user(token)` checks a
+    token from the path. Each request is answered for that user only."""
     r = APIRouter()
-    server = Server(store, today)
     access = logging.getLogger("uvicorn.access")
     if not any(isinstance(f, RedactToken) for f in access.filters):
         access.addFilter(RedactToken())
 
-    async def serve(request: Request, who: str) -> Response:
+    async def serve(request: Request, user) -> Response:
+        server, who = Server(user, today), user.author
         try:
             body = await request.json()
         except ValueError:

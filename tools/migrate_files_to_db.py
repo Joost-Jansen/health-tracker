@@ -28,9 +28,10 @@ def split_log(text: str) -> list[dict]:
     return [{"day": parts[i], "title": parts[i + 1].strip(), "body": parts[i + 2].strip() + "\n"} for i in range(1, len(parts), 3)]
 
 
-def migrate(root: Path, engine) -> dict:
+def migrate(root: Path, engine: db.Scope) -> dict:
+    """`engine` is the Scope of the user that receives the files."""
     root = Path(root)
-    db.create_schema(engine)
+    db.create_schema(engine.engine)
     counts = {"activities": 0, "fit": 0, "wellness": 0, "log": 0}
 
     for path in sorted((root / "data" / "activities").glob("*/*.json")):
@@ -79,4 +80,4 @@ def migrate(root: Path, engine) -> dict:
 
 
 if __name__ == "__main__":
-    print(migrate(ROOT, db.connect(os.environ["DATABASE_URL"])))
+    print(migrate(ROOT, db.Scope(db.connect(os.environ["DATABASE_URL"]), int(os.environ.get("TRAINING_USER_ID", "1")))))

@@ -2,74 +2,146 @@
 
 SQLAlchemy Core, so the same code runs on Postgres (Railway) and SQLite (tests, local).
 
+Multi-user (T19, docs/2026-10-03-multi-user-design.md): every data table carries `user_id`, and every function that
+touches a user's data takes a `Scope(engine, user_id)` instead of an engine, so no query can forget the user.
+Global tables: `users`, `invites`, `app_settings`, `agent_tokens` (a token points at its user).
+
     engine = connect(os.environ["DATABASE_URL"])
-    create_schema(engine)
+    create_schema(engine)          # creates or migrates (v1 single-user -> v2 multi-user)
+    s = Scope(engine, user_id)
+    load_activities(s)
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
-    Date,
     DateTime,
     Float,
     ForeignKey,
     Integer,
     LargeBinary,
     MetaData,
+    PrimaryKeyConstraint,
     String,
     Table,
     Text,
     create_engine,
     delete,
+    func,
+    inspect,
     insert,
     select,
+    text,
     update,
 )
 from sqlalchemy.engine import Engine
 
 from tools.store import activity_id, merge, prepare, same_start
 
+SCHEMA_VERSION = 2
 meta = MetaData()
+
+# --- global tables -------------------------------------------------------------------------------------------
+
+users = Table(
+    "users",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("username", String(40), nullable=False, unique=True),
+    Column("display_name", String(80)),
+    Column("password_hash", String(100), nullable=False),
+    Column("is_admin", Boolean, nullable=False, default=False),
+    Column("suspended", Boolean, nullable=False, default=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("last_login_at", DateTime(timezone=True)),
+)
+invites = Table(
+    "invites",
+    meta,
+    Column("code", String(40), primary_key=True),
+    Column("created_by", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True)),
+    Column("used_by", Integer),
+    Column("used_at", DateTime(timezone=True)),
+)
+app_settings = Table("app_settings", meta, Column("key", String(64), primary_key=True), Column("value", JSON, nullable=False))
+agent_tokens = Table(
+    "agent_tokens",
+    meta,
+    Column("id", String(16), primary_key=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("name", String(60), nullable=False),
+    Column("hash", String(64), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+# --- per-user tables -------------------------------------------------------------------------------------------
 
 activities = Table(
     "activities",
     meta,
-    Column("id", String(64), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("id", String(64), nullable=False),
     Column("start_local", String(19), nullable=False, index=True),
     Column("start_utc", String(20), nullable=False),
     Column("sport", String(40), nullable=False, index=True),
     Column("data", JSON, nullable=False),  # the merged record without streams
+    PrimaryKeyConstraint("user_id", "id"),
 )
 streams = Table(
     "activity_streams",
     meta,
-    Column("activity_id", String(64), ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("activity_id", String(64), nullable=False),
     Column("data", JSON, nullable=False),
+    PrimaryKeyConstraint("user_id", "activity_id"),
 )
 fit_files = Table(
     "fit_files",
     meta,
-    Column("activity_id", String(64), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("activity_id", String(64), nullable=False),
     Column("data", LargeBinary, nullable=False),
+    PrimaryKeyConstraint("user_id", "activity_id"),
 )
-wellness = Table("wellness", meta, Column("day", String(10), primary_key=True), Column("data", JSON, nullable=False))
-settings = Table("settings", meta, Column("key", String(64), primary_key=True), Column("value", JSON, nullable=False))
+wellness = Table(
+    "wellness",
+    meta,
+    Column("user_id", Integer, nullable=False),
+    Column("day", String(10), nullable=False),
+    Column("data", JSON, nullable=False),
+    PrimaryKeyConstraint("user_id", "day"),
+)
+settings = Table(
+    "settings",
+    meta,
+    Column("user_id", Integer, nullable=False),
+    Column("key", String(64), nullable=False),
+    Column("value", JSON, nullable=False),
+    PrimaryKeyConstraint("user_id", "key"),
+)
 documents = Table(
     "documents",
     meta,
-    Column("key", String(64), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("key", String(64), nullable=False),
     Column("body", Text, nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("updated_by", String(40), nullable=False),
+    PrimaryKeyConstraint("user_id", "key"),
 )
 entries = Table(
     "entries",
     meta,
     Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
     Column("kind", String(20), nullable=False, index=True),  # log | analysis
     Column("day", String(10), nullable=False, index=True),
     Column("title", String(200), nullable=False),
@@ -81,6 +153,7 @@ plans = Table(
     "plans",
     meta,
     Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
     Column("title", String(200), nullable=False),
     Column("goal", Text),
     Column("race", String(200)),
@@ -106,12 +179,23 @@ sessions = Table(
 routes = Table(
     "routes",
     meta,
-    Column("id", String(20), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("id", String(20), nullable=False),
     Column("sport", String(40), nullable=False),
     Column("data", JSON, nullable=False),
+    PrimaryKeyConstraint("user_id", "id"),
 )
 
+USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plans, routes)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
+
+
+@dataclass(frozen=True)
+class Scope:
+    """One user's view of the database."""
+
+    engine: Engine
+    user_id: int
 
 
 def connect(url: str) -> Engine:
@@ -122,211 +206,460 @@ def connect(url: str) -> Engine:
     return create_engine(url, pool_pre_ping=True, future=True)
 
 
-def create_schema(engine: Engine) -> None:
-    meta.create_all(engine)
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# --- activities ---------------------------------------------------------------------
+# --- schema and migration ----------------------------------------------------------------------------------------
 
 
-def _find_match(conn, record: dict) -> dict | None:
+def _v1_meta() -> tuple[MetaData, dict[str, Table]]:
+    """The single-user schema (before T19), only to read old data during the migration."""
+    m = MetaData()
+    t = {
+        "activities": Table("activities", m, Column("id", String(64), primary_key=True), Column("start_local", String(19)), Column("start_utc", String(20)), Column("sport", String(40)), Column("data", JSON)),
+        "activity_streams": Table("activity_streams", m, Column("activity_id", String(64), primary_key=True), Column("data", JSON)),
+        "fit_files": Table("fit_files", m, Column("activity_id", String(64), primary_key=True), Column("data", LargeBinary)),
+        "wellness": Table("wellness", m, Column("day", String(10), primary_key=True), Column("data", JSON)),
+        "settings": Table("settings", m, Column("key", String(64), primary_key=True), Column("value", JSON)),
+        "documents": Table("documents", m, Column("key", String(64), primary_key=True), Column("body", Text), Column("updated_at", DateTime(timezone=True)), Column("updated_by", String(40))),
+        "entries": Table("entries", m, Column("id", Integer, primary_key=True), Column("kind", String(20)), Column("day", String(10)), Column("title", String(200)), Column("body", Text), Column("author", String(40)), Column("created_at", DateTime(timezone=True))),
+        "plans": Table("plans", m, Column("id", Integer, primary_key=True), Column("title", String(200)), Column("goal", Text), Column("race", String(200)), Column("notes", Text), Column("status", String(20)), Column("author", String(40)), Column("created_at", DateTime(timezone=True))),
+        "plan_sessions": Table("plan_sessions", m, Column("id", Integer, primary_key=True), Column("plan_id", Integer), *[Column(c, String) for c in ("date", "sport", "kind", "target_zone", "description", "route_id")], Column("distance_km", Float), Column("duration_min", Integer)),
+        "routes": Table("routes", m, Column("id", String(20), primary_key=True), Column("sport", String(40)), Column("data", JSON)),
+    }
+    return m, t
+
+
+def _fix_sequences(conn, tables) -> None:
+    """After inserting explicit ids into Postgres serial columns, move the sequences past the highest id."""
+    if conn.dialect.name != "postgresql":
+        return
+    for t in tables:
+        conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{t.name}', 'id'), COALESCE((SELECT MAX(id) FROM {t.name}), 0) + 1, false)"))
+
+
+def _migrate_v1(conn, owner_id: int = 1) -> dict:
+    """Single-user tables -> multi-user tables, all data to `owner_id`. Runs inside the caller's transaction: on any
+    error nothing changes (Postgres has transactional DDL)."""
+    v1_meta, v1 = _v1_meta()
+    present = set(inspect(conn).get_table_names())
+    rows = {name: [dict(r) for r in conn.execute(select(t)).mappings()] for name, t in v1.items() if name in present}
+    v1_meta.drop_all(conn, tables=[t for n, t in v1.items() if n in present], checkfirst=True)
+    meta.create_all(conn)
+    counts = {}
+    for name, items in rows.items():
+        if name == "settings":
+            tokens = next((r["value"] for r in items if r["key"] == "agent_tokens"), None) or []
+            for tok in tokens:
+                conn.execute(insert(agent_tokens).values(id=tok["id"], user_id=owner_id, name=tok["name"], hash=tok["hash"], created_at=datetime.fromisoformat(tok["created_at"])))
+            items = [r for r in items if r["key"] != "agent_tokens"]
+        table = meta.tables[name]
+        for r in items:
+            values = dict(r) if name == "plan_sessions" else {**r, "user_id": owner_id}
+            conn.execute(insert(table).values(**values))
+        counts[name] = len(items)
+    _fix_sequences(conn, [entries, plans, sessions])
+    return counts
+
+
+def create_schema(engine: Engine) -> dict | None:
+    """Create missing tables; migrate a single-user (v1) database to multi-user. Returns migration counts or None."""
+    with engine.begin() as conn:
+        tables = set(inspect(conn).get_table_names())
+        migrated = None
+        if "activities" in tables and "user_id" not in {c["name"] for c in inspect(conn).get_columns("activities")}:
+            migrated = _migrate_v1(conn)
+        meta.create_all(conn)
+        if conn.execute(select(app_settings.c.value).where(app_settings.c.key == "schema_version")).scalar_one_or_none() is None:
+            conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
+    return migrated
+
+
+# --- users ------------------------------------------------------------------------------------------------------
+
+
+def _user_row(row) -> dict:
+    out = dict(row)
+    out.pop("password_hash", None)
+    for k in ("created_at", "last_login_at"):
+        if out.get(k):
+            out[k] = out[k].isoformat()
+    return out
+
+
+def create_user(engine: Engine, username: str, password_hash: str, is_admin: bool = False, display_name: str | None = None, user_id: int | None = None) -> int:
+    values = dict(username=username.lower(), password_hash=password_hash, is_admin=is_admin, suspended=False, display_name=display_name, created_at=_now())
+    if user_id is not None:
+        values["id"] = user_id
+    with engine.begin() as conn:
+        uid = conn.execute(insert(users).values(**values)).inserted_primary_key[0]
+        if user_id is not None:
+            _fix_sequences(conn, [users])
+    return uid
+
+
+def get_user(engine: Engine, user_id: int, with_hash: bool = False) -> dict | None:
+    with engine.connect() as conn:
+        row = conn.execute(select(users).where(users.c.id == user_id)).mappings().first()
+    return (dict(row) if with_hash else _user_row(row)) if row else None
+
+
+def get_user_by_name(engine: Engine, username: str, with_hash: bool = False) -> dict | None:
+    with engine.connect() as conn:
+        row = conn.execute(select(users).where(users.c.username == username.strip().lower())).mappings().first()
+    return (dict(row) if with_hash else _user_row(row)) if row else None
+
+
+def list_users(engine: Engine) -> list[dict]:
+    with engine.connect() as conn:
+        rows = conn.execute(select(users).order_by(users.c.id)).mappings().all()
+        counts = dict(conn.execute(select(activities.c.user_id, func.count()).group_by(activities.c.user_id)).all())
+        syncs = {uid: v for uid, v in conn.execute(select(settings.c.user_id, settings.c.value).where(settings.c.key == "sync_state")).all()}
+    return [{**_user_row(r), "activities": counts.get(r["id"], 0), "last_sync": (syncs.get(r["id"]) or {}).get("last_sync_local")} for r in rows]
+
+
+def count_users(engine: Engine) -> int:
+    with engine.connect() as conn:
+        return conn.execute(select(func.count()).select_from(users)).scalar_one()
+
+
+def update_user(engine: Engine, user_id: int, **fields) -> None:
+    allowed = {"username", "display_name", "password_hash", "is_admin", "suspended", "last_login_at"}
+    values = {k: v for k, v in fields.items() if k in allowed}
+    if "username" in values:
+        values["username"] = values["username"].lower()
+    with engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == user_id).values(**values))
+
+
+def delete_user(engine: Engine, user_id: int) -> None:
+    """The user and all their data."""
+    with engine.begin() as conn:
+        plan_ids = [p for (p,) in conn.execute(select(plans.c.id).where(plans.c.user_id == user_id))]
+        if plan_ids:
+            conn.execute(delete(sessions).where(sessions.c.plan_id.in_(plan_ids)))
+        for t in USER_TABLES:
+            conn.execute(delete(t).where(t.c.user_id == user_id))
+        conn.execute(delete(agent_tokens).where(agent_tokens.c.user_id == user_id))
+        conn.execute(delete(users).where(users.c.id == user_id))
+
+
+def user_ids_with_setting(engine: Engine, key: str) -> list[int]:
+    with engine.connect() as conn:
+        return [uid for (uid,) in conn.execute(select(settings.c.user_id).where(settings.c.key == key).order_by(settings.c.user_id))]
+
+
+# --- app settings and invites ---------------------------------------------------------------------------------------
+
+
+def get_app_setting(engine: Engine, key: str, default=None):
+    with engine.connect() as conn:
+        value = conn.execute(select(app_settings.c.value).where(app_settings.c.key == key)).scalar_one_or_none()
+    return default if value is None else value
+
+
+def set_app_setting(engine: Engine, key: str, value) -> None:
+    with engine.begin() as conn:
+        conn.execute(delete(app_settings).where(app_settings.c.key == key))
+        conn.execute(insert(app_settings).values(key=key, value=value))
+
+
+def create_invite(engine: Engine, code: str, created_by: int, expires_at: datetime | None = None) -> None:
+    with engine.begin() as conn:
+        conn.execute(insert(invites).values(code=code, created_by=created_by, created_at=_now(), expires_at=expires_at))
+
+
+def list_invites(engine: Engine) -> list[dict]:
+    with engine.connect() as conn:
+        rows = conn.execute(select(invites).order_by(invites.c.created_at.desc())).mappings().all()
+    return [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in r.items()} for r in rows]
+
+
+def use_invite(engine: Engine, code: str, user_id: int) -> bool:
+    """Marks a valid, unused, unexpired invite as used by `user_id`. False when it cannot be used."""
+    with engine.begin() as conn:
+        row = conn.execute(select(invites).where(invites.c.code == code)).mappings().first()
+        if not row or row["used_by"] is not None:
+            return False
+        expires = row["expires_at"]
+        if expires is not None:
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires < _now():
+                return False
+        conn.execute(update(invites).where(invites.c.code == code).values(used_by=user_id, used_at=_now()))
+    return True
+
+
+def invite_usable(engine: Engine, code: str) -> bool:
+    with engine.connect() as conn:
+        row = conn.execute(select(invites).where(invites.c.code == code)).mappings().first()
+    if not row or row["used_by"] is not None:
+        return False
+    expires = row["expires_at"]
+    if expires is not None and (expires if expires.tzinfo else expires.replace(tzinfo=timezone.utc)) < _now():
+        return False
+    return True
+
+
+def delete_invite(engine: Engine, code: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(delete(invites).where(invites.c.code == code))
+
+
+# --- agent tokens ------------------------------------------------------------------------------------------------
+
+
+def add_agent_token(s: Scope, token_id: str, name: str, token_hash: str) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(insert(agent_tokens).values(id=token_id, user_id=s.user_id, name=name, hash=token_hash, created_at=_now()))
+
+
+def list_agent_tokens(s: Scope) -> list[dict]:
+    with s.engine.connect() as conn:
+        rows = conn.execute(select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == s.user_id).order_by(agent_tokens.c.created_at)).mappings()
+        return [{**r, "created_at": r["created_at"].isoformat()} for r in rows]
+
+
+def delete_agent_token(s: Scope, token_id: str) -> bool:
+    with s.engine.begin() as conn:
+        return conn.execute(delete(agent_tokens).where(agent_tokens.c.id == token_id, agent_tokens.c.user_id == s.user_id)).rowcount > 0
+
+
+def user_for_token_hash(engine: Engine, token_hash: str) -> int | None:
+    with engine.connect() as conn:
+        return conn.execute(select(agent_tokens.c.user_id).where(agent_tokens.c.hash == token_hash)).scalar_one_or_none()
+
+
+# --- activities ----------------------------------------------------------------------------------------------------
+
+
+def _find_match(conn, s: Scope, record: dict) -> dict | None:
     day = date.fromisoformat(record["start_local"][:10])
     lo, hi = (day - timedelta(days=1)).isoformat(), (day + timedelta(days=2)).isoformat()
-    rows = conn.execute(select(activities).where(activities.c.start_local >= lo, activities.c.start_local < hi)).mappings()
+    rows = conn.execute(
+        select(activities).where(activities.c.user_id == s.user_id, activities.c.start_local >= lo, activities.c.start_local < hi)
+    ).mappings()
     for row in rows:
         if same_start(row, record):
             return dict(row)
     return None
 
 
-def upsert_activity(engine: Engine, record: dict) -> str:
+def upsert_activity(s: Scope, record: dict) -> str:
     """Insert or merge an activity from one source; streams go to their own table. Returns the activity id."""
     record = prepare(record)
     new_streams = record.pop("streams", None)
-    with engine.begin() as conn:
-        match = _find_match(conn, record)
+    uid = s.user_id
+    with s.engine.begin() as conn:
+        match = _find_match(conn, s, record)
         if match is None:
             aid = activity_id(record)
             merged = merge({}, record)
-            conn.execute(insert(activities).values(id=aid, start_local=merged["start_local"], start_utc=merged["start_utc"], sport=merged["sport"], data=merged))
+            conn.execute(insert(activities).values(user_id=uid, id=aid, start_local=merged["start_local"], start_utc=merged["start_utc"], sport=merged["sport"], data=merged))
         else:
             aid = match["id"]
             merged = merge(match["data"], record)
-            conn.execute(update(activities).where(activities.c.id == aid).values(data=merged, sport=merged["sport"]))
+            conn.execute(update(activities).where(activities.c.user_id == uid, activities.c.id == aid).values(data=merged, sport=merged["sport"]))
         if new_streams:
-            conn.execute(delete(streams).where(streams.c.activity_id == aid))
-            conn.execute(insert(streams).values(activity_id=aid, data=new_streams))
+            conn.execute(delete(streams).where(streams.c.user_id == uid, streams.c.activity_id == aid))
+            conn.execute(insert(streams).values(user_id=uid, activity_id=aid, data=new_streams))
     return aid
 
 
-def set_derived(engine: Engine, aid: str, **fields) -> None:
+def set_derived(s: Scope, aid: str, **fields) -> None:
     """Update derived fields (e.g. hr_zones_s) on an activity; None removes the field."""
-    with engine.begin() as conn:
-        data = conn.execute(select(activities.c.data).where(activities.c.id == aid)).scalar_one()
-        data = dict(data)
+    where = (activities.c.user_id == s.user_id, activities.c.id == aid)
+    with s.engine.begin() as conn:
+        data = dict(conn.execute(select(activities.c.data).where(*where)).scalar_one())
         for k, v in fields.items():
             if v is None:
                 data.pop(k, None)
             else:
                 data[k] = v
-        conn.execute(update(activities).where(activities.c.id == aid).values(data=data))
+        conn.execute(update(activities).where(*where).values(data=data))
 
 
-def load_activities(engine: Engine, with_streams: bool = False) -> list[dict]:
-    with engine.connect() as conn:
-        rows = conn.execute(select(activities.c.id, activities.c.data).order_by(activities.c.start_local)).all()
+def load_activities(s: Scope, with_streams: bool = False) -> list[dict]:
+    with s.engine.connect() as conn:
+        rows = conn.execute(select(activities.c.id, activities.c.data).where(activities.c.user_id == s.user_id).order_by(activities.c.start_local)).all()
         out = [dict(data, id=aid) for aid, data in rows]
         if with_streams:
-            by_id = dict(conn.execute(select(streams.c.activity_id, streams.c.data)).all())
+            by_id = dict(conn.execute(select(streams.c.activity_id, streams.c.data).where(streams.c.user_id == s.user_id)).all())
             for a in out:
                 if a["id"] in by_id:
                     a["streams"] = by_id[a["id"]]
     return out
 
 
-def load_streams(engine: Engine, aid: str) -> dict | None:
-    with engine.connect() as conn:
-        return conn.execute(select(streams.c.data).where(streams.c.activity_id == aid)).scalar_one_or_none()
+def load_streams(s: Scope, aid: str) -> dict | None:
+    with s.engine.connect() as conn:
+        return conn.execute(select(streams.c.data).where(streams.c.user_id == s.user_id, streams.c.activity_id == aid)).scalar_one_or_none()
 
 
-def put_fit(engine: Engine, aid: str, data: bytes) -> None:
-    with engine.begin() as conn:
-        conn.execute(delete(fit_files).where(fit_files.c.activity_id == aid))
-        conn.execute(insert(fit_files).values(activity_id=aid, data=data))
+def put_fit(s: Scope, aid: str, data: bytes) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(delete(fit_files).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == aid))
+        conn.execute(insert(fit_files).values(user_id=s.user_id, activity_id=aid, data=data))
 
 
-def get_fit(engine: Engine, key: str) -> bytes | None:
-    with engine.connect() as conn:
-        return conn.execute(select(fit_files.c.data).where(fit_files.c.activity_id == key)).scalar_one_or_none()
+def get_fit(s: Scope, key: str) -> bytes | None:
+    with s.engine.connect() as conn:
+        return conn.execute(select(fit_files.c.data).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == key)).scalar_one_or_none()
 
 
-def has_fit(engine: Engine, aid: str) -> bool:
-    with engine.connect() as conn:
-        return conn.execute(select(fit_files.c.activity_id).where(fit_files.c.activity_id == aid)).first() is not None
+def has_fit(s: Scope, aid: str) -> bool:
+    with s.engine.connect() as conn:
+        return conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id, fit_files.c.activity_id == aid)).first() is not None
 
 
-# --- wellness, settings, documents --------------------------------------------------
+# --- wellness, settings, documents ---------------------------------------------------------------------------------
 
 
-def write_wellness(engine: Engine, day: str, values: dict) -> None:
+def write_wellness(s: Scope, day: str, values: dict) -> None:
     """Replace the day; an empty result removes it (Garmin is the only source)."""
-    with engine.begin() as conn:
-        conn.execute(delete(wellness).where(wellness.c.day == day))
+    with s.engine.begin() as conn:
+        conn.execute(delete(wellness).where(wellness.c.user_id == s.user_id, wellness.c.day == day))
         if values:
-            conn.execute(insert(wellness).values(day=day, data=values))
+            conn.execute(insert(wellness).values(user_id=s.user_id, day=day, data=values))
 
 
-def load_wellness(engine: Engine) -> dict[str, dict]:
-    with engine.connect() as conn:
-        return {d: data for d, data in conn.execute(select(wellness.c.day, wellness.c.data).order_by(wellness.c.day))}
+def load_wellness(s: Scope) -> dict[str, dict]:
+    with s.engine.connect() as conn:
+        return {d: data for d, data in conn.execute(select(wellness.c.day, wellness.c.data).where(wellness.c.user_id == s.user_id).order_by(wellness.c.day))}
 
 
-def get_setting(engine: Engine, key: str):
-    with engine.connect() as conn:
-        return conn.execute(select(settings.c.value).where(settings.c.key == key)).scalar_one_or_none()
+def get_setting(s: Scope, key: str):
+    with s.engine.connect() as conn:
+        return conn.execute(select(settings.c.value).where(settings.c.user_id == s.user_id, settings.c.key == key)).scalar_one_or_none()
 
 
-def set_setting(engine: Engine, key: str, value) -> None:
-    with engine.begin() as conn:
-        conn.execute(delete(settings).where(settings.c.key == key))
-        conn.execute(insert(settings).values(key=key, value=value))
+def set_setting(s: Scope, key: str, value) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(delete(settings).where(settings.c.user_id == s.user_id, settings.c.key == key))
+        conn.execute(insert(settings).values(user_id=s.user_id, key=key, value=value))
 
 
-def put_document(engine: Engine, key: str, body: str, author: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(delete(documents).where(documents.c.key == key))
-        conn.execute(insert(documents).values(key=key, body=body, updated_at=_now(), updated_by=author))
+def delete_setting(s: Scope, key: str) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(delete(settings).where(settings.c.user_id == s.user_id, settings.c.key == key))
 
 
-def get_document(engine: Engine, key: str) -> dict | None:
-    with engine.connect() as conn:
-        row = conn.execute(select(documents).where(documents.c.key == key)).mappings().first()
-    return {**row, "updated_at": row["updated_at"].isoformat()} if row else None
+def put_document(s: Scope, key: str, body: str, author: str) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(delete(documents).where(documents.c.user_id == s.user_id, documents.c.key == key))
+        conn.execute(insert(documents).values(user_id=s.user_id, key=key, body=body, updated_at=_now(), updated_by=author))
 
 
-# --- log and analyses ---------------------------------------------------------------
+def get_document(s: Scope, key: str) -> dict | None:
+    with s.engine.connect() as conn:
+        row = conn.execute(select(documents).where(documents.c.user_id == s.user_id, documents.c.key == key)).mappings().first()
+    if not row:
+        return None
+    out = {k: v for k, v in row.items() if k != "user_id"}
+    return {**out, "updated_at": row["updated_at"].isoformat()}
 
 
-def add_entry(engine: Engine, kind: str, title: str, body: str, author: str, day: str | None = None) -> int:
-    with engine.begin() as conn:
+# --- log and analyses ------------------------------------------------------------------------------------------------
+
+
+def add_entry(s: Scope, kind: str, title: str, body: str, author: str, day: str | None = None) -> int:
+    with s.engine.begin() as conn:
         res = conn.execute(
-            insert(entries).values(kind=kind, day=day or date.today().isoformat(), title=title, body=body, author=author, created_at=_now())
+            insert(entries).values(user_id=s.user_id, kind=kind, day=day or date.today().isoformat(), title=title, body=body, author=author, created_at=_now())
         )
         return res.inserted_primary_key[0]
 
 
-def list_entries(engine: Engine, kind: str | None = None, limit: int = 100) -> list[dict]:
-    q = select(entries).order_by(entries.c.day.desc(), entries.c.id.desc()).limit(limit)
+def list_entries(s: Scope, kind: str | None = None, limit: int = 100) -> list[dict]:
+    q = select(entries).where(entries.c.user_id == s.user_id).order_by(entries.c.day.desc(), entries.c.id.desc()).limit(limit)
     if kind:
         q = q.where(entries.c.kind == kind)
-    with engine.connect() as conn:
-        return [{**r, "created_at": r["created_at"].isoformat()} for r in conn.execute(q).mappings()]
+    with s.engine.connect() as conn:
+        return [{**{k: v for k, v in r.items() if k != "user_id"}, "created_at": r["created_at"].isoformat()} for r in conn.execute(q).mappings()]
 
 
-# --- plans --------------------------------------------------------------------------
+# --- plans -----------------------------------------------------------------------------------------------------------
 
 
-def create_plan(engine: Engine, title: str, author: str, goal: str | None = None, race: str | None = None, notes: str | None = None) -> int:
-    """A new plan becomes the active one; the previous active plan is marked afgerond."""
-    with engine.begin() as conn:
-        conn.execute(update(plans).where(plans.c.status == "actief").values(status="afgerond"))
+def create_plan(s: Scope, title: str, author: str, goal: str | None = None, race: str | None = None, notes: str | None = None) -> int:
+    """A new plan becomes the active one; the user's previous active plan is marked afgerond."""
+    with s.engine.begin() as conn:
+        conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "actief").values(status="afgerond"))
         res = conn.execute(
-            insert(plans).values(title=title, goal=goal, race=race, notes=notes, status="actief", author=author, created_at=_now())
+            insert(plans).values(user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="actief", author=author, created_at=_now())
         )
         return res.inserted_primary_key[0]
 
 
-def add_sessions(engine: Engine, plan_id: int, items: list[dict]) -> None:
-    with engine.begin() as conn:
+def _owns_plan(conn, s: Scope, plan_id: int) -> bool:
+    return conn.execute(select(plans.c.id).where(plans.c.id == plan_id, plans.c.user_id == s.user_id)).first() is not None
+
+
+def add_sessions(s: Scope, plan_id: int, items: list[dict]) -> None:
+    with s.engine.begin() as conn:
+        if not _owns_plan(conn, s, plan_id):
+            raise KeyError(f"plan {plan_id}")
         for item in items:
             conn.execute(insert(sessions).values(plan_id=plan_id, **{k: item.get(k) for k in SESSION_FIELDS}))
 
 
-def replace_sessions(engine: Engine, plan_id: int, items: list[dict]) -> None:
-    with engine.begin() as conn:
+def replace_sessions(s: Scope, plan_id: int, items: list[dict]) -> None:
+    with s.engine.begin() as conn:
+        if not _owns_plan(conn, s, plan_id):
+            raise KeyError(f"plan {plan_id}")
         conn.execute(delete(sessions).where(sessions.c.plan_id == plan_id))
-    add_sessions(engine, plan_id, items)
+    add_sessions(s, plan_id, items)
 
 
-def get_plan(engine: Engine, plan_id: int) -> dict | None:
-    with engine.connect() as conn:
-        row = conn.execute(select(plans).where(plans.c.id == plan_id)).mappings().first()
+def get_plan(s: Scope, plan_id: int) -> dict | None:
+    with s.engine.connect() as conn:
+        row = conn.execute(select(plans).where(plans.c.id == plan_id, plans.c.user_id == s.user_id)).mappings().first()
         if not row:
             return None
         items = conn.execute(select(sessions).where(sessions.c.plan_id == plan_id).order_by(sessions.c.date, sessions.c.id)).mappings()
-        return {**row, "created_at": row["created_at"].isoformat(), "sessions": [dict(s) for s in items]}
+        out = {k: v for k, v in row.items() if k != "user_id"}
+        return {**out, "created_at": row["created_at"].isoformat(), "sessions": [dict(x) for x in items]}
 
 
-def active_plan(engine: Engine) -> dict | None:
-    with engine.connect() as conn:
-        pid = conn.execute(select(plans.c.id).where(plans.c.status == "actief").order_by(plans.c.id.desc())).scalar()
-    return get_plan(engine, pid) if pid else None
+def active_plan(s: Scope) -> dict | None:
+    with s.engine.connect() as conn:
+        pid = conn.execute(select(plans.c.id).where(plans.c.user_id == s.user_id, plans.c.status == "actief").order_by(plans.c.id.desc())).scalar()
+    return get_plan(s, pid) if pid else None
 
 
-def list_plans(engine: Engine) -> list[dict]:
-    with engine.connect() as conn:
-        return [{**r, "created_at": r["created_at"].isoformat()} for r in conn.execute(select(plans).order_by(plans.c.id.desc())).mappings()]
+def list_plans(s: Scope) -> list[dict]:
+    with s.engine.connect() as conn:
+        rows = conn.execute(select(plans).where(plans.c.user_id == s.user_id).order_by(plans.c.id.desc())).mappings()
+        return [{**{k: v for k, v in r.items() if k != "user_id"}, "created_at": r["created_at"].isoformat()} for r in rows]
 
 
-def set_plan_status(engine: Engine, plan_id: int, status: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(update(plans).where(plans.c.id == plan_id).values(status=status))
+def set_plan_status(s: Scope, plan_id: int, status: str) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(update(plans).where(plans.c.id == plan_id, plans.c.user_id == s.user_id).values(status=status))
 
 
-# --- routes -------------------------------------------------------------------------
+def update_plan(s: Scope, plan_id: int, **fields) -> None:
+    allowed = {"title", "goal", "race", "notes", "status"}
+    values = {k: v for k, v in fields.items() if k in allowed}
+    with s.engine.begin() as conn:
+        if values.get("status") == "actief":
+            conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "actief").values(status="afgerond"))
+        if values:
+            conn.execute(update(plans).where(plans.c.id == plan_id, plans.c.user_id == s.user_id).values(**values))
 
 
-def save_routes(engine: Engine, items: list[dict]) -> None:
-    with engine.begin() as conn:
-        conn.execute(delete(routes))
+# --- routes ------------------------------------------------------------------------------------------------------------
+
+
+def save_routes(s: Scope, items: list[dict]) -> None:
+    with s.engine.begin() as conn:
+        conn.execute(delete(routes).where(routes.c.user_id == s.user_id))
         for r in items:
-            conn.execute(insert(routes).values(id=r["id"], sport=r.get("sport", "run"), data=r))
+            conn.execute(insert(routes).values(user_id=s.user_id, id=r["id"], sport=r.get("sport", "run"), data=r))
 
 
-def load_routes(engine: Engine) -> list[dict]:
-    with engine.connect() as conn:
-        return [data for (data,) in conn.execute(select(routes.c.data))]
+def load_routes(s: Scope) -> list[dict]:
+    with s.engine.connect() as conn:
+        return [data for (data,) in conn.execute(select(routes.c.data).where(routes.c.user_id == s.user_id))]

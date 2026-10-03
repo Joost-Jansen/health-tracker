@@ -15,8 +15,9 @@ PASSWORD = "test-wachtwoord-123"
 def engine(tmp_path):
     e = db.connect(f"sqlite:///{tmp_path / 'test.db'}")
     db.create_schema(e)
+    s = db.Scope(e, 1)  # user 1 = the admin that bootstrap creates from make_settings()
     db.upsert_activity(
-        e,
+        s,
         {
             "start_utc": "2026-09-29T06:00:00Z",
             "start_local": "2026-09-29T08:00:00",
@@ -29,8 +30,8 @@ def engine(tmp_path):
             "sources": {"garmin": {"id": 1, "raw": {}}},
         },
     )
-    db.set_setting(e, "zones", {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}})
-    db.set_setting(e, "sync_state", {"last_sync_local": "2026-09-30 06:02"})
+    db.set_setting(s, "zones", {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}})
+    db.set_setting(s, "sync_state", {"last_sync_local": "2026-09-30 06:02"})
     return e
 
 
@@ -71,7 +72,7 @@ def test_login_sets_httponly_cookie_and_unlocks_data(client):
     r = login(client)
     assert r.status_code == 200
     assert "httponly" in r.headers["set-cookie"].lower()
-    assert client.get("/api/me").json() == {"username": "joost"}
+    assert client.get("/api/me").json() == {"id": 1, "username": "joost", "display_name": None, "is_admin": True, "via": "cookie"}
     d = client.get("/api/dashboard").json()
     assert d["last_sync"] == "2026-09-30 06:02"
     assert d["recent"][0]["name"] == "Ochtendloop"
@@ -100,14 +101,14 @@ def test_dashboard_lists_activity_without_gps(client):
     assert "streams" not in client.get("/api/dashboard").json()["recent"][0]
 
 
-def test_missing_settings_refuse_all_logins(engine, tmp_path):
-    app = create_app(engine=engine, static_dir=tmp_path / "missing", settings=Settings(user="", password_hash="", jwt_secret="", cookie_secure=False))
-    assert TestClient(app).post("/api/login", json={"username": "", "password": ""}).status_code == 401
+def test_missing_jwt_secret_refuses_to_start(engine, tmp_path):
+    with pytest.raises(RuntimeError):
+        create_app(engine=engine, static_dir=tmp_path / "missing", settings=Settings(user="", password_hash="", jwt_secret="", cookie_secure=False))
 
 
 def test_dashboard_reads_the_database_live(client, engine):
     login(client)
-    db.set_setting(engine, "sync_state", {"last_sync_local": "2026-10-01 06:00"})
+    db.set_setting(db.Scope(engine, 1), "sync_state", {"last_sync_local": "2026-10-01 06:00"})
     assert client.get("/api/dashboard").json()["last_sync"] == "2026-10-01 06:00"
 
 

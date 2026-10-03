@@ -6,7 +6,7 @@ from tools.store import from_garmin, from_strava
 def fresh():
     engine = db.connect("sqlite://")
     db.create_schema(engine)
-    return engine
+    return db.Scope(engine, 1)
 
 
 def test_upsert_merges_same_activity_from_two_sources():

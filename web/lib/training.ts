@@ -193,6 +193,8 @@ export type PlanSession = {
   activity_ids?: string[];
   done?: { distance_km: number; moving_time_s: number; avg_hr?: number; zone_pct: number | null };
   route_suggestion?: { parts: string[]; names: string[]; total_km: number; deviation_km: number; within_tolerance: boolean; days_since: number };
+  /** The loop chosen in the plan (`route_id`), when it is one of the user's loops (T24). */
+  route?: { id: string; name: string; distance_km?: number | null };
 };
 
 export type PlanWeek = { week: string; planned_km: number; done_km: number; planned: number; done: number; missed: number };

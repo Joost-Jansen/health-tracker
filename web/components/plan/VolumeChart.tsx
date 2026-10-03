@@ -1,0 +1,108 @@
+"use client";
+
+// Kilometers per week van het schema: de geplande week als lichte staaf, wat er gedaan is als volle staaf erin.
+// Zo is de opbouw of taper in één oogopslag te zien, en hoe goed je hem volgt. Per sport, want 50 km fietsen en
+// 10 km lopen tellen niet op tot iets zinnigs.
+
+import { useMemo, useState } from "react";
+import { T } from "@/lib/texts";
+import type { PlanSession } from "@/lib/training";
+import InfoPopover from "@/components/InfoPopover";
+import { type Week, fmtDayMonth, fmtNum, kmBySport, sportColour, sportName } from "./plan";
+
+const RACE = /wedstrijd|race/i;
+
+export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[]; today: string; raceDate: string | null }) {
+  const sports = useMemo(() => {
+    const all = kmBySport(weeks.flatMap((w) => w.sessions) as PlanSession[]);
+    return Object.entries(all).filter(([, v]) => v.planned > 0).sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned)).map(([s]) => s);
+  }, [weeks]);
+  const [pick, setPick] = useState<string | null>(null);
+  const sport = pick && sports.includes(pick) ? pick : sports[0];
+  if (!sport) return null;
+
+  const rows = weeks.map((w) => {
+    const v = kmBySport(w.sessions)[sport] ?? { planned: 0, done: 0 };
+    // De wedstrijd zelf apart: anders lijkt de raceweek de zwaarste van het schema en is de taper niet te zien.
+    const raceKm = w.sessions.filter((s) => s.sport === sport && RACE.test(s.kind ?? "")).reduce((t, s) => t + (s.distance_km ?? 0), 0);
+    const started = w.monday <= today;
+    return { ...w, ...v, raceKm, started, current: today >= w.monday && today <= w.days[6].date, race: !!raceDate && raceDate >= w.monday && raceDate <= w.days[6].date };
+  });
+  const peak = Math.max(...rows.map((r) => Math.max(r.planned, r.done)), 1);
+  const colour = sportColour(sport);
+  const total = rows.reduce((s, r) => s + r.planned, 0);
+  const done = rows.reduce((s, r) => s + r.done, 0);
+
+  return (
+    <section className="flex flex-col rounded border border-border bg-surface p-4 sm:p-[18px]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+          Kilometers per week
+          <InfoPopover label="Uitleg kilometers per week">{T.plan.volume}</InfoPopover>
+        </h2>
+        {sports.length > 1 && (
+          <div className="flex gap-1" role="group" aria-label="Sport">
+            {sports.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={s === sport}
+                onClick={() => setPick(s)}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] ${s === sport ? "bg-[var(--surface-active)] font-semibold" : "text-ink-muted hover:bg-[var(--surface-hover)]"}`}
+              >
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: sportColour(s) }} aria-hidden />
+                {sportName(s)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <p className="mb-3 text-[12px] tabular-nums text-ink-muted">
+        {fmtNum(done)} van {fmtNum(total)} km {sportName(sport).toLowerCase()} gedaan
+      </p>
+      <div className="flex h-[132px] items-end gap-2 sm:gap-3 lg:h-auto lg:min-h-[132px] lg:flex-1" role="list" aria-label={`Kilometers ${sportName(sport).toLowerCase()} per week`}>
+        {rows.map((r) => (
+          <div key={r.monday} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`Week van ${fmtDayMonth(r.monday)}: ${fmtNum(r.done)} van ${fmtNum(r.planned)} km`}>
+            <span className="mb-1 text-[11.5px] tabular-nums text-ink-muted">
+              {r.started && r.done > 0 ? <><span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/</> : null}
+              {r.raceKm > 0 && r.planned > r.raceKm ? <>{fmtNum(r.planned - r.raceKm)}<span className="text-brand"> + {fmtNum(r.raceKm)}</span></> : fmtNum(r.planned)}
+            </span>
+            <div
+              className="relative w-full max-w-[56px] overflow-hidden rounded-t-[4px]"
+              style={{
+                height: `${Math.max((Math.max(r.planned, r.done) / peak) * 100, 3)}%`,
+                background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 30%, transparent) 0 4px, color-mix(in srgb, ${colour} 14%, transparent) 4px 8px)`,
+                boxShadow: r.current ? `inset 0 0 0 1.5px ${colour}` : undefined,
+              }}
+            >
+              {r.raceKm > 0 && (
+                <div className="absolute inset-x-0 top-0" style={{ height: `${(r.raceKm / Math.max(r.planned, r.done, 0.001)) * 100}%`, background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)", borderRadius: "4px 4px 0 0" }} />
+              )}
+              <div className="absolute inset-x-0 bottom-0" style={{ height: `${(r.done / Math.max(r.planned, r.done, 0.001)) * 100}%`, background: colour }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-2 border-t border-border pt-1.5 sm:gap-3">
+        {rows.map((r) => (
+          <span key={r.monday} className={`min-w-0 flex-1 truncate text-center text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}>
+            {r.race ? "Race" : r.current ? "Nu" : fmtDayMonth(r.monday)}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: colour }} aria-hidden /> Gedaan
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 40%, transparent) 0 2px, transparent 2px 4px)` }} aria-hidden /> Gepland
+        </span>
+        {rows.some((r) => r.raceKm > 0) && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)" }} aria-hidden /> Wedstrijd
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}

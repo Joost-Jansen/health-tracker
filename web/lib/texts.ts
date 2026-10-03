@@ -65,6 +65,19 @@ export const T = {
       : `Een rondje is herkend als je minstens ${minCount} keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren.`,
   routeTrend: "Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor.",
 
+  /** Schema (T24): uitleg bij de vergelijking van gepland en gedaan. */
+  plan: {
+    zoneFit: (pct: number, zone: string) => {
+      const top = Math.max(...(zone.match(/[1-5]/g) ?? ["5"]).map(Number));
+      return top <= 2 ? `${pct}% op of onder ${zone}` : `${pct}% in ${zone}`;
+    },
+    zoneFitMethod:
+      "Tijd per hartslagzone volgens je eigen zones. Rustige sessies (tot en met Z2): de tijd op of onder de doelzone telt, want rustiger is niet erg. Kwaliteit (Z3 en hoger): de tijd binnen de doelzone telt.",
+    matching:
+      "Een sessie telt als gedaan zodra er die dag een activiteit van dezelfde sport is. Een run in stukken (minder dan 30 minuten pauze) telt als één sessie.",
+    volume: "Kilometers per week: gepland tegen gedaan. Sessies zonder afstand (alleen een duur) tellen hier niet mee.",
+  },
+
   /** Onboarding (T23): de uitleg over gezondheid en prestaties in de rondleiding, de checklist en Help. */
   onboarding: {
     zonesWhy:

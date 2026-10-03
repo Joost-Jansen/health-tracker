@@ -17,7 +17,7 @@ export default function HeatMap({ tracks, height = 520 }: { tracks: [number, num
     (async () => {
       const Lf = await import("leaflet");
       if (cancelled || !box.current || tracks.length === 0) return;
-      const m = Lf.map(box.current, { preferCanvas: true, scrollWheelZoom: false });
+      const m = Lf.map(box.current, { preferCanvas: true, scrollWheelZoom: true, wheelPxPerZoomLevel: 100 });
       remove = () => m.remove();
       const tiles = tileLayerFor(dark);
       Lf.tileLayer(tiles.url, tiles.options).addTo(m);

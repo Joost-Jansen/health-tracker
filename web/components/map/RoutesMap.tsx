@@ -20,7 +20,7 @@ export default function RoutesMap({ lines, height = 340 }: { lines: MapLine[]; h
     (async () => {
       const Lf = await import("leaflet");
       if (cancelled || !box.current || drawn.length === 0) return;
-      const m = Lf.map(box.current, { scrollWheelZoom: false });
+      const m = Lf.map(box.current, { scrollWheelZoom: true, wheelPxPerZoomLevel: 100 });
       remove = () => m.remove();
       const tiles = tileLayerFor(dark);
       Lf.tileLayer(tiles.url, tiles.options).addTo(m);

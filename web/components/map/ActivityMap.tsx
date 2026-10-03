@@ -34,7 +34,7 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
     (async () => {
       const Lf = await import("leaflet");
       if (cancelled || !box.current) return;
-      const m = Lf.map(box.current, { scrollWheelZoom: false, attributionControl: true });
+      const m = Lf.map(box.current, { scrollWheelZoom: true, wheelPxPerZoomLevel: 100, attributionControl: true });
       map.current = m;
       const tiles = tileLayerFor(dark);
       Lf.tileLayer(tiles.url, tiles.options).addTo(m);

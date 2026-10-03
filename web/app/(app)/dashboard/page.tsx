@@ -31,26 +31,45 @@ const VERDICT: Record<Readiness["verdict"], { label: string; colour: string }> =
   herstel: { label: "Herstel eerst", colour: "var(--zone-5)" },
   onbekend: { label: "Geen nachtdata", colour: "var(--zone-1)" },
 };
+const FORM_LINES = [
+  { label: "Fitheid", colour: "var(--chart-1)", dash: false },
+  { label: "Moeheid", colour: "var(--chart-3)", dash: false },
+  { label: "Vorm", colour: "var(--chart-4)", dash: true },
+];
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
 
 function ReadinessCard({ r }: { r: Readiness }) {
   const v = VERDICT[r.verdict];
+  // zonder nachtdata is er weinig te zeggen: compact, zodat de kaart niet groter oogt dan wat hij weet
+  const compact = !r.date;
   return (
     <Card title="Klaar voor vandaag?">
       <div className="flex items-center gap-2.5">
-        <span className="inline-block h-3 w-3 rounded-full" style={{ background: v.colour }} />
-        <span className="font-display text-[23px] font-light">{v.label}</span>
+        <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: v.colour }} />
+        <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{v.label}</span>
       </div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">{r.text}</p>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] tabular-nums">
-        {r.signals.map((s) => (
-          <div key={s.key}>
-            <dt className="flex items-center gap-1.5 text-ink-muted"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />{s.label}</dt>
-            <dd><span className="text-[15px]">{s.value}</span> {s.note && <span className="text-[11px] text-ink-muted">{s.note}</span>}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 text-[11px] text-ink-muted">{T.readinessBasis} {T.noMedicalAdvice}</p>
+      <p className={`mt-1 leading-relaxed text-ink-muted ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{r.text}</p>
+      {compact ? (
+        <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] tabular-nums">
+          {r.signals.map((s) => (
+            <div key={s.key} className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />
+              <dt className="text-ink-muted">{s.label}</dt>
+              <dd>{s.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] tabular-nums">
+          {r.signals.map((s) => (
+            <div key={s.key}>
+              <dt className="flex items-center gap-1.5 text-ink-muted"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />{s.label}</dt>
+              <dd><span className="text-[15px]">{s.value}</span> {s.note && <span className="text-[11px] text-ink-muted">{s.note}</span>}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <p className={`text-[11px] text-ink-muted ${compact ? "mt-2.5" : "mt-3"}`}>{T.readinessBasis} {T.noMedicalAdvice}</p>
     </Card>
   );
 }
@@ -125,10 +144,51 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.4fr]">
         {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
         <Upcoming sessions={d.upcoming} title={d.plan_title} />
       </div>
+
+      {form && (
+        <Card title="Vorm" more="Alle trends" moreHref="/trends/">
+          <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="font-display text-[27px] font-light capitalize">{form.status}</div>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
+              </div>
+              <dl className="grid grid-cols-3 gap-2 text-[12px] tabular-nums">
+                <div><dt className="text-ink-muted">Fitheid</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
+                <div><dt className="text-ink-muted">Moeheid</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
+                <div><dt className="text-ink-muted">Vorm</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}</dd></div>
+              </dl>
+              <p className="text-[11.5px] text-ink-muted">Piek fitheid {Math.round(form.ctl_peak)} op {fmtDate(form.ctl_peak_date)}.</p>
+            </div>
+            <div>
+            <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+              {FORM_LINES.map((l) => (
+                <span key={l.label} className="flex items-center gap-1.5">
+                  <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={l.colour} strokeWidth="2" strokeDasharray={l.dash ? "4 3" : undefined} /></svg>
+                  {l.label}
+                </span>
+              ))}
+            </div>
+            <LineChart
+              endLabels={false}
+              height={190}
+              ariaLabel="Fitheid, vermoeidheid en vorm, laatste 90 dagen"
+              format={(v) => String(Math.round(v))}
+              baseline={0}
+              series={[
+                { label: "Fitheid", colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
+                { label: "Moeheid", colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
+                { label: "Vorm", colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
+              ]}
+            />
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card title="Tijd per hartslagzone" action={
@@ -176,46 +236,17 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {form && (
-        <Card title="Vorm" more="Alle trends" moreHref="/trends/">
-          <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className="font-display text-[27px] font-light capitalize">{form.status}</div>
-                <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
-              </div>
-              <dl className="grid grid-cols-3 gap-2 text-[12px] tabular-nums">
-                <div><dt className="text-ink-muted">Fitheid</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
-                <div><dt className="text-ink-muted">Moeheid</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
-                <div><dt className="text-ink-muted">Vorm</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}</dd></div>
-              </dl>
-              <p className="text-[11.5px] text-ink-muted">Piek fitheid {Math.round(form.ctl_peak)} op {fmtDate(form.ctl_peak_date)}.</p>
-            </div>
-            <LineChart
-              ariaLabel="Fitheid, vermoeidheid en vorm, laatste 90 dagen"
-              format={(v) => String(Math.round(v))}
-              baseline={0}
-              series={[
-                { label: "Fitheid", colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
-                { label: "Vermoeid", colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
-                { label: "Vorm", colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
-              ]}
-            />
-          </div>
-        </Card>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card title="Laatste activiteiten" more="Historie" moreHref="/historie/">
           <ul className="flex flex-col">
             {d.recent.map((a) => (
-              <li key={a.id} className="grid grid-cols-[92px_1fr_auto] items-baseline gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
+              <li key={a.id} className="grid grid-cols-[72px_1fr] items-baseline gap-x-3 gap-y-0.5 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr_auto]">
                 <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
                 <span className="truncate">
                   <span className="font-medium">{sportLabel(a.sport)}</span>
                   {a.name && <span className="text-ink-muted"> · {a.name}</span>}
                 </span>
-                <span className="tabular-nums text-ink-muted">
+                <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
                   {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
                 </span>
               </li>

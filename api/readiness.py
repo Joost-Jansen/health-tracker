@@ -53,7 +53,9 @@ def readiness(wellness: dict, today: date, tsb: float | None = None) -> dict | N
     elif latest:
         verdict, text = "klaar", "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld."
     else:
-        verdict, text = "onbekend", "Vorm en Body Battery zijn in orde, maar zonder nachtdata is herstel niet goed te beoordelen. Luister naar je lijf."
+        names = [x["label"] for x in signals]
+        listed = " en ".join([", ".join(names[:-1]), names[-1]] if len(names) > 1 else names)
+        verdict, text = "onbekend", f"{listed} {'zijn' if len(names) > 1 else 'is'} in orde; zonder nachtdata is herstel lastig te beoordelen."
     if not latest:
-        text += " Geen slaap- of rusthartslagdata van afgelopen nacht (horloge niet gedragen, of nog niet gesynct)."
+        text += " Geen slaap of rusthartslag van afgelopen nacht (horloge niet gedragen of nog niet gesynct)."
     return {"verdict": verdict, "text": text, "date": latest, "signals": signals}

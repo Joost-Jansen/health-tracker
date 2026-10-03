@@ -198,7 +198,7 @@ export default function TrendsPage() {
         />
       </Card>
 
-      <ZonesOverTime />
+      <ZonesOverTime window={win} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Tempo in Z2 (hardlopen)">

@@ -59,7 +59,7 @@ export default function ZoneStackChart({
         )}
       </div>
 
-      <div role="group" aria-label={ariaLabel} className="flex h-[150px] items-stretch justify-center gap-[3px] sm:h-[180px]" onMouseLeave={() => setActive(null)}>
+      <div role="group" aria-label={ariaLabel} className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]" onMouseLeave={() => setActive(null)}>
         {bars.map((bar, i) => (
           <button
             key={bar.start}
@@ -69,7 +69,6 @@ export default function ZoneStackChart({
             onMouseEnter={() => setActive(i)}
             onClick={() => setActive(i)}
             aria-label={`${bar.label}: ${bar.total_s ? ZONES.map((z) => `${z} ${Math.round(bar.pct[z])}%`).join(", ") : "geen hartslagdata"}`}
-            style={{ maxWidth: 44 }}
             className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
           >
             {bar.total_s > 0 ? (
@@ -95,11 +94,10 @@ export default function ZoneStackChart({
         ))}
       </div>
 
-      <div aria-hidden="true" className="mt-1.5 flex justify-center gap-[3px]">
+      <div aria-hidden="true" className="mt-1.5 flex gap-[3px]">
         {bars.map((bar, i) => (
           <span
             key={bar.start}
-            style={{ maxWidth: 44 }}
             className={`min-w-0 flex-1 whitespace-nowrap text-center text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}
           >
             {(bars.length - 1 - i) % labelEvery === 0 ? bar.short : ""}

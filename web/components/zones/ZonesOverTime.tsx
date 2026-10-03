@@ -1,8 +1,8 @@
 "use client";
 
 // Trends: tijd per hartslagzone over tijd. Bovenaan de verdeling per week of
-// maand (laatste 12), eronder de lopende of de vorige periode tegen het
-// gemiddelde van de X perioden daarvoor.
+// maand binnen de gekozen periode van de tijdbalk, eronder de lopende of de
+// vorige periode tegen het gemiddelde van de X perioden daarvoor.
 
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -13,11 +13,12 @@ import { fmtDuration, sportLabel, ZONE_COLOUR, ZONES, type Zone, type ZoneHistor
 import { compareZones, fmtPct, fmtPp } from "./compare";
 import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
 
-const SHOWN = 12;
 const CHOICES: Record<ZonePeriod, number[]> = { week: [4, 8, 12, 26], month: [3, 6, 12] };
 const DEFAULT_X: Record<ZonePeriod, number> = { week: 4, month: 3 };
-// Eén keer genoeg ophalen voor de grootste keuze, dan hoeft wisselen van X niet opnieuw te laden.
-const COUNT: Record<ZonePeriod, number> = { week: SHOWN + 26, month: SHOWN + 12 };
+// Eén keer de hele beschikbare geschiedenis ophalen (de API-grens), dan hoeven de tijdbalk
+// en de keuze van X niets opnieuw te laden.
+const COUNT: Record<ZonePeriod, number> = { week: 104, month: 36 };
+const FALLBACK_SHOWN = 12;
 const MONTHS_SHORT = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 
 const unit = (p: ZonePeriod, n: number) => (p === "week" ? (n === 1 ? "week" : "weken") : n === 1 ? "maand" : "maanden");
@@ -41,7 +42,7 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
   );
 }
 
-export default function ZonesOverTime() {
+export default function ZonesOverTime({ window: win }: { window?: { from: string; to: string } }) {
   const [period, setPeriod] = useState<ZonePeriod>("week");
   const [sport, setSport] = useState("all");
   const [x, setX] = useState(DEFAULT_X.week);
@@ -56,9 +57,13 @@ export default function ZonesOverTime() {
 
   const bars = useMemo<ZoneStackBar[]>(() => {
     if (!h) return [];
-    const items = h.items.slice(-SHOWN);
-    return items.map((it, i) => ({ ...it, short: short(h.period, it.start), partial: i === items.length - 1 }));
-  }, [h]);
+    const last = h.items[h.items.length - 1];
+    // De perioden die de gekozen tijdspanne raken; zonder tijdbalk de laatste 12.
+    const items = win?.from && win?.to
+      ? h.items.filter((it) => it.end >= win.from && it.start <= win.to)
+      : h.items.slice(-FALLBACK_SHOWN);
+    return items.map((it) => ({ ...it, short: short(h.period, it.start), partial: it === last }));
+  }, [h, win?.from, win?.to]);
 
   const cmp = useMemo(() => (h ? compareZones(h.items, x, which) : null), [h, x, which]);
 
@@ -100,9 +105,9 @@ export default function ZonesOverTime() {
         <div className={`transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
           <ZoneStackChart
             bars={bars}
-            labelEvery={period === "week" ? 2 : 1}
-            ariaLabel={`Verdeling over hartslagzones per ${period === "week" ? "week" : "maand"}, laatste ${SHOWN}`}
-            summary={withData.length ? `Laatste ${SHOWN} ${unit(period, SHOWN)} samen: ${avgOver(withData)}` : "Geen hartslagdata in deze periode."}
+            labelEvery={Math.max(1, Math.ceil(bars.length / (period === "week" ? 10 : 12)))}
+            ariaLabel={`Verdeling over hartslagzones per ${period === "week" ? "week" : "maand"}, ${bars.length} ${unit(period, bars.length)}`}
+            summary={withData.length ? `${bars.length} ${unit(period, bars.length)} samen: ${avgOver(withData)}` : "Geen hartslagdata in deze periode."}
           />
 
           {cmp && (

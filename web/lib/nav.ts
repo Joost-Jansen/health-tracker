@@ -1,6 +1,6 @@
 // De navigatie van de site, op één plek. Zelfde vorm als in een eerder project.
 
-export type NavTab = { id: string; label: string; href: string };
+export type NavTab = { id: string; label: string; href: string; adminOnly?: boolean };
 
 export type NavItem = {
   id: string;
@@ -34,7 +34,19 @@ export const NAV: NavGroup[] = [
           { id: "profiel", label: "Profiel", href: "/analyses/profiel/" },
         ],
       },
-      { id: "instellingen", label: "Instellingen", href: "/instellingen/", icon: "settings" },
+      {
+        id: "instellingen",
+        label: "Instellingen",
+        href: "/instellingen/",
+        icon: "settings",
+        tabs: [
+          { id: "account", label: "Account", href: "/instellingen/" },
+          { id: "koppelingen", label: "Koppelingen", href: "/instellingen/koppelingen/" },
+          { id: "zones", label: "Zones en profiel", href: "/instellingen/zones/" },
+          { id: "agents", label: "Agents", href: "/instellingen/agents/" },
+          { id: "beheer", label: "Beheer", href: "/instellingen/beheer/", adminOnly: true },
+        ],
+      },
     ],
   },
 ];

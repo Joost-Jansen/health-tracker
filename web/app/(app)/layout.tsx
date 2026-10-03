@@ -11,6 +11,7 @@ import { IconButton, Tabs } from "@/components/ds";
 import { MenuIcon } from "@/components/icons";
 import { api, ApiError } from "@/lib/api";
 import { findItem, NAV } from "@/lib/nav";
+import type { Me } from "@/lib/training";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const me = useQuery({
     queryKey: ["me"],
-    queryFn: () => api.get<{ username: string }>("/api/me"),
+    queryFn: () => api.get<Me>("/api/me"),
     retry: false,
   });
 
@@ -31,7 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const item = findItem(NAV, pathname);
-  const tabs = item?.tabs ?? [];
+  const tabs = (item?.tabs ?? []).filter((t) => !t.adminOnly || me.data.is_admin);
 
   return (
     <div className="flex min-h-screen">
@@ -43,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onClose={() => setNavOpen(false)}
         footer={
           <div className="flex items-center justify-between px-2 pb-1 text-xs leading-normal" style={{ color: "var(--text-on-ink-muted)" }}>
-            <span>Ingelogd als {me.data.username}</span>
+            <span>Ingelogd als {me.data.display_name || me.data.username}</span>
             <button
               type="button"
               className="underline underline-offset-4"

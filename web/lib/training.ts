@@ -281,3 +281,21 @@ export type ZoneHistory = {
   sports: string[];
   items: ZoneHistoryItem[];
 };
+
+
+// ── Accounts (T19) ───────────────────────────────────────────────────────────
+
+export type Me = { id: number; username: string; display_name: string | null; is_admin: boolean; via: "cookie" | "agent" };
+export type AdminUser = {
+  id: number;
+  username: string;
+  display_name: string | null;
+  is_admin: boolean;
+  suspended: boolean;
+  created_at: string;
+  last_login_at: string | null;
+  activities: number;
+  last_sync: string | null;
+};
+export type Invite = { code: string; created_by: number; created_at: string; expires_at: string | null; used_by: number | null; used_at: string | null };
+export type RegistrationMode = "closed" | "invite" | "open";

@@ -249,3 +249,31 @@ export type RouteOption = {
   days_since: number;
   tracks: Record<string, [number, number][]>;
 };
+
+// ── Zones over tijd (T16) ────────────────────────────────────────────────────
+
+export type ZonePeriod = "week" | "month";
+
+/** GET /api/zones?period=&offset= : één week of maand, offset 0 = de huidige (tot nu). */
+export type ZonesForPeriod = {
+  period: ZonePeriod;
+  offset: number;
+  start: string;
+  end: string;
+  label: string;
+  is_current: boolean;
+  /** Per sport plus "all" (som, elke sport met zijn eigen zones); leeg zonder hartslagdata. */
+  zones: Record<string, ZoneShare>;
+  bounds: Record<string, number[]>;
+};
+
+export type ZoneHistoryItem = ZoneShare & { start: string; end: string; label: string };
+
+/** GET /api/zones/history?period=&count=&sport= : oudste eerst, de laatste is de lopende periode. */
+export type ZoneHistory = {
+  period: ZonePeriod;
+  sport: string;
+  /** Sporten met hartslagzones in het hele venster, los van het sportfilter. */
+  sports: string[];
+  items: ZoneHistoryItem[];
+};

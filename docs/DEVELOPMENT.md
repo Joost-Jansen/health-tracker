@@ -118,6 +118,7 @@ Multi-user (T19, `docs/2026-10-03-multi-user-design.md`): every route except `/a
 | POST | `/api/connections/sync` | sync now in the background |
 | GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
 | GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |
+| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|rondjes\|historie}` (T23) |
 
 Sync: `web` runs a daily sync for every connected user after 06:00 Europe/Amsterdam (`api/sync_runner.py`, off with `SYNC_IN_WEB=false`); the Railway cron `sync` (`tools/sync.py run_all_users`) does the same. Garmin sessions are encrypted with `TOKEN_ENCRYPTION_KEY` (fallback: derived from `TRAINING_JWT_SECRET`); give `web` and `sync` the same key.
 

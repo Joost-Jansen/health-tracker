@@ -71,8 +71,13 @@ export default function AgentsPage() {
           <div className="flex flex-col gap-4">
             <Copy label="Token" value={made.token} secret />
             <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Claude-app of claude.ai</h3>
-              <p className="mb-2 text-[12.5px] text-ink-muted">Instellingen, Connectors, "Add custom connector". Naam: Training. URL (bevat het token, behandel hem als wachtwoord):</p>
+              <h3 className="mb-1.5 text-[13px] font-semibold">Claude-app, claude.ai en Claude Code in de cloud</h3>
+              <p className="mb-2 text-[12.5px] text-ink-muted">
+                Op{" "}
+                <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">claude.ai/customize/connectors</a>
+                , "Add custom connector". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek en elke nieuwe
+                cloud-sessie je data lezen en je schema, doelen en log bijwerken. URL (bevat het token, behandel hem als wachtwoord):
+              </p>
               <Copy label="Connector-URL" value={`${origin}/api/mcp/${made.token}`} secret />
             </div>
             <div>
@@ -80,9 +85,9 @@ export default function AgentsPage() {
               <Copy label="Eén keer uitvoeren in een terminal" value={`claude mcp add --transport http --scope user health-tracker ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
             </div>
             <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Claude Code in de cloud of tools/tr.py</h3>
+              <h3 className="mb-1.5 text-[13px] font-semibold">Alleen voor tools/tr.py (opdrachtregel)</h3>
               <p className="mb-2 text-[12.5px] text-ink-muted">
-                Zet deze twee als variabelen in de omgeving (cloud: omgeving bewerken, Environment variables) en sta netwerktoegang tot{" "}
+                Niet nodig als je de connector gebruikt. Zet deze twee als variabelen in je eigen shell en sta netwerktoegang tot{" "}
                 <code className="font-mono text-[12px]">{origin.replace(/^https?:\/\//, "")}</code> toe.
               </p>
               <Copy label="Variabelen" value={`TRAINING_API_URL=${origin}\nTRAINING_API_TOKEN=${made.token}`} secret />

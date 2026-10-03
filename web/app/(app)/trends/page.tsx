@@ -1,6 +1,6 @@
 "use client";
 
-// Trends: vorm (fitheid/vermoeidheid/vorm), volume per week per sport, Z2-tempo, VO2max, herstel,
+// Trends: vorm (fitheid/vermoeidheid/vorm), volume per week per sport, tijd per zone over tijd, Z2-tempo, VO2max, herstel,
 // records en wedstrijden. Elke reeks met een trendlijn en de piek in de kop.
 
 import { useMemo, useState } from "react";
@@ -11,6 +11,7 @@ import { Tabs } from "@/components/ds";
 import LineChart from "@/components/charts/LineChart";
 import Bars, { type BarDatum } from "@/components/charts/Bars";
 import TrendChart from "@/components/charts/TrendChart";
+import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
 import { type Trends, fmtClock, fmtKm, sportLabel } from "@/lib/training";
 
@@ -160,6 +161,8 @@ export default function TrendsPage() {
           legend={volume.sports.map((s) => ({ key: s, label: s === "other" ? "Overig" : sportLabel(s), colour: SPORT_COLOUR[s] ?? "var(--chart-5)" }))}
         />
       </Card>
+
+      <ZonesOverTime />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Tempo in Z2 (hardlopen)">

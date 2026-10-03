@@ -5,9 +5,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
+import PeriodNav from "@/components/zones/PeriodNav";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
 import {
@@ -19,6 +20,7 @@ import {
   type PlanSession,
   type Readiness,
   sportLabel,
+  type ZonesForPeriod,
 } from "@/lib/training";
 
 const VERDICT: Record<Readiness["verdict"], { label: string; colour: string }> = {
@@ -102,12 +104,21 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<"week" | "month">("week");
+  const [offset, setOffset] = useState(0);
   const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/api/dashboard") });
+  const zq = useQuery({
+    queryKey: ["zones", period, offset],
+    queryFn: () => api.get<ZonesForPeriod>(`/api/zones?period=${period}&offset=${offset}`),
+    placeholderData: keepPreviousData,
+  });
   if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
   if (!q.data) return <p className="text-sm text-ink-muted">Kon het dashboard niet laden.</p>;
   const d = q.data;
 
-  const zones = d.zones[period];
+  // Tot /api/zones er is, de huidige periode uit het dashboard; daarna blijft de vorige staan tijdens het laden.
+  const zp = zq.data;
+  const zones = zp ? zp.zones : d.zones[period];
+  const zonesCurrent = zp ? zp.is_current : true;
   const zoneSports = Object.keys(zones).filter((s) => s !== "all").sort(bySportOrder);
   const multiSport = zoneSports.length > 1;
   const volSports = Array.from(new Set([...Object.keys(d.volume.week), ...Object.keys(d.volume.avg4w)])).sort(bySportOrder);
@@ -124,10 +135,13 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card title="Tijd per hartslagzone" action={
-          <Segmented value={period} onChange={setPeriod} options={[{ id: "week", label: "Deze week" }, { id: "month", label: "Deze maand" }]} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented value={period} onChange={(p) => { setPeriod(p); setOffset(0); }} options={[{ id: "week", label: "Week" }, { id: "month", label: "Maand" }]} />
+            <PeriodNav label={zp?.label ?? (period === "week" ? "Deze week" : "Deze maand")} offset={offset} onChange={setOffset} loading={zq.isPlaceholderData} />
+          </div>
         }>
           {zoneSports.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">Nog geen training met hartslag {period === "week" ? "deze week" : "deze maand"}.</p>
+            <p className="text-[13px] text-ink-muted">{zonesCurrent ? `Nog geen training met hartslag ${period === "week" ? "deze week" : "deze maand"}.` : "Geen training met hartslag in deze periode."}</p>
           ) : (
             <div className="flex flex-col gap-5">
               <ZoneBar sport="all" share={zones.all} />

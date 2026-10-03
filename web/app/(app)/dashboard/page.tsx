@@ -8,6 +8,7 @@ import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
+import OnboardingCard from "@/components/onboarding/Checklist";
 import PeriodNav from "@/components/zones/PeriodNav";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
@@ -122,17 +123,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-4">
       <p className="text-[12.5px] text-ink-muted">Laatste sync: {d.last_sync} (Europe/Amsterdam)</p>
 
-      {d.recent.length === 0 && (
-        <Card title="Welkom">
-          <p className="max-w-prose text-[13px] leading-relaxed text-ink-muted">
-            Er zijn nog geen trainingen. Koppel je Garmin-account; de eerste keer haalt de site het afgelopen jaar op. Stel daarna je hartslagzones in, dan rekent alles met jouw eigen zones.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
-            <Link href="/instellingen/koppelingen/" className="ds-btn ds-btn--primary ds-btn--sm">Garmin koppelen</Link>
-            <Link href="/instellingen/zones/" className="ds-btn ds-btn--secondary ds-btn--sm">Zones instellen</Link>
-          </div>
-        </Card>
-      )}
+      <OnboardingCard />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}

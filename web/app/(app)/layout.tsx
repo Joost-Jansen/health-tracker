@@ -12,6 +12,8 @@ import { MenuIcon } from "@/components/icons";
 import { api, ApiError } from "@/lib/api";
 import { findItem, NAV } from "@/lib/nav";
 import type { Me } from "@/lib/training";
+import StartBanner, { useRecordVisit } from "@/components/onboarding/StartBanner";
+import Welkom from "@/components/onboarding/Welkom";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -22,6 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     queryFn: () => api.get<Me>("/api/me"),
     retry: false,
   });
+  // Onboarding (zoals een eerder project): welke pagina's van "Rondkijken" je opende; banner en rondleiding hieronder.
+  useRecordVisit(pathname, !!me.data);
 
   if (me.error instanceof ApiError && me.error.status === 401) {
     router.replace("/login/");
@@ -73,8 +77,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <main className="w-full max-w-content flex-1 px-4 pb-20 pt-4 sm:px-6 lg:px-page lg:pt-5">{children}</main>
+        <main className="w-full max-w-content flex-1 px-4 pb-20 pt-4 sm:px-6 lg:px-page lg:pt-5">
+          {/* Alleen boven een pagina die nog leeg is, en tot je hem wegklikt. */}
+          <StartBanner enabled />
+          {children}
+        </main>
       </div>
+      {/* De eerste keer: hoe je de site gebruikt, en de stappen die daarbij horen. */}
+      <Welkom enabled />
     </div>
   );
 }

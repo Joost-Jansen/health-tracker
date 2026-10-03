@@ -47,6 +47,18 @@ export const NAV: NavGroup[] = [
           { id: "beheer", label: "Beheer", href: "/instellingen/beheer/", adminOnly: true },
         ],
       },
+      {
+        // Eén plek voor alle uitleg (zoals Help in een eerder project): de checklist, de handleiding en Claude als coach.
+        id: "help",
+        label: "Help",
+        href: "/help/",
+        icon: "help",
+        tabs: [
+          { id: "start", label: "Aan de slag", href: "/help/" },
+          { id: "handleiding", label: "Handleiding", href: "/help/handleiding/" },
+          { id: "claude", label: "Claude", href: "/help/claude/" },
+        ],
+      },
     ],
   },
 ];

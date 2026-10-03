@@ -1,31 +1,19 @@
 "use client";
 
 // Eén reeks over tijd met een gestippelde trendlijn (kleinste kwadraten) en in de kop: de laatste waarde,
-// de verandering volgens de trend en de piek. `lowerIsBetter` voor tempo en rust-HR: dan is de piek het
-// minimum, staat sneller hoger in de grafiek en kleurt een daling groen.
+// de verandering volgens de trend en de piek, alle drie over het zichtbare venster. `lowerIsBetter` voor
+// tempo en rust-HR: dan is de piek het minimum, staat sneller hoger in de grafiek en kleurt een daling groen.
+//
+// Tekent met TimeChart: een echte tijdas, aanwijzen met dradenkruis, schuiven en zoomen, en desgewenst een
+// voortschrijdend gemiddelde. Met `window` volgt hij het gedeelde venster van de pagina (Trends); zonder
+// toont hij de hele reeks en zoomt hij alleen lokaal (Rondjes).
 
-import LineChart from "@/components/charts/LineChart";
 import ChartHeadline from "@/components/charts/ChartHeadline";
+import TimeChart, { type MaOption } from "@/components/charts/TimeChart";
+import { dayNumber, fmtDate, linearTrend, type DateWindow, type DayPoint } from "@/lib/timeline";
 
-export type TrendPoint = { d: string; v: number };
-
-export function linearTrend(points: TrendPoint[]): TrendPoint[] {
-  if (points.length < 3) return [];
-  const t = points.map((p) => new Date(p.d + "T12:00:00").getTime() / 86400000);
-  const n = points.length;
-  const mx = t.reduce((s, v) => s + v, 0) / n;
-  const my = points.reduce((s, p) => s + p.v, 0) / n;
-  let num = 0;
-  let den = 0;
-  t.forEach((x, i) => {
-    num += (x - mx) * (points[i].v - my);
-    den += (x - mx) ** 2;
-  });
-  const slope = den ? num / den : 0;
-  return [points[0], points[n - 1]].map((p, i) => ({ d: p.d, v: my + slope * ((i ? t[n - 1] : t[0]) - mx) }));
-}
-
-const fmtDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
+export type TrendPoint = DayPoint;
+export { linearTrend };
 
 export default function TrendChart({
   label,
@@ -36,6 +24,14 @@ export default function TrendChart({
   height = 180,
   unit = "",
   empty = "Nog te weinig data.",
+  window,
+  domain,
+  onWindow,
+  onReset,
+  maOptions,
+  maDefault = 0,
+  storageKey,
+  clock = false,
 }: {
   label: string;
   points: TrendPoint[];
@@ -45,36 +41,61 @@ export default function TrendChart({
   height?: number;
   unit?: string;
   empty?: string;
+  window?: DateWindow;
+  domain?: DateWindow;
+  onWindow?: (w: DateWindow) => void;
+  onReset?: () => void;
+  maOptions?: MaOption[];
+  maDefault?: number;
+  storageKey?: string;
+  /** Waarden zijn seconden: as op ronde klokwaarden. */
+  clock?: boolean;
 }) {
   if (points.length < 2) return <p className="py-6 text-center text-sm text-ink-muted">{empty}</p>;
+
+  const inView = window ? points.filter((p) => p.d >= window.from && p.d <= window.to) : points;
   const sign = lowerIsBetter ? -1 : 1;
-  const trend = linearTrend(points);
-  const last = points[points.length - 1];
-  const peak = points.reduce((b, p) => (sign * p.v > sign * b.v ? p : b), points[0]);
-  const change = trend.length ? trend[1].v - trend[0].v : 0;
-  const better = sign * change > 0;
-  const flat = Math.abs(change) < 1e-9 || format(Math.abs(change)) === format(0);
-  const changeText = flat ? "gelijk" : `${change > 0 ? "+" : "−"}${format(Math.abs(change))}${unit} volgens de trend`;
-  const xFormat = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { month: "short", year: "2-digit" });
+  const headline = (() => {
+    if (inView.length === 0) return null;
+    const trend = linearTrend(inView);
+    const last = inView[inView.length - 1];
+    const peak = inView.reduce((b, p) => (sign * p.v > sign * b.v ? p : b), inView[0]);
+    const change = trend.length ? trend[1].v - trend[0].v : 0;
+    const better = sign * change > 0;
+    const flat = Math.abs(change) < 1e-9 || format(Math.abs(change)) === format(0);
+    const weeks = trend.length ? Math.round((dayNumber(trend[1].d) - dayNumber(trend[0].d)) / 7) : 0;
+    const over = weeks >= 2 ? ` in ${weeks} weken` : "";
+    return {
+      big: `${format(last.v)}${unit}`,
+      primary: flat ? "gelijk" : `${change > 0 ? "+" : "−"}${format(Math.abs(change))}${unit}${over} volgens de trend`,
+      tone: flat ? "text-ink-muted" : better ? "text-gain" : "text-loss",
+      secondary: `${lowerIsBetter ? "beste" : "piek"} ${format(peak.v)}${unit} op ${fmtDate(peak.d)}`,
+    };
+  })();
 
   return (
     <div>
-      <ChartHeadline
-        big={`${format(last.v)}${unit}`}
-        primary={changeText}
-        primaryTone={flat ? "text-ink-muted" : better ? "text-gain" : "text-loss"}
-        secondary={`${lowerIsBetter ? "beste" : "piek"} ${format(peak.v)}${unit} op ${fmtDay(peak.d)}`}
-      />
-      <LineChart
+      {headline ? (
+        <ChartHeadline big={headline.big} primary={headline.primary} primaryTone={headline.tone} secondary={headline.secondary} />
+      ) : (
+        <ChartHeadline big="–" primary="geen meting in deze periode" secondary={`laatste ${format(points[points.length - 1].v)}${unit} op ${fmtDate(points[points.length - 1].d)}`} />
+      )}
+      <TimeChart
         ariaLabel={label}
         height={height}
-        endLabels={false}
-        xFormat={xFormat}
-        format={(v) => format(sign * v)}
-        series={[
-          { label, colour, width: 2, points: points.map((p) => ({ d: p.d, v: sign * p.v })) },
-          ...(trend.length ? [{ label: "trend", colour: "var(--chart-2)", dash: "dashed" as const, width: 1.25, points: trend.map((p) => ({ d: p.d, v: sign * p.v })) }] : []),
-        ]}
+        invert={lowerIsBetter}
+        format={format}
+        unit={unit}
+        window={window}
+        domain={domain}
+        onWindow={onWindow}
+        onReset={onReset}
+        maOptions={maOptions}
+        maDefault={maDefault}
+        storageKey={storageKey}
+        legend={false}
+        clock={clock}
+        series={[{ key: "v", label, colour, points, ma: true, trend: true, peak: lowerIsBetter ? "min" : "max", width: 2 }]}
       />
     </div>
   );

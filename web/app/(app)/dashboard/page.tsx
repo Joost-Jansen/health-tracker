@@ -81,20 +81,19 @@ function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string
         <p className="text-[13px] text-ink-muted">{title ? "Geen sessies meer in het schema." : "Nog geen actief schema."} <Link href="/plan/" className="underline underline-offset-2">Schema</Link></p>
       ) : (
         <ul className="flex flex-col">
-          {sessions.map((s, i) => (
-            <li key={`${s.date}-${i}`} className="grid grid-cols-[92px_1fr] gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
+          {sessions.slice(0, 4).map((s, i) => (
+            <li key={`${s.date}-${i}`} className="grid grid-cols-[72px_1fr] items-baseline gap-3 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr]">
               <span className={s.status === "vandaag" ? "font-semibold" : "text-ink-muted"}>{s.status === "vandaag" ? "Vandaag" : fmtDate(s.date)}</span>
-              <span>
+              <span className="truncate">
                 <span className="font-medium">{s.sport === "rest" ? "Rust" : sportLabel(s.sport)}</span>
                 {[s.kind, s.distance_km ? fmtKm(s.distance_km) : null, s.duration_min ? `${s.duration_min} min` : null, s.target_zone].filter(Boolean).map((x) => <span key={String(x)} className="text-ink-muted"> · {x}</span>)}
                 {s.status === "gedaan" && <span className="text-gain"> · gedaan</span>}
-                {s.route_suggestion && <span className="block text-[12px] text-ink-muted">Rondje: {s.route_suggestion.names.join(" + ")}</span>}
               </span>
             </li>
           ))}
         </ul>
       )}
-      {title && <p className="mt-2 text-[11.5px] text-ink-muted">Uit: {title}</p>}
+      {title && <p className="mt-1 truncate text-[11.5px] text-ink-muted">{title}</p>}
     </Card>
   );
 }
@@ -144,7 +143,7 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
         <Upcoming sessions={d.upcoming} title={d.plan_title} />
       </div>
@@ -210,78 +209,78 @@ export default function DashboardPage() {
           <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
         </Card>
 
-        <Card title="Volume deze week">
-          <table className="w-full text-[13px] tabular-nums">
-            <thead>
-              <tr className="text-left text-[11.5px] text-ink-muted">
-                <th className="pb-2 font-normal">Sport</th>
-                <th className="pb-2 font-normal">Deze week</th>
-                <th className="pb-2 font-normal">Gem. 4 weken</th>
-              </tr>
-            </thead>
-            <tbody>
-              {volSports.map((s) => {
-                const w = d.volume.week[s];
-                const a = d.volume.avg4w[s];
-                return (
-                  <tr key={s} className="border-t border-border">
-                    <td className="py-2">{sportLabel(s)}</td>
-                    <td className="py-2">{w ? `${fmtKm(w.km)} · ${fmtDuration(w.seconds)}` : "–"}</td>
-                    <td className="py-2 text-ink-muted">{a ? `${fmtKm(a.km)} · ${fmtDuration(a.seconds)}` : "–"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card title="Laatste activiteiten" more="Historie" moreHref="/historie/">
-          <ul className="flex flex-col">
-            {d.recent.map((a) => (
-              <li key={a.id} className="grid grid-cols-[72px_1fr] items-baseline gap-x-3 gap-y-0.5 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr_auto]">
-                <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
-                <span className="truncate">
-                  <span className="font-medium">{sportLabel(a.sport)}</span>
-                  {a.name && <span className="text-ink-muted"> · {a.name}</span>}
-                </span>
-                <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
-                  {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card title="Herstel, laatste 7 dagen">
-          {d.recovery.days.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">Geen hersteldata deze week (horloge 's nachts niet gedragen?).</p>
-          ) : (
-            <table className="w-full text-[12.5px] tabular-nums">
+        <div className="flex flex-col gap-4">
+          <Card title="Volume deze week">
+            <table className="w-full text-[13px] tabular-nums">
               <thead>
                 <tr className="text-left text-[11.5px] text-ink-muted">
-                  <th className="pb-2 font-normal">Dag</th>
-                  <th className="pb-2 font-normal">Slaap</th>
-                  <th className="pb-2 font-normal">Rust-HR</th>
-                  <th className="pb-2 font-normal">Body Battery</th>
+                  <th className="pb-2 font-normal">Sport</th>
+                  <th className="pb-2 font-normal">Deze week</th>
+                  <th className="pb-2 font-normal">Gem. 4 weken</th>
                 </tr>
               </thead>
               <tbody>
-                {d.recovery.days.slice().reverse().map((w) => (
-                  <tr key={w.date} className="border-t border-border">
-                    <td className="py-1.5">{fmtDate(w.date)}</td>
-                    <td className="py-1.5">{w.sleep_h ? `${String(w.sleep_h).replace(".", ",")} u` : "–"}</td>
-                    <td className="py-1.5">{w.resting_hr ?? "–"}</td>
-                    <td className="py-1.5">{w.body_battery_high ?? "–"}</td>
-                  </tr>
-                ))}
+                {volSports.map((s) => {
+                  const w = d.volume.week[s];
+                  const a = d.volume.avg4w[s];
+                  return (
+                    <tr key={s} className="border-t border-border">
+                      <td className="py-2">{sportLabel(s)}</td>
+                      <td className="py-2">{w ? `${fmtKm(w.km)} · ${fmtDuration(w.seconds)}` : "–"}</td>
+                      <td className="py-2 text-ink-muted">{a ? `${fmtKm(a.km)} · ${fmtDuration(a.seconds)}` : "–"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          )}
-          {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">Rust-HR normaal (60 dagen): {d.recovery.baseline_rhr} bpm.</p>}
-        </Card>
+          </Card>
+          <Card title="Herstel, laatste 7 dagen" className="flex-1">
+            {d.recovery.days.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">Geen hersteldata deze week (horloge 's nachts niet gedragen?).</p>
+            ) : (
+              <table className="w-full text-[12.5px] tabular-nums">
+                <thead>
+                  <tr className="text-left text-[11.5px] text-ink-muted">
+                    <th className="pb-2 font-normal">Dag</th>
+                    <th className="pb-2 font-normal">Slaap</th>
+                    <th className="pb-2 font-normal">Rust-HR</th>
+                    <th className="pb-2 font-normal">Body Battery</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.recovery.days.slice().reverse().map((w) => (
+                    <tr key={w.date} className="border-t border-border">
+                      <td className="py-1.5">{fmtDate(w.date)}</td>
+                      <td className="py-1.5">{w.sleep_h ? `${String(w.sleep_h).replace(".", ",")} u` : "–"}</td>
+                      <td className="py-1.5">{w.resting_hr ?? "–"}</td>
+                      <td className="py-1.5">{w.body_battery_high ?? "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">Rust-HR normaal (60 dagen): {d.recovery.baseline_rhr} bpm.</p>}
+          </Card>
+        </div>
       </div>
+
+      <Card title="Laatste activiteiten" more="Historie" moreHref="/historie/">
+        <ul className="flex flex-col">
+          {d.recent.map((a) => (
+            <li key={a.id} className="grid grid-cols-[72px_1fr] items-baseline gap-x-3 gap-y-0.5 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr_auto]">
+              <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
+              <span className="truncate">
+                <span className="font-medium">{sportLabel(a.sport)}</span>
+                {a.name && <span className="text-ink-muted"> · {a.name}</span>}
+              </span>
+              <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
+                {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
     </div>
   );
 }

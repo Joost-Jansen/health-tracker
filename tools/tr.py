@@ -1,8 +1,8 @@
-"""`tr`: command line access to the training API for coaching agents (laptop or Claude Code cloud session).
+"""`tr`: command line access to the health-tracker API for scripts and AI assistants.
 
 Needs two environment variables:
     TRAINING_API_URL    e.g. https://your-domain.example
-    TRAINING_API_TOKEN  the agent token (Joost sets it; never write it into a file in this repo)
+    TRAINING_API_TOKEN  an agent token from Settings, Agents (never write it into a file in this repo)
 
     python tools/tr.py context                      # everything to read at the start of a session (markdown)
     python tools/tr.py doc get profile|goals

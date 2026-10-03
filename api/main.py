@@ -2,7 +2,7 @@
 
     uvicorn api.main:create_app --factory --host 0.0.0.0 --port 8000
 
-Data comes from the database (DATABASE_URL), per user (T19, docs/2026-10-03-multi-user-design.md). Auth: session
+Data comes from the database (DATABASE_URL), per user. Auth: session
 cookie (browser) or Bearer agent token; every route sees only the caller's data (api/users.py).
 """
 

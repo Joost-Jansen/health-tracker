@@ -2,7 +2,7 @@
 
 SQLAlchemy Core, so the same code runs on Postgres (Railway) and SQLite (tests, local).
 
-Multi-user (T19, docs/2026-10-03-multi-user-design.md): every data table carries `user_id`, and every function that
+Multi-user: every data table carries `user_id`, and every function that
 touches a user's data takes a `Scope(engine, user_id)` instead of an engine, so no query can forget the user.
 Global tables: `users`, `invites`, `app_settings`, `agent_tokens` (a token points at its user).
 

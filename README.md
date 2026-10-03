@@ -252,8 +252,8 @@ Instellingen, Agents; it is shown once. Tools: `get_context`, `list_activities`,
 - **CLI / scripts:** `TRAINING_API_URL=https://<your-domain> TRAINING_API_TOKEN=<token> python tools/tr.py context`
   (standard library only). See `python tools/tr.py --help` for plans, log entries, analyses and documents.
 
-[`AGENTS.md`](AGENTS.md) is an example coaching protocol for an agent (in Dutch): start a session with `get_context`,
-separate observation, interpretation and advice, compute instead of estimate, and end with a log entry.
+The MCP server sends its own instructions to the assistant (see `instructions()` in `api/mcp.py`): start a session with
+`get_context`, separate observation, interpretation and advice, compute instead of estimate, and end with a log entry.
 
 ## Project structure
 

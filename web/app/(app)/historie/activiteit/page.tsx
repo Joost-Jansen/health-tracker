@@ -15,6 +15,7 @@ import StreamChart from "@/components/charts/StreamChart";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
 import { T } from "@/lib/texts";
+import { SportBadge } from "@/components/plan/SportIcon";
 import { type ActivityDetail, fmtClock, fmtDate, fmtDuration, fmtIntensity, fmtKm, fmtPaceS, sportLabel, zoneShare } from "@/lib/training";
 
 const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), { ssr: false, loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" /> });
@@ -102,11 +103,14 @@ function Detail({ id }: { id: string }) {
       </div>
 
       <Card>
-        <div className="mb-4">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-1"><SportBadge sport={a.sport} size={36} /></span>
+          <div className="min-w-0">
           <div className="text-[12.5px] text-ink-muted">
             {fmtDate(a.start_local)} {new Date(a.start_local).getFullYear()} · {a.start_local.slice(11, 16)} · {sportLabel(a.sport)}
           </div>
           <h1 className="font-display text-[27px] font-light leading-tight">{a.name ?? sportLabel(a.sport)}</h1>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {a.distance_km ? <Stat label="Afstand" value={fmtKm(a.distance_km)} /> : null}

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
+import { SportBadge } from "@/components/plan/SportIcon";
 import { type ActivityListItem, type Heatmap, fmtDate, fmtDuration, fmtIntensity, fmtKm, sportLabel, ZONE_COLOUR, ZONES } from "@/lib/training";
 
 const HeatMap = dynamic(() => import("@/components/map/HeatMap"), { ssr: false });
@@ -94,10 +95,13 @@ function ListView() {
               <li key={a.id} className="border-t border-border first:border-t-0">
                 <Link href={`/historie/activiteit/?id=${encodeURIComponent(a.id)}`} className="grid grid-cols-[76px_1fr] items-center gap-x-3 gap-y-1 py-2.5 text-[13px] hover:bg-[var(--surface-hover)] sm:grid-cols-[92px_1fr_auto_120px] sm:px-1">
                   <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
-                  <span className="truncate">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <SportBadge sport={a.sport} size={22} />
+                    <span className="truncate">
                     <span className="font-medium">{sportLabel(a.sport)}</span>
                     {a.name && <span className="text-ink-muted"> · {a.name}</span>}
                     {a.has_gps && <span className="ml-1.5 text-[11px] text-ink-muted" title="Met kaart">◉</span>}
+                    </span>
                   </span>
                   <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
                     {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}

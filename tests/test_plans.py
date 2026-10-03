@@ -80,3 +80,22 @@ def test_route_suggestions_follow_the_session_sport():
     assert sessions[0]["route_suggestion"]["parts"] == ["r1"]
     assert sessions[1]["route_suggestion"]["parts"] == ["f1"]
     assert "route_suggestion" not in sessions[2]
+
+
+def test_chosen_route_replaces_the_suggestion():
+    from datetime import date as _date
+
+    from api.plans import suggest_routes
+
+    routes = [
+        {"id": "r1", "name": "Park", "sport": "run", "distance_km": 10.0, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]},
+        {"id": "r2", "name": "Dijk", "sport": "run", "distance_km": 14.2, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]},
+    ]
+    sessions = [
+        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "gepland", "route_id": "r2"},
+        {"date": "2026-10-06", "sport": "run", "distance_km": 10.0, "status": "gepland", "route_id": "onbekend"},
+    ]
+    suggest_routes(sessions, routes, _date(2026, 10, 3))
+    assert sessions[0]["route"] == {"id": "r2", "name": "Dijk", "distance_km": 14.2}
+    assert "route_suggestion" not in sessions[0]
+    assert "route" not in sessions[1] and sessions[1]["route_suggestion"]["parts"] == ["r1"]

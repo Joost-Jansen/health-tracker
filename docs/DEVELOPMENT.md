@@ -136,7 +136,7 @@ Existing:
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
-| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active` (`{persistent, plan}`), `/api/plans/{id}`, `/api/plans/{id}/sessions`, POST `/api/plans/import` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan` |
+| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active` (`{persistent, plan}`), `/api/plans/{id}`, `/api/plans/{id}/sessions`, POST `/api/plans/import` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan`; a session whose `route_id` is one of the user's loops gets `route: {id, name, distance_km}` instead of `route_suggestion` (T24) |
 | GET | `/api/zones?period=week\|month&offset=0` | `{period, offset, start, end, label, is_current, zones: {all?, <sport>: {seconds, total_s, pct}}, bounds}`; offset 0 = current period |
 | GET | `/api/zones/history?period=week\|month&count=12&sport=all` | `{period, sport, sports, items: [{start, end, label, seconds, total_s, pct}]}` oldest to newest, last = current; count ≤ 104 weeks / 36 months |
 | GET | `/api/context` | bundle for coaching agents (profile, goals, zones, active plan, dashboard, routes, recent log/analyses) |

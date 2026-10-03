@@ -11,7 +11,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button, EmptyState, Tabs } from "@/components/ds";
-import { RouteShape } from "@/components/map/RoutesMap";
 import { api } from "@/lib/api";
 import { type RouteOption, type RouteSport, type RouteSummary, fmtKm } from "@/lib/training";
 import { SPORT_TABS, WORDS, asSport, fmtEffort, fmtTypical, kmhFromPace, listHref, routeHref as href } from "./sport";
@@ -155,9 +154,18 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
             {routes.map((r) => (
               <Link key={r.id} href={href(r.id)} className="group">
                 <Card className="h-full transition-colors group-hover:border-[var(--border-strong)]">
-                  <div className="flex gap-4">
-                    <RouteShape points={r.track} className="h-24 w-24 flex-none" />
-                    <div className="min-w-0 flex-1 text-[12.5px]">
+                  <div className="flex flex-col gap-3">
+                    <div className="-mx-1 -mt-1">
+                      <RoutesMap
+                        interactive={false}
+                        height={170}
+                        lines={[
+                          ...(r.variants ?? []).map((v) => ({ id: v.id, points: v.track, variant: true })),
+                          { id: r.id, points: r.track },
+                        ]}
+                      />
+                    </div>
+                    <div className="min-w-0 text-[12.5px]">
                       <div className="truncate text-[14px] font-semibold">{r.name ?? r.id}</div>
                       <div className="tabular-nums text-ink-muted">{fmtKm(r.distance_km)} · {r.is_loop ? "rondje" : "route"}{r.elevation_gain_m ? ` · ${Math.round(r.elevation_gain_m)} hm` : ""}</div>
                       <div className="mt-1.5 tabular-nums">{r.runs}× {words.done}, laatst {fmtDay(r.last_run)}</div>
@@ -172,8 +180,8 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
           </div>
           <p className="text-[11.5px] text-ink-muted">
             {sport === "ride"
-              ? "Een fietsrondje is herkend als je minstens 2 keer vanaf dezelfde plek dezelfde route fietste. Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor."
-              : "Een rondje is herkend als je minstens 3 keer vanaf dezelfde plek dezelfde lus liep. Trend: efficiëntie (meter per hartslag, minder afhankelijk van hoe hard je liep dan tempo), mediaan van de laatste 5 keer tegen alle keren daarvoor."}
+              ? "Een fietsrondje is herkend als je minstens 2 keer grotendeels dezelfde wegen fietste, ook als je de tracker op een andere plek aanzette (tot 30% verschil in afstand). Dikke lijn: de meest typische keer; dun: de andere keren. Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor."
+              : "Een rondje is herkend als je minstens 3 keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren. Trend: efficiëntie (meter per hartslag, minder afhankelijk van hoe hard je liep dan tempo), mediaan van de laatste 5 keer tegen alle keren daarvoor."}
           </p>
         </>
       )}

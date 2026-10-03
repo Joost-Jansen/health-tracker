@@ -100,3 +100,14 @@ def test_endpoints_per_sport(mixed_client):
     assert c.get("/api/routes/suggest?km=301&sport=ride").status_code == 422
     assert c.get("/api/routes/suggest?km=40&sport=ride&start=r1").status_code == 404  # start must be a route of that sport
     assert c.get("/api/routes/f1").json()["history"][0]["id"] == "d"
+
+
+def test_medoid_is_the_main_track_and_others_are_variants():
+    route = {**ROUTES[0], "medoid_id": "a"}
+    s = route_summary(route, ACTS, streams, points=20)
+    assert s["medoid_id"] == "a" and len(s["track"]) == 20
+    assert [v["id"] for v in s["variants"]] == ["b"] and v_len(s) == 80
+
+
+def v_len(s):
+    return len(s["variants"][0]["track"])

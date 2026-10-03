@@ -233,7 +233,9 @@ export type RouteSummary = {
   earlier_pace_s_per_km: number | null;
   recent_efficiency: number | null;
   earlier_efficiency: number | null;
+  medoid_id?: string | null;
   track: [number, number][];
+  variants?: { id: string; date: string; track: [number, number][] }[];
 };
 
 export type RouteDetail = RouteSummary & {

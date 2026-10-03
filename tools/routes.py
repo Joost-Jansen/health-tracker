@@ -1,9 +1,13 @@
 """Recognise recurring routes ("vaste rondjes") from GPS tracks, for runs and for rides.
 
 A run or ride is reduced to a shape: start, end, distance and the set of ~100 m
-grid cells it passes. Two are the same route when they start close together,
-have a similar distance and cover mostly the same cells. A cluster of at least
-MIN_COUNT[sport] activities becomes a route. Route ids carry a prefix per sport
+grid cells it passes. Two are the same route when they cover mostly the same
+cells and have a similar distance, wherever they start: Joost often starts the
+tracker on the bike only once out of town, at a different spot each time, and
+a watch can start late on a run. Rides allow more difference in distance and in
+the extra stretch of the longer one. A cluster of at least MIN_COUNT[sport]
+activities becomes a route; its medoid (the member most like all others) is the
+route's "average" track, the other members are its variations. Route ids carry a prefix per sport
 (r1, r2, ... for runs; f1, f2, ... for rides) so both live in one routes table.
 """
 
@@ -19,10 +23,13 @@ M_PER_DEG_LAT = 111_320.0
 DLAT = CELL_M / M_PER_DEG_LAT
 DLON = CELL_M / (M_PER_DEG_LAT * math.cos(math.radians(REF_LAT)))
 
-START_RADIUS_M = 300.0
+START_RADIUS_M = 300.0  # combining loops into one run (tools/recommend.py): same start
 LOOP_RADIUS_M = 300.0  # watch is often stopped a few hundred metres before home
 MAX_DISTANCE_DIFF = 0.10
 MIN_OVERLAP = 0.75  # real data: same loop with a small detour overlaps ~76%
+# per sport: max relative distance difference, share of the shorter track on the longer one,
+# share of the longer track on the shorter one (the longer may have an extra lead-in)
+MATCH = {"run": (MAX_DISTANCE_DIFF, MIN_OVERLAP, MIN_OVERLAP), "ride": (0.30, 0.70, 0.60)}
 MIN_RUNS = 3
 MIN_COUNT = {"run": MIN_RUNS, "ride": 2}  # few rides with GPS, so two of the same already count
 PREFIX = {"run": "r", "ride": "f"}
@@ -63,18 +70,31 @@ def _covered(cells: set, other: set) -> float:
     return hit / len(cells)
 
 
-def same_shape(a: dict, b: dict) -> bool:
-    if haversine_m(a["start"], b["start"]) > START_RADIUS_M:
-        return False
+def overlap(a: dict, b: dict) -> tuple[float, float]:
+    """(share of the shorter track on the longer, share of the longer on the shorter)."""
+    short, long_ = (a, b) if a["distance_km"] <= b["distance_km"] else (b, a)
+    return _covered(short["cells"], long_["cells"]), _covered(long_["cells"], short["cells"])
+
+
+def same_shape(a: dict, b: dict, sport: str = "run") -> bool:
+    max_diff, min_short, min_long = MATCH.get(sport, MATCH["run"])
     longest = max(a["distance_km"], b["distance_km"])
-    if longest <= 0 or abs(a["distance_km"] - b["distance_km"]) / longest > MAX_DISTANCE_DIFF:
+    if longest <= 0 or abs(a["distance_km"] - b["distance_km"]) / longest > max_diff:
         return False
-    return min(_covered(a["cells"], b["cells"]), _covered(b["cells"], a["cells"])) >= MIN_OVERLAP
+    s, l = overlap(a, b)
+    return s >= min_short and l >= min_long
 
 
-def same_route(a: dict, b: dict) -> bool:
+def same_route(a: dict, b: dict, sport: str = "run") -> bool:
     sa, sb = shape(a), shape(b)
-    return sa is not None and sb is not None and same_shape(sa, sb)
+    return sa is not None and sb is not None and same_shape(sa, sb, sport)
+
+
+def _medoid(shapes: list[dict]) -> int:
+    """Index of the member most like all others (highest summed overlap): the route's "average" track."""
+    if len(shapes) <= 2:
+        return len(shapes) - 1  # with two, the latest
+    return max(range(len(shapes)), key=lambda i: (sum(min(overlap(shapes[i], o)) for j, o in enumerate(shapes) if j != i), i))
 
 
 def _pace(seconds_per_km: float) -> str:
@@ -106,26 +126,34 @@ def build_routes(runs: list[dict], existing: list[dict], sport: str = "run", min
     loop_label, line_label = LABELS.get(sport, LABELS["run"])
     min_runs = MIN_COUNT.get(sport, MIN_RUNS) if min_runs is None else min_runs
 
-    clusters: list[tuple[dict, list[dict]]] = []  # (representative shape, runs)
+    # a track joins the cluster where it matches most members, and at least half of them, so one odd
+    # member cannot chain two different routes together
+    clusters: list[tuple[list[dict], list[dict]]] = []  # (shapes, runs)
     for run in sorted(runs, key=lambda r: r["date"]):
         s = shape(run)
         if s is None:
             continue
-        for rep, members in clusters:
-            if same_shape(rep, s):
-                members.append(run)
-                break
+        best, best_hits = None, 0
+        for shapes, members in clusters:
+            hits = sum(same_shape(o, s, sport) for o in shapes)
+            if hits * 2 >= len(shapes) and hits > best_hits:
+                best, best_hits = (shapes, members), hits
+        if best:
+            best[0].append(s)
+            best[1].append(run)
         else:
-            clusters.append((s, [run]))
+            clusters.append(([s], [run]))
 
     unmatched = [r for r in existing if r.get("sport", "run") == sport]
     next_n = _next_number({r["id"] for r in existing}, prefix)
 
     routes = []
-    for rep, members in clusters:
+    for shapes, members in clusters:
         if len(members) < min_runs:
             continue
-        match = next((r for r in unmatched if same_shape(_stored_shape(r), rep)), None)
+        m = _medoid(shapes)
+        rep, medoid = shapes[m], members[m]
+        match = next((r for r in unmatched if same_shape(_stored_shape(r), rep, sport)), None)
         if match:
             unmatched.remove(match)
             route_id = match["id"]
@@ -158,6 +186,7 @@ def build_routes(runs: list[dict], existing: list[dict], sport: str = "run", min
                 "start": [round(x, 5) for x in rep["start"]],
                 "end": [round(x, 5) for x in rep["end"]],
                 "activity_ids": [m["activity_id"] for m in members],
+                "medoid_id": medoid["activity_id"],
                 "cells": sorted([list(c) for c in rep["cells"]]),
             }
         )

@@ -19,8 +19,11 @@ from pydantic import BaseModel
 from api.history import _pick
 from tools.recommend import recommend
 
-PREVIEW_POINTS = 120
+PREVIEW_POINTS = 150
 TRACK_POINTS = 800
+VARIANT_POINTS = {"preview": 80, "detail": 300}
+_TRACK_CACHE: dict[tuple[str, int], list] = {}  # (activity id, points) -> downsampled track; a stored track never changes
+_CACHE_MAX = 4000
 
 
 def _runs(route: dict, activities: list[dict]) -> list[dict]:
@@ -41,16 +44,42 @@ def _efficiency(a: dict) -> float | None:
     return None
 
 
+def _activity_track(aid: str, streams_fn: Callable, limit: int) -> list[list[float]]:
+    key = (aid, limit)
+    if key not in _TRACK_CACHE:
+        latlng = [p for p in ((streams_fn(aid) or {}).get("latlng") or []) if p and p[0] is not None]
+        if len(_TRACK_CACHE) >= _CACHE_MAX:
+            _TRACK_CACHE.clear()
+        _TRACK_CACHE[key] = [[round(latlng[i][0], 5), round(latlng[i][1], 5)] for i in _pick(len(latlng), limit)] if len(latlng) >= 2 else []
+    return _TRACK_CACHE[key]
+
+
 def _track(route: dict, runs: list[dict], streams_fn: Callable, limit: int) -> list[list[float]]:
-    """GPS track of the most recent run on the route that has one."""
-    for a in reversed(runs):
-        latlng = [p for p in ((streams_fn(a["id"]) or {}).get("latlng") or []) if p and p[0] is not None]
-        if len(latlng) >= 2:
-            return [[round(latlng[i][0], 5), round(latlng[i][1], 5)] for i in _pick(len(latlng), limit)]
+    """The route's "average" track: its medoid (the run most like all others, from tools/routes.py), else the
+    most recent run with GPS."""
+    medoid = route.get("medoid_id")
+    ordered = ([a for a in runs if a["id"] == medoid] if medoid else []) + list(reversed(runs))
+    for a in ordered:
+        track = _activity_track(a["id"], streams_fn, limit)
+        if track:
+            return track
     return []
 
 
-def route_summary(route: dict, activities: list[dict], streams_fn: Callable, points: int = PREVIEW_POINTS) -> dict:
+def _variants(route: dict, runs: list[dict], streams_fn: Callable, limit: int) -> list[dict]:
+    """Every other run on the route, to draw lightly under the average track."""
+    medoid = route.get("medoid_id")
+    out = []
+    for a in runs:
+        if a["id"] == medoid:
+            continue
+        track = _activity_track(a["id"], streams_fn, limit)
+        if track:
+            out.append({"id": a["id"], "date": a["start_local"][:10], "track": track})
+    return out
+
+
+def route_summary(route: dict, activities: list[dict], streams_fn: Callable, points: int = PREVIEW_POINTS, variant_points: int = VARIANT_POINTS["preview"]) -> dict:
     runs = _runs(route, activities)
     paces = [(a, _pace(a)) for a in runs if _pace(a)]
     best = min(paces, key=lambda x: x[1]) if paces else None
@@ -65,13 +94,15 @@ def route_summary(route: dict, activities: list[dict], streams_fn: Callable, poi
         "earlier_pace_s_per_km": round(median(earlier)) if earlier else None,
         "recent_efficiency": round(median(eff[-5:]), 3) if eff[:-5] else None,
         "earlier_efficiency": round(median(eff[:-5]), 3) if eff[:-5] else None,
+        "medoid_id": route.get("medoid_id"),
         "track": _track(route, runs, streams_fn, points),
+        "variants": _variants(route, runs, streams_fn, variant_points),
     }
 
 
 def route_detail(route: dict, activities: list[dict], streams_fn: Callable) -> dict:
     runs = _runs(route, activities)
-    out = route_summary(route, activities, streams_fn, TRACK_POINTS)
+    out = route_summary(route, activities, streams_fn, TRACK_POINTS, VARIANT_POINTS["detail"])
     out["history"] = [
         {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s"), "avg_hr": a.get("avg_hr"), "pace_s_per_km": _pace(a), "m_per_beat": _efficiency(a), "hr_zones_s": a.get("hr_zones_s")}
         for a in runs

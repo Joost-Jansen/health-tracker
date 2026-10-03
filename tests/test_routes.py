@@ -177,3 +177,57 @@ def test_default_name_pattern_covers_both_sports():
         assert DEFAULT_NAME.match(name)
     for name in ["Parkrondje", "40.0 km fietsrondje", "10.6 km rondje (x1)"]:
         assert not DEFAULT_NAME.match(name)
+
+
+# --- the same route from a different start (tracker switched on outside town) --------------------------
+
+def _big_loop():
+    return square_loop(side_m=10_000, step_m=50)  # 40 km loop
+
+
+def _ride_part(start_frac, length_frac, lead_in_m=0, seed=0):
+    """Part of the big loop: starting at start_frac of the way round, covering length_frac of it,
+    optionally with a lead-in from town (a straight stretch west of the start)."""
+    loop = _big_loop()[:-1]
+    n = len(loop)
+    i0 = int(start_frac * n)
+    pts = [loop[(i0 + k) % n] for k in range(int(length_frac * n))]
+    if lead_in_m:
+        steps = lead_in_m // 50
+        pts = [list(offset(tuple(pts[0]), 0, -(steps - k) * 50)) for k in range(steps)] + pts
+    km = round(len(pts) * 0.05, 1)
+    return pts, km
+
+
+def _ride(aid, date, start_frac, length_frac, lead_in_m=0):
+    pts, km = _ride_part(start_frac, length_frac, lead_in_m)
+    return run(aid, date, pts, km)
+
+
+def test_same_ride_from_different_start_points_is_same_route():
+    a = _ride("a", "2026-09-01", 0.0, 0.95)
+    b = _ride("b", "2026-09-08", 0.30, 0.90)
+    c = _ride("c", "2026-09-15", 0.60, 0.85, lead_in_m=4000)  # started in town, 4 km extra
+    assert same_route(a, b, "ride") and same_route(a, c, "ride") and same_route(b, c, "ride")
+    routes = build_routes([a, b, c], existing=[], sport="ride")
+    assert len(routes) == 1 and routes[0]["runs"] == 3 and routes[0]["id"] == "f1"
+    assert routes[0]["medoid_id"] in {"a", "b", "c"}
+
+
+def test_ride_covering_only_half_the_loop_is_a_different_route():
+    a = _ride("a", "2026-09-01", 0.0, 0.95)
+    half = _ride("h", "2026-09-08", 0.0, 0.5)
+    assert not same_route(a, half, "ride")
+
+
+def test_run_loop_started_elsewhere_on_the_loop_is_same_route():
+    loop = square_loop(step_m=10)[:-1]
+    shifted = loop[100:] + loop[:100]  # same 4 km square, watch started 1 km further
+    assert same_route(run("a", "2026-09-01", loop, 4.0), run("b", "2026-09-02", shifted, 4.0))
+
+
+def test_medoid_is_the_most_typical_member():
+    typical = [_ride(f"t{i}", f"2026-09-0{i + 1}", 0.1 * i, 0.9) for i in range(3)]
+    odd = _ride("odd", "2026-09-09", 0.6, 0.75, lead_in_m=6000)  # east side: lead-in crosses the inside
+    routes = build_routes(typical + [odd], existing=[], sport="ride")
+    assert len(routes) == 1 and routes[0]["runs"] == 4 and routes[0]["medoid_id"] != "odd"

@@ -74,8 +74,16 @@ function Detail({ id }: { id: string }) {
       </Card>
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <Card title="Kaart">
-          <RoutesMap lines={[{ id: r.id, points: r.track }]} height={360} />
-          <p className="mt-2 text-[11.5px] text-ink-muted">Spoor van de laatste keer.</p>
+          <RoutesMap
+            height={400}
+            lines={[
+              ...(r.variants ?? []).map((v) => ({ id: v.id, label: v.date, points: v.track, variant: true })),
+              { id: r.id, label: "Meest typische keer", points: r.track },
+            ]}
+          />
+          <p className="mt-2 text-[11.5px] text-ink-muted">
+            Dikke lijn: de meest typische keer (lijkt het meest op alle andere). Dun en licht: de {r.variants?.length ?? 0} andere keren, zodat je ziet waar je afweek of eerder of later begon.
+          </p>
         </Card>
         <div className="flex flex-col gap-4">
           {ride ? (

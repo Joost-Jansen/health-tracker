@@ -2,17 +2,22 @@
 
 // Eén of meer routes op de kaart, elk in een eigen grafiekkleur met een lichte of donkere rand, en een
 // stip op het startpunt. Voor een rondje, of voor een combinatie als "2× park + rondje brug".
+// Varianten (de andere keren op hetzelfde rondje) liggen er dun en licht onder, zodat de gemiddelde
+// route opvalt en afwijkingen zichtbaar blijven. `interactive={false}` maakt er een vast plaatje van
+// voor een kaartje in een raster: niet slepen of zoomen, een klik gaat naar de link eromheen.
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import { cssVar, tileLayerFor, useDark } from "./useTheme";
 
-export type MapLine = { id: string; label?: string; points: [number, number][]; colour?: string };
+export type MapLine = { id: string; label?: string; points: [number, number][]; colour?: string; variant?: boolean };
 
-export default function RoutesMap({ lines, height = 340 }: { lines: MapLine[]; height?: number }) {
+export default function RoutesMap({ lines, height = 340, interactive = true }: { lines: MapLine[]; height?: number; interactive?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const dark = useDark();
-  const drawn = lines.filter((l) => l.points.length >= 2);
+  const all = lines.filter((l) => l.points.length >= 2);
+  const variants = all.filter((l) => l.variant);
+  const drawn = all.filter((l) => !l.variant);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,47 +25,44 @@ export default function RoutesMap({ lines, height = 340 }: { lines: MapLine[]; h
     (async () => {
       const Lf = await import("leaflet");
       if (cancelled || !box.current || drawn.length === 0) return;
-      const m = Lf.map(box.current, { scrollWheelZoom: true, wheelPxPerZoomLevel: 100 });
+      const m = interactive
+        ? Lf.map(box.current, { scrollWheelZoom: true, wheelPxPerZoomLevel: 100 })
+        : Lf.map(box.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false });
       remove = () => m.remove();
       const tiles = tileLayerFor(dark);
       Lf.tileLayer(tiles.url, tiles.options).addTo(m);
       const casing = dark ? "#0b0f0d" : "#ffffff";
+      const main = cssVar("--chart-1");
+      for (const v of variants) {
+        const line = Lf.polyline(v.points, { color: v.colour ?? main, weight: interactive ? 2.5 : 1.5, opacity: dark ? 0.35 : 0.28, interactive }).addTo(m);
+        if (v.label && interactive) line.bindTooltip(v.label, { sticky: true });
+      }
       drawn.forEach((l, i) => {
         const colour = l.colour ?? cssVar(`--chart-${[1, 4, 3, 5, 6][i % 5]}`);
-        Lf.polyline(l.points, { color: casing, weight: 7, opacity: 0.9 }).addTo(m);
-        const line = Lf.polyline(l.points, { color: colour, weight: 4 }).addTo(m);
-        if (l.label) line.bindTooltip(l.label, { sticky: true });
+        Lf.polyline(l.points, { color: casing, weight: interactive ? 7 : 5, opacity: 0.9, interactive }).addTo(m);
+        const line = Lf.polyline(l.points, { color: colour, weight: interactive ? 4 : 3, interactive }).addTo(m);
+        if (l.label && interactive) line.bindTooltip(l.label, { sticky: true });
       });
       const start = drawn[0].points[0];
-      Lf.circleMarker(start, { radius: 6, color: casing, weight: 2, fillColor: cssVar("--n-800", "#1f2a26"), fillOpacity: 1 }).bindTooltip("Start").addTo(m);
-      m.fitBounds(Lf.latLngBounds(drawn.flatMap((l) => l.points)), { padding: [16, 16] });
+      const dot = Lf.circleMarker(start, { radius: interactive ? 6 : 4, color: casing, weight: 2, fillColor: cssVar("--n-800", "#1f2a26"), fillOpacity: 1, interactive }).addTo(m);
+      if (interactive) dot.bindTooltip("Start");
+      // inzoomen op de hoofdroute; varianten die ver uitwijken (een stuk uit de stad) vallen dan deels buiten beeld
+      m.fitBounds(Lf.latLngBounds(drawn.flatMap((l) => l.points)), { padding: interactive ? [16, 16] : [8, 8] });
     })();
     return () => {
       cancelled = true;
       remove();
     };
-  }, [JSON.stringify(drawn.map((l) => [l.id, l.points.length, l.colour])), dark]);
+  }, [JSON.stringify(all.map((l) => [l.id, l.points.length, l.colour, l.variant])), dark, interactive]);
 
   if (drawn.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">Geen GPS-spoor voor deze route.</p>;
-  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label="Kaart van de route" />;
-}
-
-/** Klein silhouet van een route als svg, zonder kaart: voor kaartjes in een raster. */
-export function RouteShape({ points, className = "" }: { points: [number, number][]; className?: string }) {
-  if (points.length < 2) return <div className={`rounded bg-[var(--surface-inset)] ${className}`} />;
-  const lat0 = points[0][0];
-  const k = Math.cos((lat0 * Math.PI) / 180);
-  const xs = points.map((p) => p[1] * k);
-  const ys = points.map((p) => -p[0]);
-  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const span = Math.max(maxX - minX, maxY - minY) || 1;
-  const pad = 0.08 * span;
-  const d = xs.map((x, i) => `${i ? "L" : "M"}${(x - minX + pad).toFixed(6)} ${(ys[i] - minY + pad).toFixed(6)}`).join(" ");
-  const vb = `0 0 ${(maxX - minX + 2 * pad).toFixed(6)} ${(maxY - minY + 2 * pad).toFixed(6)}`;
   return (
-    <svg viewBox={vb} className={className} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d={d} fill="none" stroke="var(--chart-1)" strokeWidth={span / 45} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 2.25 }} />
-      <circle cx={xs[0] - minX + pad} cy={ys[0] - minY + pad} r={span / 40} fill="var(--n-800)" />
-    </svg>
+    <div
+      ref={box}
+      className="z-0 w-full overflow-hidden rounded"
+      style={{ height, pointerEvents: interactive ? undefined : "none" }}
+      role="img"
+      aria-label={variants.length ? `Kaart van de route met ${variants.length} andere keren licht eronder` : "Kaart van de route"}
+    />
   );
 }

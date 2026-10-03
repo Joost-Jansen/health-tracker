@@ -214,7 +214,7 @@ class Server:
                 parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {f['status']}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
-            parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (f"{r['median_speed_kmh']} km/u" if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
+            parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
             parts += ["", "## Laatste logentries"]
             parts += [f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}" for e in db.list_entries(self.engine, kind="log", limit=5)]
             return "\n".join(parts)

@@ -774,3 +774,16 @@ label,
   --zone-4: #d98f5f;
   --zone-5: #cf6d71;
 }
+
+/* ── kaarttegels (Leaflet, OpenStreetMap) ─────────────────────────────────
+   OSM-tegels zijn fel. Licht: grotendeels grijs, iets lichter en minder
+   contrast, zodat het zachte thema blijft en spoor en zonekleuren eruit
+   springen. Donker: omgekeerd en terug-gedraaid in tint (water blijft
+   blauwachtig), daarna gedempt. Het filter staat op de tegellaag zelf
+   (className van L.tileLayer), dus nooit op lijnen, stippen of tooltips. */
+.map-tiles {
+  filter: grayscale(0.65) brightness(1.06) contrast(0.88);
+}
+.map-tiles--dark {
+  filter: invert(1) hue-rotate(180deg) grayscale(0.7) brightness(0.82) contrast(0.88);
+}

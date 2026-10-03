@@ -23,7 +23,7 @@ export default function RoutesMap({ lines, height = 340 }: { lines: MapLine[]; h
       const m = Lf.map(box.current, { scrollWheelZoom: false });
       remove = () => m.remove();
       const tiles = tileLayerFor(dark);
-      Lf.tileLayer(tiles.url, { attribution: tiles.attribution, maxZoom: 19, subdomains: "abcd" }).addTo(m);
+      Lf.tileLayer(tiles.url, tiles.options).addTo(m);
       const casing = dark ? "#0b0f0d" : "#ffffff";
       drawn.forEach((l, i) => {
         const colour = l.colour ?? cssVar(`--chart-${[1, 4, 3, 5, 6][i % 5]}`);

@@ -20,7 +20,7 @@ export default function HeatMap({ tracks, height = 520 }: { tracks: [number, num
       const m = Lf.map(box.current, { preferCanvas: true, scrollWheelZoom: false });
       remove = () => m.remove();
       const tiles = tileLayerFor(dark);
-      Lf.tileLayer(tiles.url, { attribution: tiles.attribution, maxZoom: 19, subdomains: "abcd" }).addTo(m);
+      Lf.tileLayer(tiles.url, tiles.options).addTo(m);
       const colour = dark ? cssVar("--zone-5", "#cf6d71") : cssVar("--oxblood-400", "#d9484c");
       const renderer = Lf.canvas();
       for (const t of tracks) Lf.polyline(t, { color: colour, weight: 2.5, opacity: 0.28, renderer, interactive: false }).addTo(m);

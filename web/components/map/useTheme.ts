@@ -34,11 +34,16 @@ export function cssVar(name: string, fallback = "#888"): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
+// OpenStreetMap-standaardtegels: geen API-sleutel nodig (CARTO vraagt die buiten localhost). De
+// tegels zijn fel van zichzelf; de klassen `map-tiles` en `map-tiles--dark` in globals.css maken ze
+// zacht (licht) of keren ze om (donker). Het filter zit op de tegellaag, niet op lijnen en stippen.
 export function tileLayerFor(dark: boolean) {
   return {
-    url: dark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      className: dark ? "map-tiles map-tiles--dark" : "map-tiles",
+    },
   };
 }

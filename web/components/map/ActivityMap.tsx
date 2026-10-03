@@ -37,7 +37,7 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
       const m = Lf.map(box.current, { scrollWheelZoom: false, attributionControl: true });
       map.current = m;
       const tiles = tileLayerFor(dark);
-      Lf.tileLayer(tiles.url, { attribution: tiles.attribution, maxZoom: 19, subdomains: "abcd" }).addTo(m);
+      Lf.tileLayer(tiles.url, tiles.options).addTo(m);
 
       const casing = dark ? "#0b0f0d" : "#ffffff";
       Lf.polyline(track.latlng, { color: casing, weight: 7, opacity: 0.9 }).addTo(m);

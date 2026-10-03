@@ -97,3 +97,83 @@ def test_generated_default_name_follows_new_distance():
     again = build_routes(more, existing=first)
     assert again[0]["name"] == f"{again[0]['distance_km']:.1f} km rondje (r1)"
     assert again[0]["distance_km"] != 4.0
+
+
+# --- rides -----------------------------------------------------------------------
+
+
+def _rides(n, km=40.0, side_m=10_000, seed0=0):
+    # 40 km square loop, ridden at 30 km/h
+    return [
+        run(f"f{seed0 + i}", f"2026-09-{seed0 + i + 1:02d}", square_loop(side_m=side_m, step_m=50, noise_m=5, seed=seed0 + i), km, moving_time_s=int(km * 120), avg_hr=135)
+        for i in range(n)
+    ]
+
+
+def test_runs_get_sport_and_no_speed():
+    r = build_routes(_three_ne_loops(), existing=[])[0]
+    assert r["sport"] == "run"
+    assert r["median_pace"] == "5:20" and r["median_speed_kmh"] is None
+
+
+def test_two_rides_are_enough_for_a_ride_route():
+    routes = build_routes(_rides(2), existing=[], sport="ride")
+    assert len(routes) == 1
+    r = routes[0]
+    assert r["id"] == "f1" and r["sport"] == "ride"
+    assert r["name"] == "40.0 km fietsrondje (f1)"
+    assert r["median_speed_kmh"] == 30.0 and r["median_pace"] is None
+    assert r["runs"] == 2
+
+
+def test_single_ride_is_not_a_route():
+    assert build_routes(_rides(1), existing=[], sport="ride") == []
+
+
+def test_min_runs_can_be_overridden():
+    assert len(build_routes(_three_ne_loops()[:2], existing=[], min_runs=2)) == 1
+
+
+def test_point_to_point_ride_is_a_fietsroute():
+    track = [list(offset(HOME, i * 50, 0)) for i in range(401)]
+    rides = [run(f"p{i}", f"2026-09-0{i + 1}", track, 20.0, moving_time_s=2400) for i in range(2)]
+    assert build_routes(rides, existing=[], sport="ride")[0]["name"] == "20.0 km fietsroute (f1)"
+
+
+def test_ride_ids_number_separately_from_run_ids():
+    runs = build_routes(_three_ne_loops(), existing=[])
+    existing = runs + [dict(runs[0], id="r7", name="Dijk")]
+    rides = build_routes(_rides(2), existing=existing, sport="ride")
+    assert [r["id"] for r in rides] == ["f1"]
+
+
+def test_ride_route_keeps_id_and_user_name_on_rebuild():
+    first = build_routes(_rides(2), existing=[], sport="ride")
+    first[0]["name"] = "Rondje Utrechtse Heuvelrug"
+    again = build_routes(_rides(3), existing=first, sport="ride")
+    assert again[0]["id"] == "f1" and again[0]["name"] == "Rondje Utrechtse Heuvelrug" and again[0]["runs"] == 3
+
+
+def test_rebuilding_rides_ignores_existing_run_routes():
+    # a run route with the same shape must not hand its id or name to a ride route
+    runs = build_routes(_rides(3), existing=[])  # same tracks, but as runs
+    runs[0]["name"] = "Lang loopje"
+    rides = build_routes(_rides(2), existing=runs, sport="ride")
+    assert rides[0]["id"] == "f1" and rides[0]["name"] == "40.0 km fietsrondje (f1)"
+
+
+def test_generated_ride_names_are_recognised_as_default():
+    first = build_routes(_rides(2), existing=[], sport="ride")
+    more = _rides(2) + _rides(3, km=44.0, seed0=10)
+    again = build_routes(more, existing=first, sport="ride")
+    assert again[0]["id"] == "f1"
+    assert again[0]["name"] == f"{again[0]['distance_km']:.1f} km fietsrondje (f1)"
+
+
+def test_default_name_pattern_covers_both_sports():
+    from tools.routes import DEFAULT_NAME
+
+    for name in ["10.6 km rondje (r1)", "21.5 km route (r12)", "40.0 km fietsrondje (f1)", "92.9 km fietsroute (f3)"]:
+        assert DEFAULT_NAME.match(name)
+    for name in ["Parkrondje", "40.0 km fietsrondje", "10.6 km rondje (x1)"]:
+        assert not DEFAULT_NAME.match(name)

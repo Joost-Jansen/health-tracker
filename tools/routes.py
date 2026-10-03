@@ -1,9 +1,10 @@
-"""Recognise recurring running routes ("vaste rondjes") from GPS tracks.
+"""Recognise recurring routes ("vaste rondjes") from GPS tracks, for runs and for rides.
 
-A run is reduced to a shape: start, end, distance and the set of ~100 m grid
-cells it passes. Two runs are the same route when they start close together,
+A run or ride is reduced to a shape: start, end, distance and the set of ~100 m
+grid cells it passes. Two are the same route when they start close together,
 have a similar distance and cover mostly the same cells. A cluster of at least
-MIN_RUNS runs becomes a route.
+MIN_COUNT[sport] activities becomes a route. Route ids carry a prefix per sport
+(r1, r2, ... for runs; f1, f2, ... for rides) so both live in one routes table.
 """
 
 from __future__ import annotations
@@ -23,7 +24,10 @@ LOOP_RADIUS_M = 300.0  # watch is often stopped a few hundred metres before home
 MAX_DISTANCE_DIFF = 0.10
 MIN_OVERLAP = 0.75  # real data: same loop with a small detour overlaps ~76%
 MIN_RUNS = 3
-DEFAULT_NAME = re.compile(r"^\d+\.\d km (rondje|route) \(r\d+\)$")
+MIN_COUNT = {"run": MIN_RUNS, "ride": 2}  # few rides with GPS, so two of the same already count
+PREFIX = {"run": "r", "ride": "f"}
+LABELS = {"run": ("rondje", "route"), "ride": ("fietsrondje", "fietsroute")}  # (loop, point to point)
+DEFAULT_NAME = re.compile(r"^\d+\.\d km (rondje \(r|route \(r|fietsrondje \(f|fietsroute \(f)\d+\)$")
 
 
 def haversine_m(a, b) -> float:
@@ -87,8 +91,21 @@ def _stored_shape(route: dict) -> dict:
     }
 
 
-def build_routes(runs: list[dict], existing: list[dict]) -> list[dict]:
-    """Cluster runs into routes; keep id and name of matching existing routes."""
+def _next_number(ids, prefix: str) -> int:
+    nums = [int(i[len(prefix):]) for i in ids if i.startswith(prefix) and i[len(prefix):].isdigit()]
+    return 1 + max(nums, default=0)
+
+
+def build_routes(runs: list[dict], existing: list[dict], sport: str = "run", min_runs: int | None = None) -> list[dict]:
+    """Cluster runs (or rides) of one sport into routes; keep id and name of matching existing routes.
+
+    `existing` may hold routes of every sport: only those of `sport` are matched, so a ride never takes over a
+    run route's id or name. Numbering continues per prefix (r for runs, f for rides).
+    """
+    prefix = PREFIX.get(sport, sport[:1])
+    loop_label, line_label = LABELS.get(sport, LABELS["run"])
+    min_runs = MIN_COUNT.get(sport, MIN_RUNS) if min_runs is None else min_runs
+
     clusters: list[tuple[dict, list[dict]]] = []  # (representative shape, runs)
     for run in sorted(runs, key=lambda r: r["date"]):
         s = shape(run)
@@ -101,13 +118,12 @@ def build_routes(runs: list[dict], existing: list[dict]) -> list[dict]:
         else:
             clusters.append((s, [run]))
 
-    unmatched = list(existing)
-    used_ids = {r["id"] for r in existing}
-    next_n = 1 + max((int(i[1:]) for i in used_ids if i[1:].isdigit()), default=0)
+    unmatched = [r for r in existing if r.get("sport", "run") == sport]
+    next_n = _next_number({r["id"] for r in existing}, prefix)
 
     routes = []
     for rep, members in clusters:
-        if len(members) < MIN_RUNS:
+        if len(members) < min_runs:
             continue
         match = next((r for r in unmatched if same_shape(_stored_shape(r), rep)), None)
         if match:
@@ -115,24 +131,29 @@ def build_routes(runs: list[dict], existing: list[dict]) -> list[dict]:
             route_id = match["id"]
             name = None if DEFAULT_NAME.match(match["name"]) else match["name"]  # keep only names Joost gave
         else:
-            route_id, name = f"r{next_n}", None
+            route_id, name = f"{prefix}{next_n}", None
             next_n += 1
 
         distance = round(median(m["distance_km"] for m in members), 2)
         is_loop = haversine_m(rep["start"], rep["end"]) <= LOOP_RADIUS_M
         hrs = [m["avg_hr"] for m in members if m.get("avg_hr")]
-        paces = [m["moving_time_s"] / m["distance_km"] for m in members if m.get("moving_time_s") and m["distance_km"]]
+        timed = [m for m in members if m.get("moving_time_s") and m["distance_km"]]
+        paces = [m["moving_time_s"] / m["distance_km"] for m in timed]
+        speeds = [m["distance_km"] / m["moving_time_s"] * 3600 for m in timed]
         routes.append(
             {
                 "id": route_id,
-                "name": name or f"{distance:.1f} km {'rondje' if is_loop else 'route'} ({route_id})",
+                "sport": sport,
+                "name": name or f"{distance:.1f} km {loop_label if is_loop else line_label} ({route_id})",
                 "distance_km": distance,
                 "is_loop": is_loop,
                 "elevation_gain_m": round(median(m.get("elevation_gain_m") or 0 for m in members)),
                 "runs": len(members),
                 "first_run": members[0]["date"],
                 "last_run": members[-1]["date"],
-                "median_pace": _pace(median(paces)) if paces else None,
+                # tempo for runs, speed for rides; the other one is None so every route has the same fields
+                "median_pace": _pace(median(paces)) if paces and sport != "ride" else None,
+                "median_speed_kmh": round(median(speeds), 1) if speeds and sport == "ride" else None,
                 "median_hr": round(median(hrs)) if hrs else None,
                 "start": [round(x, 5) for x in rep["start"]],
                 "end": [round(x, 5) for x in rep["end"]],

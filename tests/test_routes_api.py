@@ -58,3 +58,45 @@ def test_endpoints(client):
     assert client.get("/api/routes/r9").status_code == 404
     assert client.patch("/api/routes/r1", json={"name": "Vondelpark"}).json()["name"] == "Vondelpark"
     assert client.saved["items"][0]["name"] == "Vondelpark"
+
+
+RIDE = {"id": "f1", "sport": "ride", "name": "Heuvelrug", "distance_km": 40.0, "is_loop": True, "runs": 2, "last_run": "2026-09-20", "start": list(HOME), "end": list(HOME), "median_pace": None, "median_speed_kmh": 30.0, "median_hr": 130, "activity_ids": ["d", "e"]}
+RIDE_ACTS = [
+    {"id": "d", "start_local": "2026-09-13T09:00:00", "sport": "ride", "distance_km": 40.0, "moving_time_s": 5000, "avg_hr": 128},
+    {"id": "e", "start_local": "2026-09-20T09:00:00", "sport": "ride", "distance_km": 40.0, "moving_time_s": 4800, "avg_hr": 132},
+]
+
+
+def test_summary_carries_sport_and_speed():
+    s = route_summary(RIDE, RIDE_ACTS, streams)
+    assert s["sport"] == "ride" and s["median_speed_kmh"] == 30.0
+    assert s["best"]["activity_id"] == "e"
+    assert route_summary(ROUTES[0], ACTS, streams)["sport"] == "run"  # stored without sport: a run
+
+
+def test_suggest_is_per_sport():
+    routes = ROUTES + [RIDE]
+    acts = ACTS + RIDE_ACTS
+    assert all(p.startswith("r") for o in suggest(routes, acts, streams, 8.0, date(2026, 9, 30)) for p in o["parts"])
+    opts = suggest(routes, acts, streams, 80.0, date(2026, 9, 30), sport="ride")
+    assert opts[0]["parts"] == ["f1", "f1"] and opts[0]["names"] == ["Heuvelrug", "Heuvelrug"]
+    assert suggest(ROUTES, ACTS, streams, 40.0, date(2026, 9, 30), sport="ride") == []
+
+
+@pytest.fixture
+def mixed_client():
+    app = FastAPI()
+    app.include_router(make_router(lambda: [dict(r) for r in ROUTES + [RIDE]], lambda: ACTS + RIDE_ACTS, streams, lambda: date(2026, 9, 30), lambda: "joost"))
+    return TestClient(app)
+
+
+def test_endpoints_per_sport(mixed_client):
+    c = mixed_client
+    assert [r["id"] for r in c.get("/api/routes?sport=ride").json()] == ["f1"]
+    assert [r["id"] for r in c.get("/api/routes?sport=run").json()] == ["r1", "r2"]
+    assert c.get("/api/routes/suggest?km=4").json()["options"][0]["parts"] == ["r1"]
+    ride = c.get("/api/routes/suggest?km=120&sport=ride").json()
+    assert ride["km"] == 120.0 and ride["options"][0]["parts"] == ["f1", "f1", "f1"]
+    assert c.get("/api/routes/suggest?km=301&sport=ride").status_code == 422
+    assert c.get("/api/routes/suggest?km=40&sport=ride&start=r1").status_code == 404  # start must be a route of that sport
+    assert c.get("/api/routes/f1").json()["history"][0]["id"] == "d"

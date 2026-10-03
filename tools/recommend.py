@@ -1,7 +1,8 @@
-"""Recommend one of the regular routes (or a combination of loops) for a target distance.
+"""Recommend one of the regular routes (or a combination of loops) for a target distance, per sport.
 
     python tools/recommend.py --km 14
     python tools/recommend.py --km 14 --tolerance 0.08 --start r2
+    python tools/recommend.py --km 60 --sport ride
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools.routes import START_RADIUS_M, haversine_m
+from tools.routes import MIN_COUNT, START_RADIUS_M, haversine_m
 
 ROOT = Path(__file__).resolve().parents[1]
 FALLBACK_MAX_DEVIATION = 0.5  # when nothing fits, still hide options more than 50% off target
@@ -45,9 +46,14 @@ def recommend(
     max_parts: int = 3,
     start: str | None = None,
     limit: int = 3,
+    sport: str = "run",
 ) -> list[dict]:
+    """Only routes of `sport` are suggested or combined; routes without a sport are runs."""
+    routes = [r for r in routes if r.get("sport", "run") == sport]
     if start:
-        anchor = next(r for r in routes if r["id"] == start)
+        anchor = next((r for r in routes if r["id"] == start), None)
+        if anchor is None:
+            return []
         routes = [r for r in routes if haversine_m(r["start"], anchor["start"]) <= START_RADIUS_M]
 
     options = []
@@ -81,10 +87,22 @@ def _describe(parts: list[str], by_id: dict) -> str:
     )
 
 
-def format_recommendations(recs: list[dict], routes: list[dict], target_km: float) -> str:
+def _typical(route: dict, sport: str) -> str:
+    if sport == "ride":
+        speed = route.get("median_speed_kmh")
+        return f"{speed:.1f}".replace(".", ",") + " km/u" if speed else "-"
+    return f"{route.get('median_pace')}/km"
+
+
+def format_recommendations(recs: list[dict], routes: list[dict], target_km: float, sport: str = "run") -> str:
     by_id = {r["id"]: r for r in routes}
+    ride = sport == "ride"
     if not recs:
-        return f"Geen vaste rondjes gevonden voor {target_km} km. Er zijn nog geen vaste rondjes (minstens 3 keer dezelfde route nodig)."
+        what = "fietsrondjes" if ride else "rondjes"
+        return (
+            f"Geen vaste {what} gevonden voor {target_km} km. Er zijn nog geen vaste {what} "
+            f"(minstens {MIN_COUNT.get(sport, 3)} keer dezelfde route nodig)."
+        )
     lines = [f"Aanbeveling voor {target_km} km:"]
     if not recs[0]["within_tolerance"]:
         lines.append("Geen combinatie binnen de tolerantie; dit zijn de dichtstbijzijnde opties.")
@@ -92,8 +110,8 @@ def format_recommendations(recs: list[dict], routes: list[dict], target_km: floa
         first = by_id[rec["parts"][0]]
         lines.append(
             f"{i}. {_describe(rec['parts'], by_id)}: {rec['total_km']:.1f} km "
-            f"({rec['deviation_km']:+.1f} km), laatst gelopen {rec['days_since']} dagen geleden, "
-            f"typisch {first['median_pace']}/km bij {first['median_hr']} bpm"
+            f"({rec['deviation_km']:+.1f} km), laatst {'gefietst' if ride else 'gelopen'} {rec['days_since']} dagen geleden, "
+            f"typisch {_typical(first, sport)} bij {first['median_hr']} bpm"
         )
     return "\n".join(lines)
 
@@ -104,12 +122,13 @@ def main(argv=None) -> int:
     parser.add_argument("--tolerance", type=float, default=0.05, help="toegestane afwijking als fractie (0.05 = 5%%)")
     parser.add_argument("--max-parts", type=int, default=3, help="maximaal aantal rondjes in een combinatie")
     parser.add_argument("--start", help="alleen rondjes met hetzelfde startpunt als deze route-id")
+    parser.add_argument("--sport", choices=["run", "ride"], default="run", help="run (lopen) of ride (fietsen)")
     parser.add_argument("--routes", type=Path, default=ROOT / "routes" / "routes.json")
     args = parser.parse_args(argv)
 
     routes = json.loads(args.routes.read_text()) if args.routes.exists() else []
-    recs = recommend(routes, args.km, date.today(), args.tolerance, args.max_parts, args.start)
-    print(format_recommendations(recs, routes, args.km))
+    recs = recommend(routes, args.km, date.today(), args.tolerance, args.max_parts, args.start, sport=args.sport)
+    print(format_recommendations(recs, routes, args.km, sport=args.sport))
     return 0
 
 

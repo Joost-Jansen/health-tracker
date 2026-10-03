@@ -82,3 +82,36 @@ def test_markdown_names_routes_and_deviation():
 def test_fallback_hides_options_far_off_target():
     recs = recommend([route("r1", 11.0)], 10, today=TODAY)
     assert [r["parts"] for r in recs] == [["r1"]]
+
+
+def ride_route(rid, km, **kw):
+    return dict(route(rid, km, **kw), sport="ride", median_pace=None, median_speed_kmh=28.4)
+
+
+def test_default_sport_is_run_and_skips_ride_routes():
+    routes = [route("r1", 10.0), ride_route("f1", 10.0, last_run="2026-01-01")]
+    assert [r["parts"] for r in recommend(routes, 10, today=TODAY)] == [["r1"]]
+
+
+def test_ride_suggestions_only_combine_ride_routes():
+    routes = [route("r1", 20.0), ride_route("f1", 20.0), ride_route("f2", 40.0)]
+    recs = recommend(routes, 60, today=TODAY, sport="ride")
+    assert sorted(recs[0]["parts"]) == ["f1", "f2"]
+    assert all(p.startswith("f") for r in recs for p in r["parts"])
+
+
+def test_routes_without_sport_count_as_runs():
+    routes = [{k: v for k, v in route("r1", 10.0).items()}]
+    assert recommend(routes, 10, today=TODAY)[0]["parts"] == ["r1"]
+    assert recommend(routes, 10, today=TODAY, sport="ride") == []
+
+
+def test_markdown_for_rides_shows_speed():
+    routes = [ride_route("f1", 40.0, name="Heuvelrug")]
+    text = format_recommendations(recommend(routes, 40, today=TODAY, sport="ride"), routes, 40, sport="ride")
+    assert "Heuvelrug" in text and "28,4 km/u" in text and "gefietst" in text
+    assert "/km" not in text
+
+
+def test_markdown_without_ride_routes_explains_two_rides():
+    assert "2 keer" in format_recommendations([], [], 40, sport="ride")

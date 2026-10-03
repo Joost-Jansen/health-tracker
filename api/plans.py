@@ -228,15 +228,16 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date) ->
 
 
 def suggest_routes(sessions: list[dict], routes: list[dict], today: date) -> None:
-    """Adds `route_suggestion` to open run sessions with a distance: the best fitting (combination of) loops."""
-    run_routes = [r for r in routes if r.get("start")]
-    if not run_routes:
+    """Adds `route_suggestion` to open run and ride sessions with a distance: the best fitting (combination of) loops
+    of the session's own sport."""
+    usable = [r for r in routes if r.get("start")]
+    if not usable:
         return
-    names = {r["id"]: r.get("name") or r["id"] for r in run_routes}
+    names = {r["id"]: r.get("name") or r["id"] for r in usable}
     for s in sessions:
-        if s["sport"] != "run" or not s.get("distance_km") or s.get("status") in ("gedaan", "gemist"):
+        if s["sport"] not in ("run", "ride") or not s.get("distance_km") or s.get("status") in ("gedaan", "gemist"):
             continue
-        recs = recommend(run_routes, s["distance_km"], today, limit=1)
+        recs = recommend(usable, s["distance_km"], today, limit=1, sport=s["sport"])
         if recs:
             r = recs[0]
             s["route_suggestion"] = {**r, "names": [names[p] for p in r["parts"]]}

@@ -84,7 +84,8 @@ def context_markdown(ctx: dict) -> str:
         out.append("_geen_")
     out += ["", "## Vaste rondjes"]
     for r in ctx.get("routes", []):
-        out.append(f"- {r['id']} {r['name']}: {r['distance_km']} km, {r['runs']}x, laatst {r['last_run']}, {r.get('median_pace')}/km bij {r.get('median_hr')} bpm")
+        typical = f"{r['median_speed_kmh']} km/u" if r.get("sport") == "ride" and r.get("median_speed_kmh") else f"{r.get('median_pace')}/km"
+        out.append(f"- {r['id']} {r['name']}: {r['distance_km']} km, {r['runs']}x, laatst {r['last_run']}, {typical} bij {r.get('median_hr')} bpm")
     out += ["", "## Recente log"]
     for e in ctx.get("recent_log", []):
         out += [f"### {e['day']}: {e['title']} ({e['author']})", e["body"].strip(), ""]

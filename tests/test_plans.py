@@ -60,3 +60,23 @@ def test_zone_compliance_easy_counts_z1_too():
     a = {"hr_zones_s": {"Z1": 600, "Z2": 2400, "Z3": 1000, "Z4": 0, "Z5": 0}}
     assert zone_compliance(a, "Z2") == 75
     assert zone_compliance(a, "Z3-Z4") == 25
+
+
+def test_route_suggestions_follow_the_session_sport():
+    from datetime import date as _date
+
+    from api.plans import suggest_routes
+
+    def route(rid, sport, km):
+        return {"id": rid, "name": rid, "sport": sport, "distance_km": km, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]}
+
+    routes = [route("r1", "run", 10.0), route("f1", "ride", 40.0)]
+    sessions = [
+        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "gepland"},
+        {"date": "2026-10-06", "sport": "ride", "distance_km": 40.0, "status": "gepland"},
+        {"date": "2026-10-07", "sport": "swim", "distance_km": 2.0, "status": "gepland"},
+    ]
+    suggest_routes(sessions, routes, _date(2026, 10, 3))
+    assert sessions[0]["route_suggestion"]["parts"] == ["r1"]
+    assert sessions[1]["route_suggestion"]["parts"] == ["f1"]
+    assert "route_suggestion" not in sessions[2]

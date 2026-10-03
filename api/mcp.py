@@ -90,7 +90,7 @@ TOOLS = [
     {
         "name": "suggest_route",
         "description": "Vaste rondjes (of combinaties vanaf dezelfde start) voor een afstand, het langst niet gelopen eerst.",
-        "inputSchema": {"type": "object", "properties": {"km": {"type": "number"}, "tolerance": {"type": "number", "default": 0.05}}, "required": ["km"]},
+        "inputSchema": {"type": "object", "properties": {"km": {"type": "number"}, "tolerance": {"type": "number", "default": 0.05}, "sport": {"type": "string", "enum": ["run", "ride"], "default": "run"}}, "required": ["km"]},
     },
 ]
 
@@ -214,7 +214,7 @@ class Server:
                 parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {f['status']}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
-            parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace')} | {r.get('median_hr')} |" for r in s.routes]
+            parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (f"{r['median_speed_kmh']} km/u" if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
             parts += ["", "## Laatste logentries"]
             parts += [f"### {e['day']}: {e['title']} ({e['author']})\n{e['body'].strip()}" for e in db.list_entries(self.engine, kind="log", limit=5)]
             return "\n".join(parts)
@@ -282,11 +282,13 @@ class Server:
             doc = db.get_document(self.engine, key)
             return doc["body"] if doc else "(leeg)"
         if name == "suggest_route":
-            opts = suggest(s.routes, s.activities, lambda _: None, float(args["km"]), today, float(args.get("tolerance") or 0.05))
+            sport = args.get("sport") or "run"
+            opts = suggest(s.routes, s.activities, lambda _: None, float(args["km"]), today, float(args.get("tolerance") or 0.05), sport=sport)
             if not opts:
                 return "Geen vaste rondjes gevonden."
+            verb = "gefietst" if sport == "ride" else "gelopen"
             return "\n".join(
-                f"{i}. {' + '.join(o['names'])}: {o['total_km']} km ({o['deviation_km']:+.1f} km), {o['days_since']} dagen niet gelopen" for i, o in enumerate(opts, 1)
+                f"{i}. {' + '.join(o['names'])}: {o['total_km']} km ({o['deviation_km']:+.1f} km), {o['days_since']} dagen niet {verb}" for i, o in enumerate(opts, 1)
             )
         raise ToolError(f"Onbekende tool {name}")
 

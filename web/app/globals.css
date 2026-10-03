@@ -787,3 +787,6 @@ label,
 .map-tiles--dark {
   filter: invert(1) hue-rotate(180deg) grayscale(0.7) brightness(0.82) contrast(0.88);
 }
+
+/* Leaflet's eigen lichtgrijze achtergrond flitst anders op in het donkere thema terwijl de tegels laden. */
+.leaflet-container { background: var(--surface-sunken); }

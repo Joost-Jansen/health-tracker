@@ -209,6 +209,9 @@ export type PlanListItem = Omit<Plan, "sessions" | "weeks">;
 
 // ── Rondjes (T7) ─────────────────────────────────────────────────────────────
 
+/** Sporten met vaste rondjes: id-voorvoegsel r (lopen) en f (fietsen). */
+export type RouteSport = "run" | "ride";
+
 export type RouteSummary = {
   id: string;
   name?: string;
@@ -219,7 +222,10 @@ export type RouteSummary = {
   runs: number;
   first_run?: string;
   last_run?: string;
-  median_pace?: string;
+  /** Lopen: mediaan tempo "5:08"; null bij fietsrondjes. */
+  median_pace?: string | null;
+  /** Fietsen: mediaan snelheid in km/u; null bij looprondjes. */
+  median_speed_kmh?: number | null;
   median_hr?: number;
   start?: [number, number];
   best: null | { activity_id: string; date: string; pace_s_per_km: number; moving_time_s?: number };

@@ -1,4 +1,4 @@
-"""Rondjes: recurring routes with a map, the history of every run on them, and "a route for X km".
+"""Rondjes: recurring routes (runs and rides) with a map, the history of every run or ride on them, and "a route for X km".
 
 Plain callables in, so it works on routes.json and on the routes table alike. Wire it in api/main.py with:
 
@@ -58,7 +58,7 @@ def route_summary(route: dict, activities: list[dict], streams_fn: Callable, poi
     earlier = [p for _, p in paces[:-5]]
     eff = [e for e in (_efficiency(a) for a in runs) if e]
     return {
-        **{k: route.get(k) for k in ("id", "name", "distance_km", "is_loop", "elevation_gain_m", "runs", "first_run", "last_run", "median_pace", "median_hr", "start")},
+        **{k: route.get(k) for k in ("id", "name", "distance_km", "is_loop", "elevation_gain_m", "runs", "first_run", "last_run", "median_pace", "median_speed_kmh", "median_hr", "start")},
         "sport": route.get("sport", "run"),
         "best": {"activity_id": best[0]["id"], "date": best[0]["start_local"][:10], "pace_s_per_km": best[1], "moving_time_s": best[0].get("moving_time_s")} if best else None,
         "recent_pace_s_per_km": round(median(recent)) if recent else None,
@@ -79,15 +79,16 @@ def route_detail(route: dict, activities: list[dict], streams_fn: Callable) -> d
     return out
 
 
-def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km: float, today: date, tolerance: float = 0.05, start: str | None = None, limit: int = 3) -> list[dict]:
-    usable = [r for r in routes if r.get("start") and r.get("last_run")]
+def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km: float, today: date, tolerance: float = 0.05, start: str | None = None, limit: int = 3, sport: str = "run") -> list[dict]:
+    """Routes of one sport only (routes stored without a sport are runs); `start` must be a route of that sport."""
+    usable = [r for r in routes if r.get("start") and r.get("last_run") and r.get("sport", "run") == sport]
     if not usable:
         return []
     by_id = {r["id"]: r for r in usable}
     if start and start not in by_id:
         raise HTTPException(status_code=404, detail="onbekend rondje")
     out = []
-    for rec in recommend(usable, km, today, tolerance, start=start, limit=limit):
+    for rec in recommend(usable, km, today, tolerance, start=start, limit=limit, sport=sport):
         parts = [by_id[p] for p in rec["parts"]]
         out.append({**rec, "names": [p.get("name") or p["id"] for p in parts], "tracks": {p["id"]: _track(p, _runs(p, activities), streams_fn, 300) for p in parts}})
     return out
@@ -121,8 +122,14 @@ def make_router(
 
     # before /{route_id} so "suggest" is not taken for an id
     @r.get("/api/routes/suggest")
-    def suggest_route(km: float = Query(..., gt=0, le=100), tolerance: float = Query(0.05, ge=0, le=0.5), start: str | None = None, who: str = Depends(author)):
-        return {"km": km, "options": suggest(routes(), activities(), streams, km, today(), tolerance, start)}
+    def suggest_route(
+        km: float = Query(..., gt=0, le=300),
+        tolerance: float = Query(0.05, ge=0, le=0.5),
+        start: str | None = None,
+        sport: str = "run",
+        who: str = Depends(author),
+    ):
+        return {"km": km, "options": suggest(routes(), activities(), streams, km, today(), tolerance, start, sport=sport)}
 
     @r.get("/api/routes/{route_id}")
     def get_route(route_id: str, who: str = Depends(author)):

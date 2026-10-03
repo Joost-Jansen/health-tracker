@@ -64,4 +64,22 @@ export const T = {
       ? `Een fietsrondje is herkend als je minstens ${minCount} keer grotendeels dezelfde wegen fietste, ook als je de tracker op een andere plek aanzette. Dikke lijn: de meest typische keer; dun: de andere keren.`
       : `Een rondje is herkend als je minstens ${minCount} keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren.`,
   routeTrend: "Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor.",
+
+  /** Onboarding (T23): de uitleg over gezondheid en prestaties in de rondleiding, de checklist en Help. */
+  onboarding: {
+    zonesWhy:
+      "Alles op de site rekent met je eigen hartslagzones per sport: de tijd per zone, de belasting en je vorm, en de kleuren op de kaart. Een zone is een percentage van je maximale hartslag; de grenzen rekent de site uit.",
+    zonesHow:
+      "Weet je je max niet uit een test, begin dan met de hoogste hartslag die je horloge bij een harde inspanning mat. Voor fietsen en zwemmen ligt de max meestal lager dan bij lopen; zonder eigen waarde schat de site die en zegt dat erbij.",
+    maxSuggestion: (sport: string, bpm: number) =>
+      `Voorstel uit je eigen data: de hoogste hartslag bij ${sportLabel(sport).toLowerCase()} is ${bpm} bpm (losse pieken van de polssensor niet meegeteld).`,
+    zonesSet: (sports: string[], estimated: string[]) =>
+      `Ingesteld voor ${list(sports.map((s) => sportLabel(s).toLowerCase()))}.` +
+      (estimated.length ? ` ${list(estimated.map((s) => sportLabel(s).toLowerCase()))}: schatting.` : ""),
+    profileWhy:
+      "Geboortejaar, gewicht, lengte en rusthartslag. De rusthartslag gebruikt de site voor de belasting per training op dagen zonder slaapdata van je horloge.",
+    firstSync: (days: number) =>
+      `De eerste keer haalt de site de trainingen en het herstel (slaap, rusthartslag, Body Battery) van de afgelopen ${days} dagen op. Daarna elke ochtend vanzelf wat er nieuw is.`,
+    wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
+  },
 };

@@ -142,7 +142,8 @@ export default function ZonesOverTime() {
                   </thead>
                   <tbody>
                     {cmp.rows.map((r) => {
-                      const tone = r.diff == null || Math.abs(r.diff) < 1 ? "text-ink-muted" : r.diff > 0 ? "text-gain/80" : "text-loss/80";
+                      // neutral on purpose: more or less time in a zone is not good or bad by itself
+                      const tone = r.diff == null || Math.abs(r.diff) < 1 ? "text-ink-muted" : "text-ink";
                       return (
                         <tr key={r.zone} className="border-t border-border">
                           <td className="py-1.5">

@@ -1,6 +1,6 @@
 "use client";
 
-// Beheer (alleen beheerders): gebruikers, registratie en uitnodigingen. Zelfde opzet als een eerder project.
+// Beheer (alleen beheerders): gebruikers, registratie en uitnodigingen.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

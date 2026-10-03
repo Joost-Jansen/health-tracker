@@ -1,6 +1,5 @@
 // Waar een gebruiker staat: hoe hij de site gebruikt, of de rondleiding klaar is, en per stap of hij al gedaan is.
-// Bij het account bewaard (api/onboarding.py), dus ook op een ander apparaat. Zelfde opzet als lib/onboarding.ts in
-// een eerder project. De status komt uit de eigen data (Garmin-koppeling, sync, trainingen, zones, tokens, doelen, schema).
+// Bij het account bewaard (api/onboarding.py), dus ook op een ander apparaat. De status komt uit de eigen data (Garmin-koppeling, sync, trainingen, zones, tokens, doelen, schema).
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";

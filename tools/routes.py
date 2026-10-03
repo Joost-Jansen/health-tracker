@@ -2,7 +2,7 @@
 
 A run or ride is reduced to a shape: start, end, distance and the set of ~100 m
 grid cells it passes. Two are the same route when they cover mostly the same
-cells and have a similar distance, wherever they start: Joost often starts the
+cells and have a similar distance, wherever they start: riders and runners often start the
 tracker on the bike only once out of town, at a different spot each time, and
 a watch can start late on a run. Rides allow more difference in distance and in
 the extra stretch of the longer one. A cluster of at least MIN_COUNT[sport]
@@ -157,7 +157,7 @@ def build_routes(runs: list[dict], existing: list[dict], sport: str = "run", min
         if match:
             unmatched.remove(match)
             route_id = match["id"]
-            name = None if DEFAULT_NAME.match(match["name"]) else match["name"]  # keep only names Joost gave
+            name = None if DEFAULT_NAME.match(match["name"]) else match["name"]  # keep only names the user gave
         else:
             route_id, name = f"{prefix}{next_n}", None
             next_n += 1

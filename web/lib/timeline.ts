@@ -1,7 +1,6 @@
 // Tijdvensters en een tijdas voor de grafieken op Trends.
 //
-// Overgenomen uit een eerder project (lib/timeline.ts: periodWindow, moveWindow) en
-// aangevuld met wat een grafiek met een echte tijdas nodig heeft: dagnummers
+// periodWindow en moveWindow, aangevuld met wat een grafiek met een echte tijdas nodig heeft: dagnummers
 // als x, ticks die bij de breedte passen, en een voortschrijdend gemiddelde.
 //
 // Een datum is overal "YYYY-MM-DD". Rekenen gebeurt in dagnummers (dagen sinds

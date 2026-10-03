@@ -1,6 +1,6 @@
 "use client";
 
-// Help, Handleiding (zoals Help, Portefeuille in een eerder project): aan de slag, je gegevens binnenhalen, zones, hoe de
+// Help, Handleiding : aan de slag, je gegevens binnenhalen, zones, hoe de
 // cijfers werken, waar je wat vindt. Dezelfde stappen en teksten als in de rondleiding (components/onboarding/steps.tsx);
 // uitleg over gezondheid en prestaties uit lib/texts.ts.
 

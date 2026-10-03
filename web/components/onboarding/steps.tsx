@@ -1,7 +1,7 @@
 "use client";
 
 // De uitleg per stap, één keer geschreven: de rondleiding, de checklist op Vandaag en Help tonen dezelfde tekst
-// (zoals lib/handleiding.tsx in een eerder project). Wat over de gebruiker gaat (aantal trainingen, max hartslag, wanneer
+// Wat over de gebruiker gaat (aantal trainingen, max hartslag, wanneer
 // gekoppeld) komt uit de onboarding-status; uitleg over gezondheid en prestaties uit lib/texts.ts.
 
 import Link from "next/link";
@@ -36,7 +36,7 @@ export function Check({ done, size = 20 }: { done: boolean; size?: number }) {
   );
 }
 
-/** Eén regel van een checklist, zoals Vink in een eerder project's Help. */
+/** Eén regel van een checklist. */
 export function CheckRow({ done, title, optional, children, action }: {
   done: boolean; title: string; optional?: boolean; children?: React.ReactNode; action?: React.ReactNode;
 }) {

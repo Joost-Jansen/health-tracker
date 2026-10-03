@@ -89,7 +89,7 @@ def test_run_db_sync_falls_back_to_env_tokens_and_records_failure():
 
 
 def test_stale_database_tokens_fall_back_to_fresh_env_tokens():
-    # after Garmin invalidates the session, Joost re-runs setup_garmin which only updates GARMINTOKENS
+    # after Garmin invalidates the session, the admin re-runs setup_garmin which only updates GARMINTOKENS
     e = engine()
     key = Fernet.generate_key().decode()
     db.set_setting(e, "garmin_tokens", encrypt("stale", key))

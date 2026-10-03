@@ -37,8 +37,8 @@ def test_zone_seconds_skips_missing_samples():
     assert got["Z2"] == 5 and sum(got.values()) == 5
 
 
-def test_repo_zones_file_is_valid():
-    zones = load_zones()
+def test_default_zones_are_valid(tmp_path):
+    zones = load_zones(tmp_path)  # no zones.json: the generic defaults
     for sport in ("run", "ride", "swim"):
         b = zones[sport]["bounds"]
         assert len(b) == 4 and b == sorted(b)

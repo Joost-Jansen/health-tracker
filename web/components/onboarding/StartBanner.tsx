@@ -1,6 +1,6 @@
 "use client";
 
-// Eén regel boven een pagina die nog leeg is: waar je begint (zoals StartBanner.tsx in een eerder project). Alleen zolang er
+// Eén regel boven een pagina die nog leeg is: waar je begint. Alleen zolang er
 // nog geen trainingen zijn, met een tekst die past bij waar je staat (niet gekoppeld, eerste sync bezig, wacht op sync).
 // Niet op Vandaag: daar staat de checklist. Weg te klikken; dat wordt bij je account bewaard.
 //

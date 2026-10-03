@@ -1,6 +1,6 @@
 """Onboarding (T23): where a user stands, for the welcome tour, the checklist on Vandaag, the start banner and Help.
 
-Mirrors een eerder project's `onboarding.py` + `routers/onboarding.py`:
+Onboarding state per user:
 
 * **What you use the site for** (`choice`): `site` (the website only) or `claude` (also Claude as coach via MCP or
   tools/tr.py). It only decides which steps the tour shows; Help can change it later.

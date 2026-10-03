@@ -1,6 +1,6 @@
 """Single-account login: bcrypt password check, JWT in an httpOnly cookie, lock after repeated failures.
 
-Same approach as een eerder project/backend/app/core/security.py.
+Passwords hashed with bcrypt; sessions are signed JWTs in an httpOnly cookie.
 """
 
 from __future__ import annotations

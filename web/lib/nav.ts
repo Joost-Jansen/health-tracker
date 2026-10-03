@@ -1,4 +1,4 @@
-// De navigatie van de site, op één plek. Zelfde vorm als in een eerder project.
+// De navigatie van de site, op één plek.
 
 export type NavTab = { id: string; label: string; href: string; adminOnly?: boolean };
 
@@ -48,7 +48,7 @@ export const NAV: NavGroup[] = [
         ],
       },
       {
-        // Eén plek voor alle uitleg (zoals Help in een eerder project): de checklist, de handleiding en Claude als coach.
+        // Eén plek voor alle uitleg: de checklist, de handleiding en Claude als coach.
         id: "help",
         label: "Help",
         href: "/help/",

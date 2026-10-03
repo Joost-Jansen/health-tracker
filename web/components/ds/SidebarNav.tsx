@@ -272,10 +272,9 @@ function styleAt(drag: number | null, part: "panel" | "scrim"): React.CSSPropert
 
 /** Het beeldmerk en het woordmerk, in de displayletter.
  *
- *  De app heet "een eerder project", net als het domein. Hier stond "Portefeuille",
- *  maar dat is de naam van één van de zes bestemmingen — een woordmerk dat
- *  meeleest als menu-item zet je op het verkeerde been. Kleine letter en
- *  koppelteken zijn de schrijfwijze van health-tracker; niet "Stock Tracker".
+ *  De app heet "health-tracker": kleine letter en koppelteken, niet "Health Tracker".
+ *  Geen naam van een van de bestemmingen, want een woordmerk dat meeleest als
+ *  menu-item zet je op het verkeerde been.
  *
  *  Het merk ervoor is dezelfde ligatuur als het icoon op het beginscherm, zodat
  *  de app binnen hetzelfde teken draagt als waarmee hij op je telefoon staat.

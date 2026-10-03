@@ -22,7 +22,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | Path | What |
 |---|---|
 | `api/` | FastAPI app (`create_app` factory), auth, dashboard aggregation |
-| `web/` | Next.js 16 + Tailwind, static export. Layout and design system copied from een eerder project, sage theme |
+| `web/` | Next.js 16 + Tailwind, static export. Own design system, sage theme |
 | `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |

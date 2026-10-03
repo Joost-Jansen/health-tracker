@@ -1,6 +1,6 @@
 "use client";
 
-// De rondleiding van de eerste keer, zoals Welkom.tsx in een eerder project:
+// De rondleiding van de eerste keer:
 //
 //   1. Hoe wil je health-tracker gebruiken? Alleen de site, of ook met Claude als coach (dan komt de stap
 //      "Claude koppelen" erbij). Later te veranderen onder Help.

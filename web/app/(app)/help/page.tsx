@@ -1,6 +1,6 @@
 "use client";
 
-// Help, Aan de slag (zoals Help in een eerder project): de checklist uit je eigen data, hoe je de site gebruikt (alleen de
+// Help, Aan de slag: de checklist uit je eigen data, hoe je de site gebruikt (alleen de
 // site of ook met Claude), en de rondleiding opnieuw. De handleiding en de uitleg over Claude staan in de tabs ernaast.
 
 import Card from "@/components/Card";

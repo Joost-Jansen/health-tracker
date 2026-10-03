@@ -2,7 +2,7 @@
 
 Zones model: % of max HR per sport. Z2..Z5 start at percentages P (default 70 / 77 / 85 / 92.5). Lower bounds:
 Z2 = round(max x P1), Z3..Z5 = round(max x P) + 1 (Garmin's convention: a zone's top is round(max x P), the next zone
-starts one beat above). With max 189 this gives 132 / 147 / 162 / 176, the zones that were in zones.json.
+starts one beat above). With max 190 this gives 133 / 147 / 163 / 177.
 After a change, the time per zone of every activity is recomputed (tools/derive.py).
 """
 

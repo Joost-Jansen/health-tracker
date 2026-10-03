@@ -1,6 +1,6 @@
 "use client";
 
-// De schil van elke pagina achter de login: zijbalk, bovenbalk, inhoud. Zelfde opbouw als een eerder project.
+// De schil van elke pagina achter de login: zijbalk, bovenbalk, inhoud.
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -24,7 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     queryFn: () => api.get<Me>("/api/me"),
     retry: false,
   });
-  // Onboarding (zoals een eerder project): welke pagina's van "Rondkijken" je opende; banner en rondleiding hieronder.
+  // Onboarding: welke pagina's van "Rondkijken" je opende; banner en rondleiding hieronder.
   useRecordVisit(pathname, !!me.data);
 
   if (me.error instanceof ApiError && me.error.status === 401) {

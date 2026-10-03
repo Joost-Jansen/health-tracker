@@ -1,12 +1,12 @@
 "use client";
 
-// De tijdbalk van Trends, naar de Tijdbalk van een eerder project: altijd in beeld
+// De tijdbalk van Trends: altijd in beeld
 // (plakt onder de bovenbalk), links de periodes, rechts "Aanpassen" met een
 // paneel voor een eigen van-tot, schuif- en zoomknoppen en een overzicht van de
 // hele geschiedenis om het venster in te slepen.
 //
 // Met de muis klapt het paneel open zodra je over de balk gaat en dicht als je
-// hem verlaat (zoals in een eerder project); met aanraken of het toetsenbord met de knop.
+// hem verlaat; met aanraken of het toetsenbord met de knop.
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, Input, Tabs } from "@/components/ds";

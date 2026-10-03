@@ -4,3 +4,8 @@ bcrypt>=4.1
 pyjwt>=2.8
 sqlalchemy>=2.0
 psycopg[binary]>=3.1
+# Garmin connection and sync run inside web since multi-user (api/connections.py, api/sync_runner.py)
+garminconnect>=0.2.25
+fitdecode>=0.10
+cryptography>=42
+requests>=2.31

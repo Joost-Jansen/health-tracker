@@ -2,63 +2,82 @@
 
 // Trends: vorm (fitheid/vermoeidheid/vorm), volume per week per sport, tijd per zone over tijd, Z2-tempo, VO2max, herstel,
 // records en wedstrijden. Elke reeks met een trendlijn en de piek in de kop.
+//
+// Eén tijdvenster voor de hele pagina (TimeFilterBar, plakt onder de bovenbalk; staat in de adresbalk).
+// Elke grafiek deelt die tijdas; schuiven of zoomen in één grafiek verzet het venster voor alle.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Tabs } from "@/components/ds";
-import LineChart from "@/components/charts/LineChart";
-import Bars, { type BarDatum } from "@/components/charts/Bars";
+import TimeChart, { DAILY_MA, WEEKLY_MA, type ChartSeries } from "@/components/charts/TimeChart";
 import TrendChart from "@/components/charts/TrendChart";
+import TimeFilterBar from "@/components/timefilter/TimeFilterBar";
+import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
+import { fmtDate, windowDays } from "@/lib/timeline";
 import { type Trends, fmtClock, fmtKm, sportLabel } from "@/lib/training";
 
-const RANGES = [
-  { id: "90", label: "3M" },
-  { id: "182", label: "6M" },
-  { id: "365", label: "1J" },
-  { id: "all", label: "Alles" },
-];
+// De dagelijkse herstelreeks (api/trends.py recovery_daily). Lokaal getypeerd zodat lib/training.ts
+// ongemoeid blijft; oudere API-versies zonder dit veld vallen terug op de weekgemiddelden.
+type RecoveryDay = { date: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null };
+type TrendsData = Trends & { recovery_daily?: RecoveryDay[] };
+type RecoveryKey = "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg";
 
 const SPORT_COLOUR: Record<string, string> = { run: "var(--chart-1)", ride: "var(--chart-4)", swim: "var(--chart-3)" };
 const RECORD_LABEL: Record<string, string> = { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "Halve marathon" };
 const href = (id: string) => `/historie/activiteit/?id=${encodeURIComponent(id)}`;
+const RECORD_KM: Record<string, number> = { "1k": 1, "5k": 5, "10k": 10, "21k": 21.0975 };
+const RECORD_COLOUR: Record<string, string> = { "1k": "var(--chart-4)", "5k": "var(--chart-1)", "10k": "var(--chart-3)", "21k": "var(--chart-5)" };
 const fmtDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 
-function since(range: string, today: string) {
-  if (range === "all") return "";
-  const d = new Date(today + "T12:00:00");
-  d.setDate(d.getDate() - Number(range));
-  return d.toISOString().slice(0, 10);
-}
-
 export default function TrendsPage() {
-  const [range, setRange] = useState("182");
   const [metric, setMetric] = useState<"hours" | "km">("hours");
-  const q = useQuery({ queryKey: ["trends"], queryFn: () => api.get<Trends>("/api/trends") });
+  const q = useQuery({ queryKey: ["trends"], queryFn: () => api.get<TrendsData>("/api/trends") });
 
   const t = q.data;
-  const from = t ? since(range, t.today) : "";
-  const inRange = <T extends { date?: string; week?: string }>(rows: T[]) => rows.filter((r) => !from || (r.date ?? r.week ?? "") >= from);
+  // Het venster loopt van de eerste meting (welke reeks ook) tot vandaag.
+  const first = useMemo(() => {
+    if (!t) return "";
+    const starts = [t.form[0]?.date, t.weekly[0]?.week, t.z2_pace[0]?.week, t.vo2max[0]?.date, t.recovery_daily?.[0]?.date, t.recovery_weekly[0]?.week].filter(Boolean) as string[];
+    return starts.length ? starts.sort()[0] : t.today;
+  }, [t]);
+  const last = t?.today ?? "";
+  const range = useTimeRange(first, last);
+  const win = range.window;
+  const from = win.from;
+  const inRange = <T extends { date?: string; week?: string }>(rows: T[]) => rows.filter((r) => (r.date ?? r.week ?? "") >= win.from && (r.date ?? r.week ?? "") <= win.to);
+  const shared = { window: win, domain: { from: first, to: last }, onWindow: range.change, onReset: range.reset };
 
   const volume = useMemo(() => {
-    if (!t) return { bars: [] as BarDatum[], sports: [] as string[] };
-    const weeks = t.weekly.filter((w) => !from || w.week >= from).slice(range === "all" ? -104 : undefined);
+    if (!t) return { series: [] as ChartSeries[], avg: 0 };
     const main = ["run", "ride", "swim"];
-    const every = Math.max(1, Math.ceil(weeks.length / 8));
-    const bars = weeks.map((w, i) => {
-      const other = Object.entries(w.sports).filter(([s]) => !main.includes(s));
-      const val = (v: { km: number; seconds: number }) => (metric === "hours" ? v.seconds / 3600 : v.km);
-      const segments = main.filter((s) => w.sports[s]).map((s) => ({ key: s, value: val(w.sports[s]), colour: SPORT_COLOUR[s] }));
-      const otherVal = other.reduce((s, [, v]) => s + val(v), 0);
-      if (otherVal > 0 && metric === "hours") segments.push({ key: "other", value: otherVal, colour: "var(--chart-5)" });
-      const label = (weeks.length - 1 - i) % every === 0 ? new Date(w.week + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "";
-      return { key: w.week, label, title: `Week van ${fmtDay(w.week)}`, segments };
-    });
-    return { bars, sports: [...main, ...(metric === "hours" ? ["other"] : [])] };
-  }, [t, from, range, metric]);
+    const val = (v: { km: number; seconds: number }) => (metric === "hours" ? v.seconds / 3600 : v.km);
+    const series: ChartSeries[] = main.map((s) => ({
+      key: s,
+      label: sportLabel(s),
+      colour: SPORT_COLOUR[s],
+      kind: "bar",
+      ma: true,
+      points: t.weekly.map((w) => ({ d: w.week, v: w.sports[s] ? val(w.sports[s]) : 0 })),
+    }));
+    if (metric === "hours") {
+      series.push({
+        key: "other",
+        label: "Overig",
+        colour: "var(--chart-5)",
+        kind: "bar",
+        ma: true,
+        points: t.weekly.map((w) => ({ d: w.week, v: Object.entries(w.sports).filter(([s]) => !main.includes(s)).reduce((sum, [, v]) => sum + val(v), 0) })),
+      });
+    }
+    // Gemiddelde per week over de weken die (grotendeels) in het venster vallen.
+    const weeks = t.weekly.filter((w) => w.week >= from && w.week <= win.to);
+    const total = weeks.reduce((sum, w) => sum + Object.entries(w.sports).filter(([s]) => metric === "hours" || main.includes(s)).reduce((x, [, v]) => x + val(v), 0), 0);
+    return { series, avg: weeks.length ? total / weeks.length : 0 };
+  }, [t, from, win.to, metric]);
 
   if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
   if (!t) return <p className="text-sm text-ink-muted">Kon de trends niet laden.</p>;
@@ -66,20 +85,29 @@ export default function TrendsPage() {
   const form = inRange(t.form);
   const peakCtl = form.length ? form.reduce((b, r) => (r.ctl > b.ctl ? r : b), form[0]) : null;
   const now = t.form[t.form.length - 1];
-  const fmtVol = (v: number) => (metric === "hours" ? `${fmtClock(v * 3600).replace(/:\d\d$/, "")} u` : fmtKm(v));
-  const totalVol = volume.bars.reduce((s, b) => s + b.segments.reduce((x, g) => x + g.value, 0), 0);
+  // Uren als u:mm (fmtClock gaf onder het uur m:ss, waardoor 30 minuten als "30 u" las).
+  const fmtVol = (v: number) => {
+    if (metric !== "hours") return fmtKm(v);
+    const min = Math.round(v * 60);
+    return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} u`;
+  };
 
-  const z2 = inRange(t.z2_pace).map((r) => ({ d: r.week, v: r.pace_s_per_km }));
-  const vo2 = inRange(t.vo2max).map((r) => ({ d: r.date, v: r.value }));
-  const rec = inRange(t.recovery_weekly);
-  const series = (key: "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg") => rec.filter((r) => r[key] != null).map((r) => ({ d: r.week, v: r[key] as number }));
+  const z2 = t.z2_pace.map((r) => ({ d: r.week, v: r.pace_s_per_km }));
+  const vo2 = t.vo2max.map((r) => ({ d: r.date, v: r.value }));
+  const daily = (t.recovery_daily?.length ?? 0) > 0;
+  const series = (key: RecoveryKey) =>
+    daily
+      ? t.recovery_daily!.filter((r) => r[key] != null).map((r) => ({ d: r.date, v: r[key] as number }))
+      : t.recovery_weekly.filter((r) => r[key] != null).map((r) => ({ d: r.week, v: r[key] as number }));
+  const recoveryMa = daily ? DAILY_MA : WEEKLY_MA;
+  const races = t.races.map((r) => ({ d: r.date, label: r.name }));
+  const recordSeries: ChartSeries[] = (Object.keys(RECORD_LABEL) as (keyof Trends["records"])[])
+    .filter((k) => (t.records[k] ?? []).length > 0)
+    .map((k) => ({ key: k, label: RECORD_LABEL[k], colour: RECORD_COLOUR[k], kind: "step", points: t.records[k].map((r) => ({ d: r.date, v: r.seconds / RECORD_KM[k] })) }));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[12.5px] text-ink-muted">Periode voor alle grafieken</p>
-        <Tabs variant="quiet" items={RANGES} value={range} onChange={setRange} ariaLabel="Periode" />
-      </div>
+      <TimeFilterBar range={range} first={first} last={last} overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Card title="Inzichten">
@@ -128,37 +156,45 @@ export default function TrendsPage() {
       </div>
 
       <Card title="Vorm: fitheid, vermoeidheid en frisheid">
-        {now && peakCtl && (
+        {now && (
           <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
             <span>Fitheid nu <b className="text-ink">{Math.round(now.ctl)}</b></span>
             <span>Vermoeidheid <b className="text-ink">{Math.round(now.atl)}</b></span>
             <span>Vorm <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b></span>
-            <span>Piek fitheid in periode {Math.round(peakCtl.ctl)} op {fmtDay(peakCtl.date)}</span>
+            {peakCtl && <span>Piek fitheid in periode {Math.round(peakCtl.ctl)} op {fmtDate(peakCtl.date)}</span>}
           </div>
         )}
-        <LineChart
+        <TimeChart
+          {...shared}
           ariaLabel="Fitheid, vermoeidheid en vorm"
-          height={240}
+          height={260}
           baseline={0}
           format={(v) => String(Math.round(v))}
-          xFormat={(d) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "2-digit" })}
+          maOptions={DAILY_MA}
+          storageKey="trends-form"
+          markers={races}
           series={[
-            { label: "Fitheid", colour: "var(--chart-1)", width: 2, points: form.map((r) => ({ d: r.date, v: r.ctl })) },
-            { label: "Vermoeid", colour: "var(--chart-3)", points: form.map((r) => ({ d: r.date, v: r.atl })) },
-            { label: "Vorm", colour: "var(--chart-4)", dash: "dashed", points: form.map((r) => ({ d: r.date, v: r.tsb })) },
+            { key: "ctl", label: "Fitheid", colour: "var(--chart-1)", width: 2.25, peak: "max", points: t.form.map((r) => ({ d: r.date, v: r.ctl })) },
+            { key: "atl", label: "Vermoeidheid", colour: "var(--chart-3)", points: t.form.map((r) => ({ d: r.date, v: r.atl })) },
+            { key: "tsb", label: "Vorm", colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
           ]}
         />
-        <p className="mt-2 text-[11.5px] text-ink-muted">Belasting per training = TRIMP uit gemiddelde hartslag. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil.</p>
+        <p className="mt-2 text-[11.5px] text-ink-muted">Belasting per training = TRIMP uit gemiddelde hartslag. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil. Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.</p>
       </Card>
 
       <Card title="Volume per week" action={<Tabs variant="segmented" items={[{ id: "hours", label: "Uren" }, { id: "km", label: "Km" }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel="Eenheid" />}>
-        <Bars
-          bars={volume.bars}
+        <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">
+          Gemiddeld <b className="text-ink">{fmtVol(volume.avg)}</b> per week over {Math.max(1, Math.round(windowDays(win) / 7))} weken
+        </p>
+        <TimeChart
+          {...shared}
           ariaLabel="Volume per week per sport"
+          height={220}
           format={fmtVol}
-          maxBarWidth={28}
-          summary={volume.bars.length ? `gemiddeld ${fmtVol(totalVol / volume.bars.length)} per week` : ""}
-          legend={volume.sports.map((s) => ({ key: s, label: s === "other" ? "Overig" : sportLabel(s), colour: SPORT_COLOUR[s] ?? "var(--chart-5)" }))}
+          maOptions={WEEKLY_MA}
+          storageKey="trends-volume"
+          totalLabel="Totaal"
+          series={volume.series}
         />
       </Card>
 
@@ -166,32 +202,32 @@ export default function TrendsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Tempo in Z2 (hardlopen)">
-          <TrendChart label="Tempo in Z2" points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter />
+          <TrendChart {...shared} label="Tempo in Z2" points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter clock maOptions={WEEKLY_MA} storageKey="trends-z2" />
           <p className="mt-2 text-[11.5px] text-ink-muted">Gemiddeld tempo van alle seconden in Z2 per week, losse runs buiten (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag = betere aerobe basis.</p>
         </Card>
         <Card title="VO2max (Garmin)">
-          <TrendChart label="VO2max" points={vo2} format={(v) => v.toFixed(0)} />
+          <TrendChart {...shared} label="VO2max" points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
           <p className="mt-2 text-[11.5px] text-ink-muted">Schatting van het horloge na buitenruns met GPS en hartslag.</p>
         </Card>
       </div>
 
-      <Card title="Herstel per week">
+      <Card title={daily ? "Herstel per dag" : "Herstel per week"}>
         <div className="grid gap-6 md:grid-cols-2">
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">Rusthartslag</h3>
-            <TrendChart label="Rusthartslag" points={series("resting_hr")} format={(v) => v.toFixed(0)} unit=" bpm" lowerIsBetter height={140} colour="var(--chart-6)" />
+            <TrendChart label="Rusthartslag" {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-rhr" points={series("resting_hr")} format={(v) => v.toFixed(0)} unit=" bpm" lowerIsBetter height={140} colour="var(--chart-6)" />
           </div>
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">Slaap</h3>
-            <TrendChart label="Slaap" points={series("sleep_h")} format={(v) => v.toFixed(1).replace(".", ",")} unit=" u" height={140} colour="var(--chart-5)" />
+            <TrendChart label="Slaap" {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-sleep" points={series("sleep_h")} format={(v) => v.toFixed(1).replace(".", ",")} unit=" u" height={140} colour="var(--chart-5)" />
           </div>
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">Body Battery (hoogste van de dag)</h3>
-            <TrendChart label="Body Battery" points={series("body_battery_high")} format={(v) => v.toFixed(0)} height={140} colour="var(--chart-1)" />
+            <TrendChart label="Body Battery" {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-bb" points={series("body_battery_high")} format={(v) => v.toFixed(0)} height={140} colour="var(--chart-1)" />
           </div>
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">Stress</h3>
-            <TrendChart label="Stress" points={series("stress_avg")} format={(v) => v.toFixed(0)} lowerIsBetter height={140} colour="var(--chart-4)" />
+            <TrendChart label="Stress" {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-stress" points={series("stress_avg")} format={(v) => v.toFixed(0)} lowerIsBetter height={140} colour="var(--chart-4)" />
           </div>
         </div>
       </Card>
@@ -226,6 +262,12 @@ export default function TrendsPage() {
             </tbody>
           </table>
           <p className="mt-2 text-[11.5px] text-ink-muted">Garmins snelste split binnen een run, geen officiële wedstrijdtijd. Houd de muis op "verbeterd" voor de hele reeks.</p>
+          {recordSeries.length > 0 && (
+            <div className="mt-4">
+              <h3 className="mb-1 text-[12.5px] font-medium">Verloop van de records (tempo per km)</h3>
+              <TimeChart {...shared} ariaLabel="Verloop van de records" height={170} invert clock format={(v) => fmtClock(v)} unit="/km" series={recordSeries} empty="Nog geen records." />
+            </div>
+          )}
         </Card>
 
         <Card title="Wedstrijden en tests">

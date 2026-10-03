@@ -160,6 +160,8 @@ export type Insight = { level: "goed" | "let_op" | "info"; title: string; text: 
 export type Trends = {
   today: string;
   form: FormRow[];
+  /** One row per day with any recovery value, oldest first (T17). */
+  recovery_daily?: { date: string; resting_hr?: number | null; sleep_h?: number | null; body_battery_high?: number | null; stress_avg?: number | null; hrv?: number | null }[];
   weekly: { week: string; sports: Record<string, Volume> }[];
   z2_pace: { week: string; pace_s_per_km: number; runs: number; z2_seconds: number }[];
   vo2max: { date: string; value: number }[];

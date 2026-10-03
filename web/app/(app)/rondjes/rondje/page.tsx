@@ -12,6 +12,7 @@ import Card from "@/components/Card";
 import { Button } from "@/components/ds";
 import TrendChart from "@/components/charts/TrendChart";
 import { api } from "@/lib/api";
+import { T } from "@/lib/texts";
 import { type RouteDetail, fmtClock, fmtKm, ZONE_COLOUR, ZONES } from "@/lib/training";
 import { WORDS, asSport, fmtEffort, kmhFromPace, listHref } from "../sport";
 
@@ -97,9 +98,7 @@ function Detail({ id }: { id: string }) {
           )}
           <Card title="Efficiëntie: meter per hartslag">
             <TrendChart label="Efficiëntie" points={effRuns.map((h) => ({ d: h.date, v: h.m_per_beat! }))} format={(v) => v.toFixed(2).replace(".", ",")} unit=" m" height={120} colour="var(--chart-6)" />
-            <p className="mt-2 text-[11.5px] text-ink-muted">Snelheid gedeeld door hartslag. Omhoog = meer meters per slag = fitter. {ride
-                ? "Minder gevoelig voor hoe hard je fietste dan snelheid, maar wind en groepjes tellen mee: vergelijk vooral ritten van dezelfde soort."
-                : "Minder gevoelig voor hoe hard je liep dan tempo, maar niet ongevoelig: vergelijk vooral runs van dezelfde soort."} Gemiddelde hartslag: {hrRuns.length ? Math.round(hrRuns.reduce((s, h) => s + h.avg_hr!, 0) / hrRuns.length) : "–"} bpm.</p>
+            <p className="mt-2 text-[11.5px] text-ink-muted">{T.efficiency(ride ? "ride" : "run")} Gemiddelde hartslag: {hrRuns.length ? Math.round(hrRuns.reduce((s, h) => s + h.avg_hr!, 0) / hrRuns.length) : "–"} bpm.</p>
           </Card>
         </div>
       </div>

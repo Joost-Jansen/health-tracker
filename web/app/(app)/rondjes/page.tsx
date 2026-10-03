@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button, EmptyState, Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
+import { T } from "@/lib/texts";
 import { type RouteOption, type RouteSport, type RouteSummary, fmtKm } from "@/lib/training";
 import { SPORT_TABS, WORDS, asSport, fmtEffort, fmtTypical, kmhFromPace, listHref, routeHref as href } from "./sport";
 
@@ -179,9 +180,7 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
             ))}
           </div>
           <p className="text-[11.5px] text-ink-muted">
-            {sport === "ride"
-              ? "Een fietsrondje is herkend als je minstens 2 keer grotendeels dezelfde wegen fietste, ook als je de tracker op een andere plek aanzette (tot 30% verschil in afstand). Dikke lijn: de meest typische keer; dun: de andere keren. Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor."
-              : "Een rondje is herkend als je minstens 3 keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren. Trend: efficiëntie (meter per hartslag, minder afhankelijk van hoe hard je liep dan tempo), mediaan van de laatste 5 keer tegen alle keren daarvoor."}
+            {T.routeRule(sport === "ride" ? "ride" : "run", sport === "ride" ? 2 : 3)} {T.routeTrend}
           </p>
         </>
       )}

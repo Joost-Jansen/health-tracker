@@ -86,7 +86,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     @app.get("/api/dashboard")
     def dashboard(u=Depends(current_user)):
         s, day = u.store, today()
-        out = build_dashboard(s.activities, s.wellness, s.zones, day, s.last_sync)
+        out = build_dashboard(s.activities, s.wellness, s.zones, day, s.last_sync, s.rhr_fallback)
         out["readiness"] = readiness(s.wellness, day, out["form"]["tsb"] if out["form"] else None)
         plan = db.active_plan(u.scope)
         if plan:
@@ -126,7 +126,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def trends(u=Depends(current_user)):
         day = today()
         s = u.store
-        return cached(u, ("trends", day), lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day))
+        return cached(u, ("trends", day), lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day, s.rhr_fallback))
 
     app.include_router(plans_router(today, current_user))
     app.include_router(content_router(current_user))

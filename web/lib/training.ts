@@ -46,6 +46,8 @@ export type Dashboard = {
   today: string;
   last_sync: string;
   zone_bounds: Record<string, number[]>;
+  zone_estimates?: string[];
+  zones_set?: string[];
   zones: { week: Record<string, ZoneShare>; month: Record<string, ZoneShare> };
   volume: { week: Record<string, Volume>; avg4w: Record<string, Volume> };
   form: null | { ctl: number; atl: number; tsb: number; status: string; ctl_peak: number; ctl_peak_date: string; series: FormRow[] };
@@ -168,6 +170,7 @@ export type Trends = {
   recovery_weekly: { week: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null }[];
   records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
   races: Race[];
+  rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number };
   predictions: Partial<Record<"5k" | "10k" | "21k" | "42k", Prediction>>;
   insights: Insight[];
 };

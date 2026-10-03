@@ -14,6 +14,7 @@ import ZoneBar from "@/components/ZoneBar";
 import StreamChart from "@/components/charts/StreamChart";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
+import { T } from "@/lib/texts";
 import { type ActivityDetail, fmtClock, fmtDate, fmtDuration, fmtIntensity, fmtKm, fmtPaceS, sportLabel, zoneShare } from "@/lib/training";
 
 const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), { ssr: false, loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" /> });
@@ -34,14 +35,14 @@ function Insights({ a }: { a: ActivityDetail }) {
   const items: { title: string; text: string; tone?: "good" | "warn" }[] = [];
   const multi = a.same_day.filter((x) => ["swim", "ride", "run"].includes(x.sport) && x.start_local < a.start_local);
   if (a.sport === "run" && multi.some((x) => x.sport !== "run")) {
-    items.push({ title: "Na zwemmen of fietsen", text: `Deze run volgde op ${multi.map((x) => sportLabel(x.sport).toLowerCase()).join(" en ")} dezelfde dag. Vergelijk hartslag en tempo niet met een losse run.`, tone: "warn" });
+    items.push({ title: "Na zwemmen of fietsen", text: T.afterMultisport(multi.map((x) => x.sport)), tone: "warn" });
   }
   if (a.decoupling_pct != null) {
     const d = a.decoupling_pct;
     items.push(
       d <= 5
-        ? { title: `Drift ${d.toLocaleString("nl-NL")}%`, text: "Tempo per hartslag bleef in de tweede helft vrijwel gelijk: je aerobe basis houdt dit tempo en deze duur.", tone: "good" }
-        : { title: `Drift ${d.toLocaleString("nl-NL")}%`, text: "In de tweede helft kostte hetzelfde tempo meer hartslag (boven 5%). Oorzaak kan warmte, vocht, vermoeidheid of een te hoog starttempo zijn.", tone: "warn" },
+        ? { title: `Drift ${d.toLocaleString("nl-NL")}%`, text: T.driftGood, tone: "good" }
+        : { title: `Drift ${d.toLocaleString("nl-NL")}%`, text: T.driftHigh, tone: "warn" },
     );
   }
   const hist = a.route?.history.filter((r) => r.pace_s_per_km) ?? [];
@@ -59,8 +60,8 @@ function Insights({ a }: { a: ActivityDetail }) {
   if (z && bounds) {
     const total = Object.values(z).reduce((s, v) => s + v, 0);
     const easy = total ? ((z.Z1 + z.Z2) / total) * 100 : 0;
-    if (total > 1200 && easy >= 80) items.push({ title: "Rustige duurtraining", text: `${Math.round(easy)}% in Z1-Z2 (< ${bounds[1]} bpm). Precies de intensiteit die je basis bouwt.`, tone: "good" });
-    else if (total > 1200 && (z.Z4 + z.Z5) / total >= 0.25) items.push({ title: "Zware training", text: `${Math.round(((z.Z4 + z.Z5) / total) * 100)}% in Z4-Z5. Plan de dag erna rustig.` });
+    if (total > 1200 && easy >= 80) items.push({ title: "Rustige duurtraining", text: T.easySession(Math.round(easy), bounds[1]), tone: "good" });
+    else if (total > 1200 && (z.Z4 + z.Z5) / total >= 0.25) items.push({ title: "Zware training", text: T.hardSession(Math.round(((z.Z4 + z.Z5) / total) * 100)) });
   }
   if (!items.length) return null;
   return (
@@ -75,7 +76,7 @@ function Insights({ a }: { a: ActivityDetail }) {
           </li>
         ))}
       </ul>
-      {a.decoupling_pct != null && <p className="mt-3 text-[11.5px] text-ink-muted">Drift = daling van snelheid per hartslag tussen eerste en tweede helft (alleen bewegend).</p>}
+      {a.decoupling_pct != null && <p className="mt-3 text-[11.5px] text-ink-muted">{T.driftMethod}</p>}
     </Card>
   );
 }
@@ -140,7 +141,7 @@ function Detail({ id }: { id: string }) {
           {share && (
             <Card title="Tijd per hartslagzone">
               <ZoneBar sport={a.sport} share={share} bounds={a.zone_bounds ?? undefined} />
-              {a.zone_estimate && <p className="mt-3 text-[11.5px] text-ink-muted">Zones voor {sportLabel(a.sport).toLowerCase()} zijn geschat.</p>}
+              {a.zone_estimate && <p className="mt-3 text-[11.5px] text-ink-muted">{T.zoneEstimate(a.sport)}</p>}
             </Card>
           )}
           <Insights a={a} />

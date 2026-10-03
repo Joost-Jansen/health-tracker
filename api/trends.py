@@ -271,8 +271,8 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
     return out
 
 
-def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn: StreamsFn, today: date) -> dict:
-    form = fitness_series(activities, resting_hr(wellness), max_by_sport(zones), end=today)
+def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn: StreamsFn, today: date, rhr_fallback: float | None = None) -> dict:
+    form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=today)
     return {
         "today": today.isoformat(),
         "form": form,
@@ -284,5 +284,7 @@ def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn
         "records": records(activities),
         "races": races(activities),
         "predictions": predictions(activities, today),
+        # the thresholds behind races and predictions, so the page explains them with the real numbers
+        "rules": {"race_min_km": RACE_MIN_KM, "race_hard_pct": round(RACE_HARD_SHARE * 100), "predict_days": 180, "riegel": RIEGEL},
         "insights": insights(form, weekly_volume(activities), activities, today),
     }

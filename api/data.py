@@ -45,6 +45,15 @@ class DataStore:
         return db.load_routes(self.engine)
 
     @property
+    def profile_facts(self) -> dict:
+        return db.get_setting(self.scope, "profile_facts") or {}
+
+    @property
+    def rhr_fallback(self) -> float | None:
+        """Resting HR the user entered, for when there is no sleep data."""
+        return self.profile_facts.get("resting_hr")
+
+    @property
     def zones(self) -> dict:
         return db.get_setting(self.engine, "zones") or {}
 

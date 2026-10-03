@@ -149,3 +149,29 @@ def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):
     c, r = register(app, username="eerste")
     assert r.json()["is_admin"] is True
     assert TestClient(app).get("/api/auth/config").json()["registration"] == "closed"
+
+
+def test_new_user_without_zones_gets_dashboard_and_trends(app, engine):  # noqa: F811
+    from tests.test_store import GARMIN_ACTIVITY, GARMIN_SPLITS
+    from tools.store import from_garmin
+
+    joost = as_joost(app)
+    joost.patch("/api/admin/settings", json={"registration": "open"})
+    anna, _ = register(app)
+    anna_id = anna.get("/api/me").json()["id"]
+    db.upsert_activity(db.Scope(engine, anna_id), from_garmin(GARMIN_ACTIVITY, GARMIN_SPLITS))
+    d = anna.get("/api/dashboard")
+    assert d.status_code == 200 and d.json()["zones_set"] == [] and d.json()["zone_estimates"] == []
+    assert anna.get("/api/trends").status_code == 200
+    # Joost's zones say which sports are estimates; Anna's say nothing about him
+    db.set_setting(db.Scope(engine, 1), "zones", {"run": {"max_hr": 189, "bounds": [132, 147, 162, 176]}, "ride": {"max_hr": 182, "bounds": [127, 141, 156, 169], "estimate": True}})
+    assert joost.get("/api/dashboard").json()["zone_estimates"] == ["ride"]
+    assert anna.get("/api/dashboard").json()["zone_estimates"] == []
+
+
+def test_profile_resting_hr_is_used_without_sleep_data(app, engine):  # noqa: F811
+    from api.dashboard import DEFAULT_RHR, resting_hr
+
+    assert resting_hr({}) == DEFAULT_RHR == 60
+    assert resting_hr({}, 48) == 48
+    assert resting_hr({"2026-10-01": {"resting_hr": 50}}, 48) == 50

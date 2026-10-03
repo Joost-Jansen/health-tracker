@@ -67,7 +67,7 @@ TOOLS = [
     {
         "name": "create_plan",
         "description": "Nieuw trainingsschema uit een tabel. Wordt het actieve schema; het vorige gaat naar afgerond. Gebruik preview=true om eerst te zien hoe de tabel gelezen wordt.",
-        "inputSchema": {"type": "object", "properties": {"title": _str("titel"), "table": _str(SESSION_TABLE_HELP), "goal": _str("doel, bv. marathon 3:45"), "race": _str("wedstrijd en datum"), "notes": _str("toelichting bij het schema"), "preview": {"type": "boolean", "default": False}}, "required": ["title", "table"]},
+        "inputSchema": {"type": "object", "properties": {"title": _str("titel"), "table": _str(SESSION_TABLE_HELP), "goal": _str("doel, bv. 10 km onder 50 minuten"), "race": _str("wedstrijd en datum"), "notes": _str("toelichting bij het schema"), "preview": {"type": "boolean", "default": False}}, "required": ["title", "table"]},
     },
     {
         "name": "replace_plan_sessions",
@@ -211,7 +211,7 @@ class Server:
         s, today = self.store, self.today()
         if name == "get_context":
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
-            dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync)
+            dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
             parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
             rd = readiness(s.wellness, today, f["tsb"] if f else None)
@@ -234,7 +234,7 @@ class Server:
                 raise ToolError(f"Activiteit {args.get('id')} niet gevonden; gebruik list_activities voor de ids.")
             return activity_md(a)
         if name == "get_trends":
-            t = build_trends(s.activities, s.wellness, s.zones, s.streams, today)
+            t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback)
             t["form"] = t["form"][-60:]
             t["weekly"] = t["weekly"][-26:]
             return json.dumps(t, ensure_ascii=False)

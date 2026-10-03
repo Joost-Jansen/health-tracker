@@ -17,6 +17,7 @@ import TimeFilterBar from "@/components/timefilter/TimeFilterBar";
 import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
+import { T } from "@/lib/texts";
 import { fmtDate, windowDays } from "@/lib/timeline";
 import { type Trends, fmtClock, fmtKm, sportLabel } from "@/lib/training";
 
@@ -143,11 +144,11 @@ export default function TrendsPage() {
               </div>
               {t.predictions["42k"] && (
                 <p className="mt-3 text-[11.5px] text-ink-muted">
-                  Riegel-formule vanaf je langste snelle inspanning van de laatste 180 dagen:{" "}
+                  Gebaseerd op{" "}
                   <Link className="underline underline-offset-2" href={href(t.predictions["42k"].from.activity_id)}>
                     {fmtKm(t.predictions["42k"].from.km)} in {fmtClock(t.predictions["42k"].from.seconds)} ({fmtDay(t.predictions["42k"].from.date)})
                   </Link>
-                  . Voor de marathon optimistisch zonder genoeg lange duurlopen van 30+ km; reken op enkele minuten meer.
+                  . {T.prediction(t.rules?.predict_days ?? 180)}
                 </p>
               )}
             </>
@@ -179,7 +180,7 @@ export default function TrendsPage() {
             { key: "tsb", label: "Vorm", colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
           ]}
         />
-        <p className="mt-2 text-[11.5px] text-ink-muted">Belasting per training = TRIMP uit gemiddelde hartslag. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil. Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.</p>
+        <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.</p>
       </Card>
 
       <Card title="Volume per week" action={<Tabs variant="segmented" items={[{ id: "hours", label: "Uren" }, { id: "km", label: "Km" }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel="Eenheid" />}>
@@ -203,11 +204,11 @@ export default function TrendsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Tempo in Z2 (hardlopen)">
           <TrendChart {...shared} label="Tempo in Z2" points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter clock maOptions={WEEKLY_MA} storageKey="trends-z2" />
-          <p className="mt-2 text-[11.5px] text-ink-muted">Gemiddeld tempo van alle seconden in Z2 per week, losse runs buiten (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag = betere aerobe basis.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">{T.z2Pace}</p>
         </Card>
         <Card title="VO2max (Garmin)">
           <TrendChart {...shared} label="VO2max" points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
-          <p className="mt-2 text-[11.5px] text-ink-muted">Schatting van het horloge na buitenruns met GPS en hartslag.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">{T.vo2max}</p>
         </Card>
       </div>
 
@@ -261,7 +262,7 @@ export default function TrendsPage() {
               })}
             </tbody>
           </table>
-          <p className="mt-2 text-[11.5px] text-ink-muted">Garmins snelste split binnen een run, geen officiële wedstrijdtijd. Houd de muis op "verbeterd" voor de hele reeks.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">{T.records} Houd de muis op "verbeterd" voor de hele reeks.</p>
           {recordSeries.length > 0 && (
             <div className="mt-4">
               <h3 className="mb-1 text-[12.5px] font-medium">Verloop van de records (tempo per km)</h3>
@@ -285,7 +286,7 @@ export default function TrendsPage() {
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[11.5px] text-ink-muted">Herkend aan zwemmen + fietsen + lopen op één dag, een naam met race, benchmark, marathon, of een run van 5+ km met 85%+ in Z4-Z5. Tijd is bewegende tijd zonder wissels.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">{T.races(t.rules ?? { race_min_km: 5, race_hard_pct: 85 })}</p>
         </Card>
       </div>
     </div>

@@ -15,7 +15,9 @@ def trimp(activity: dict, rhr: float, max_by_sport: dict) -> float:
     hr, secs = activity.get("avg_hr"), activity.get("moving_time_s")
     if not hr or not secs:
         return 0.0
-    hr_max = max_by_sport.get(activity["sport"], max_by_sport["run"])
+    hr_max = max_by_sport.get(activity["sport"]) or max_by_sport.get("run") or max(max_by_sport.values(), default=None)
+    if not hr_max or hr_max <= rhr:
+        return 0.0  # no max heart rate known yet (no zones set and no data): no load
     ratio = max(0.0, min(1.0, (hr - rhr) / (hr_max - rhr)))
     return secs / 60 * ratio * 0.64 * math.exp(1.92 * ratio)
 

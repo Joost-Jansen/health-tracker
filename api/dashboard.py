@@ -9,7 +9,7 @@ from statistics import median
 from tools.analytics import fitness_series
 from tools.zones import NAMES
 
-DEFAULT_RHR = 45
+DEFAULT_RHR = 60  # population average; used only without the user's own resting HR (sleep data or profile)
 SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s")
 
 
@@ -17,13 +17,19 @@ def _day(a: dict) -> date:
     return date.fromisoformat(a["start_local"][:10])
 
 
-def resting_hr(wellness: dict) -> float:
+def resting_hr(wellness: dict, fallback: float | None = None) -> float:
+    """Median of the user's measured resting HR; else what they entered in their profile; else a population value."""
     values = [w["resting_hr"] for w in wellness.values() if w.get("resting_hr")]
-    return median(values) if values else DEFAULT_RHR
+    return median(values) if values else (fallback or DEFAULT_RHR)
 
 
-def max_by_sport(zones: dict) -> dict:
-    return {sport: z["max_hr"] for sport, z in zones.items() if z.get("max_hr")}
+def max_by_sport(zones: dict, activities: list[dict] | None = None) -> dict:
+    """Max HR per sport from the user's zones; for sports without zones, the highest max HR in their own activities."""
+    out = {sport: z["max_hr"] for sport, z in zones.items() if isinstance(z, dict) and z.get("max_hr")}
+    for a in activities or []:
+        if a.get("max_hr") and a["sport"] not in zones:
+            out[a["sport"]] = max(out.get(a["sport"], 0), a["max_hr"])
+    return out
 
 
 def form_status(tsb: float) -> str:
@@ -70,15 +76,15 @@ def summary(a: dict) -> dict:
     return {k: a.get(k) for k in SUMMARY_FIELDS if a.get(k) is not None}
 
 
-def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: date, last_sync: str) -> dict:
+def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: date, last_sync: str, rhr_fallback: float | None = None) -> dict:
     monday = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
     week = [a for a in activities if monday <= _day(a) <= today]
     month = [a for a in activities if month_start <= _day(a) <= today]
     prev4 = [a for a in activities if monday - timedelta(weeks=4) <= _day(a) < monday]
 
-    rhr = resting_hr(wellness)
-    series = fitness_series(activities, rhr, max_by_sport(zones), end=today)
+    rhr = resting_hr(wellness, rhr_fallback)
+    series = fitness_series(activities, rhr, max_by_sport(zones, activities), end=today)
     form = None
     if series:
         now, peak = series[-1], max(series, key=lambda r: r["ctl"])
@@ -99,6 +105,8 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
         "today": today.isoformat(),
         "last_sync": last_sync,
         "zone_bounds": {sport: z["bounds"] for sport, z in zones.items()},
+        "zone_estimates": sorted(sport for sport, z in zones.items() if isinstance(z, dict) and z.get("estimate")),
+        "zones_set": sorted(zones),
         "zones": {"week": _zone_share(week), "month": _zone_share(month)},
         "volume": {"week": _volume(week), "avg4w": _volume(prev4, weeks=4)},
         "form": form,

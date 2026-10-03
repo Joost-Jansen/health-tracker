@@ -11,6 +11,7 @@ import ZoneBar from "@/components/ZoneBar";
 import PeriodNav from "@/components/zones/PeriodNav";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
+import { T } from "@/lib/texts";
 import {
   type Dashboard,
   fmtDate,
@@ -48,7 +49,7 @@ function ReadinessCard({ r }: { r: Readiness }) {
           </div>
         ))}
       </dl>
-      <p className="mt-3 text-[11px] text-ink-muted">Vergelijkt afgelopen nacht met je eigen normaal. Geen medisch advies: voel je je ziek of heb je pijn, train niet.</p>
+      <p className="mt-3 text-[11px] text-ink-muted">{T.readinessBasis} {T.noMedicalAdvice}</p>
     </Card>
   );
 }
@@ -81,13 +82,6 @@ function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string
 const SPORT_ORDER = ["run", "ride", "swim"];
 const bySportOrder = (a: string, b: string) =>
   (SPORT_ORDER.indexOf(a) + 1 || 99) - (SPORT_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b);
-
-const STATUS_TEXT: Record<string, string> = {
-  fris: "Fris: je hebt ruimte voor een zware training of een wedstrijd.",
-  "in balans": "In balans: belasting en herstel houden elkaar in evenwicht.",
-  vermoeid: "Vermoeid: je bouwt op; plan binnenkort een rustiger dag.",
-  "zeer vermoeid": "Zeer vermoeid: neem rust, de belasting is hoog tegenover wat je gewend bent.",
-};
 
 function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: string }[] }) {
   return (
@@ -128,6 +122,18 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-4">
       <p className="text-[12.5px] text-ink-muted">Laatste sync: {d.last_sync} (Europe/Amsterdam)</p>
 
+      {d.recent.length === 0 && (
+        <Card title="Welkom">
+          <p className="max-w-prose text-[13px] leading-relaxed text-ink-muted">
+            Er zijn nog geen trainingen. Koppel je Garmin-account; de eerste keer haalt de site het afgelopen jaar op. Stel daarna je hartslagzones in, dan rekent alles met jouw eigen zones.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
+            <Link href="/instellingen/koppelingen/" className="ds-btn ds-btn--primary ds-btn--sm">Garmin koppelen</Link>
+            <Link href="/instellingen/zones/" className="ds-btn ds-btn--secondary ds-btn--sm">Zones instellen</Link>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
         <Upcoming sessions={d.upcoming} title={d.plan_title} />
@@ -150,7 +156,7 @@ export default function DashboardPage() {
               {!multiSport && <p className="-mt-2 text-[11.5px] text-ink-muted">Alleen {sportLabel(zoneSports[0]).toLowerCase()} in deze periode.</p>}
             </div>
           )}
-          <p className="mt-4 text-[11.5px] text-ink-muted">Alle sporten telt elke sport met zijn eigen zones. Fiets- en zwemzones zijn geschat.</p>
+          <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
         </Card>
 
         <Card title="Volume deze week">
@@ -185,7 +191,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-3">
               <div>
                 <div className="font-display text-[27px] font-light capitalize">{form.status}</div>
-                <p className="text-[12.5px] leading-relaxed text-ink-muted">{STATUS_TEXT[form.status]}</p>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
               </div>
               <dl className="grid grid-cols-3 gap-2 text-[12px] tabular-nums">
                 <div><dt className="text-ink-muted">Fitheid</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>

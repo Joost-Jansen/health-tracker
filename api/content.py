@@ -69,7 +69,7 @@ def content_router(current_user) -> APIRouter:
             "goals": goals["body"] if goals else None,
             "zones": s.zones,
             "active_plan": db.active_plan(u.scope),
-            "dashboard": build_dashboard(s.activities, s.wellness, s.zones, datetime.now(TZ).date(), s.last_sync),
+            "dashboard": build_dashboard(s.activities, s.wellness, s.zones, datetime.now(TZ).date(), s.last_sync, s.rhr_fallback),
             "routes": s.routes,
             "recent_log": db.list_entries(u.scope, kind="log", limit=5),
             "recent_analyses": db.list_entries(u.scope, kind="analysis", limit=3),

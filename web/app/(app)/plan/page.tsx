@@ -68,8 +68,8 @@ function Importer({ onDone, onCancel }: { onDone: () => void; onCancel?: () => v
         Plak een markdowntabel of CSV (komma, puntkomma of tab), of kies een bestand. Kolommen: datum (verplicht), sport, type, km, duur, zone, omschrijving, rondje. Het nieuwe schema wordt het actieve; het vorige gaat naar afgerond.
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
-        <input className="ds-input" placeholder="Titel, bijv. Marathon blok 1" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className="ds-input" placeholder="Doel, bijv. marathon 3:45" value={goal} onChange={(e) => setGoal(e.target.value)} />
+        <input className="ds-input" placeholder="Titel, bijv. Opbouw najaar" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className="ds-input" placeholder="Doel, bijv. 10 km onder 50 minuten" value={goal} onChange={(e) => setGoal(e.target.value)} />
         <input className="ds-input" placeholder="Wedstrijd en datum" value={race} onChange={(e) => setRace(e.target.value)} />
       </div>
       <textarea className="ds-input mt-3 h-44 w-full py-2 font-mono text-[12px]" placeholder={EXAMPLE} value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} />

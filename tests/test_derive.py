@@ -54,3 +54,62 @@ def test_derive_without_zones_setting_leaves_activities_untouched():
     db.upsert_activity(e, run("2026-09-20", 1))
     derive(e)
     assert "hr_zones_s" not in db.load_activities(e)[0]
+
+
+def ride(day, seed, gps=True):
+    return {
+        "start_utc": f"{day}T07:00:00Z",
+        "start_local": f"{day}T09:00:00",
+        "sport": "ride",
+        "name": "Fietsrit" if gps else "Indoor fietsen",
+        "distance_km": 40.0,
+        "moving_time_s": 4800,
+        "avg_hr": 132,
+        "streams": {"time": [0, 10, 20], "heartrate": [130, 132, 134], **({"latlng": square_loop(side_m=10_000, step_m=50, noise_m=5, seed=seed)} if gps else {})},
+        "sources": {"garmin": {"id": 100 + seed, "raw": {}}},
+    }
+
+
+def test_derive_builds_ride_routes_next_to_run_routes():
+    e = setup()
+    for i, day in enumerate(["2026-09-20", "2026-09-24", "2026-09-28"]):
+        db.upsert_activity(e, run(day, i))
+    db.upsert_activity(e, ride("2026-09-21", 1))
+    db.upsert_activity(e, ride("2026-09-27", 2))
+    db.upsert_activity(e, ride("2026-09-25", 3, gps=False))  # indoor: no GPS, never a route
+    result = derive(e)
+    assert result["routes"] == {"run": 1, "ride": 1}
+    by_sport = {r["sport"]: r for r in db.load_routes(e)}
+    assert by_sport["run"]["id"] == "r1" and by_sport["run"]["median_pace"]
+    assert by_sport["ride"]["id"] == "f1" and by_sport["ride"]["runs"] == 2
+    assert by_sport["ride"]["name"] == "40.0 km fietsrondje (f1)" and by_sport["ride"]["median_speed_kmh"] == 30.0
+
+
+def test_derive_keeps_run_routes_and_names_when_rides_arrive():
+    e = setup()
+    for i, day in enumerate(["2026-09-20", "2026-09-24", "2026-09-28"]):
+        db.upsert_activity(e, run(day, i))
+    derive(e)
+    routes = db.load_routes(e)
+    routes[0]["name"] = "Parkrondje"
+    db.save_routes(e, routes)
+    before = db.load_routes(e)[0]
+
+    db.upsert_activity(e, ride("2026-09-21", 1))
+    db.upsert_activity(e, ride("2026-09-27", 2))
+    derive(e)
+    after = {r["id"]: r for r in db.load_routes(e)}
+    assert set(after) == {"r1", "f1"}
+    assert after["r1"] == before
+
+    after["f1"]["name"] = "Heuvelrug"
+    db.save_routes(e, list(after.values()))
+    derive(e)
+    assert {r["id"]: r["name"] for r in db.load_routes(e)} == {"r1": "Parkrondje", "f1": "Heuvelrug"}
+
+
+def test_derive_without_recurring_rides_has_no_ride_routes():
+    e = setup()
+    db.upsert_activity(e, ride("2026-09-21", 1))
+    assert derive(e)["routes"] == {"run": 0, "ride": 0}
+    assert db.load_routes(e) == []

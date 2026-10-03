@@ -1,4 +1,5 @@
-"""Recompute derived data in the database: time per HR zone on each activity, and the regular routes.
+"""Recompute derived data in the database: time per HR zone on each activity, and the regular routes
+(runs and outdoor rides; indoor rides have no GPS track and never form a route).
 
 Run after every sync and after a zones change:
 
@@ -16,6 +17,8 @@ if __package__ in (None, ""):
 
 from tools import db
 from tools.routes import build_routes
+
+ROUTE_SPORTS = ("run", "ride")
 from tools.zones import zone_seconds
 
 
@@ -33,7 +36,8 @@ def _run_for_routes(a: dict, latlng: list) -> dict:
 
 def derive(engine) -> dict:
     zones = db.get_setting(engine, "zones")
-    changed, runs = 0, []
+    changed = 0
+    tracks: dict[str, list[dict]] = {sport: [] for sport in ROUTE_SPORTS}
     for a in db.load_activities(engine, with_streams=True):
         s = a.get("streams") or {}
         if zones:
@@ -41,13 +45,19 @@ def derive(engine) -> dict:
             if a.get("hr_zones_s") != z:
                 db.set_derived(engine, a["id"], hr_zones_s=z)
                 changed += 1
-        if a["sport"] == "run" and s.get("latlng") and a.get("distance_km"):
-            runs.append(_run_for_routes(a, s["latlng"]))
+        if a["sport"] in tracks and s.get("latlng") and a.get("distance_km"):
+            tracks[a["sport"]].append(_run_for_routes(a, s["latlng"]))
 
-    existing = [r for r in db.load_routes(engine) if r.get("sport", "run") == "run"]
-    routes = [dict(r, sport="run") for r in build_routes(runs, existing)]
+    # save_routes replaces the whole table, so rebuild every sport and save them together;
+    # build_routes only matches existing routes of its own sport (ids r.. for runs, f.. for rides)
+    existing = db.load_routes(engine)
+    routes, counts = [], {}
+    for sport in ROUTE_SPORTS:
+        built = build_routes(tracks[sport], existing, sport=sport)
+        counts[sport] = len(built)
+        routes += built
     db.save_routes(engine, routes)
-    return {"zones_updated": changed, "routes": len(routes)}
+    return {"zones_updated": changed, "routes": counts}
 
 
 if __name__ == "__main__":

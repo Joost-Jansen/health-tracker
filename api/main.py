@@ -17,7 +17,8 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from api import agent_tokens, mcp, routes_api, users, zones_api
+from api import agent_tokens, connections, mcp, routes_api, settings_api, users, zones_api
+from api.sync_runner import SyncRunner
 from api.content import content_router
 from api.dashboard import build_dashboard
 from api.history import activity_detail, heatmap, list_activities
@@ -54,11 +55,13 @@ def today():
     return datetime.now(TZ).date()
 
 
-def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None) -> FastAPI:
+def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None, garmin_auth=None, garmin_client=None, **sync_kwargs) -> FastAPI:
+    """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests)."""
     settings = settings or Settings.from_env()
     if not settings.jwt_secret:
         raise RuntimeError("TRAINING_JWT_SECRET ontbreekt")
-    if engine is None:
+    production = engine is None  # engine from DATABASE_URL: the real service (tests pass their own engine)
+    if production:
         engine = db.connect(os.environ["DATABASE_URL"])
     migrated = db.create_schema(engine)
     if migrated:
@@ -69,6 +72,10 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash)
     app = FastAPI(title="training", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine, app.state.stores = engine, stores
+    runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
+    app.state.sync = runner
+    if production and os.environ.get("SYNC_IN_WEB", "true") != "false":
+        runner.start_daily()
 
     @app.get("/api/health")
     def health():
@@ -126,6 +133,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.include_router(routes_api.make_router(today, current_user))
     app.include_router(zones_api.make_router(today, current_user))
     app.include_router(agent_tokens.make_router(current_user))
+    app.include_router(connections.make_router(current_user, runner, runner.key, garmin_auth, today))
+    app.include_router(settings_api.make_router(current_user))
     app.include_router(mcp.make_router(today, current_user, token_user))
 
     static_dir = static_dir or ROOT / "web" / "out"

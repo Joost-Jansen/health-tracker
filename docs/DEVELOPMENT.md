@@ -111,6 +111,15 @@ Multi-user (T19, `docs/2026-10-03-multi-user-design.md`): every route except `/a
 | GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
 | GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
 | POST/DELETE | `/api/admin/invites`, `/api/admin/invites/{code}` | invite codes (`{days}`) |
+| GET | `/api/connections` | `{garmin: {connected, readable, connected_at, last_sync, last_failed, syncing}}` |
+| POST | `/api/connections/garmin` | `{email, password}` -> `{status: connected\|mfa}`; password only goes to Garmin, the session is stored encrypted |
+| POST | `/api/connections/garmin/mfa` | `{code}` (within 10 min) |
+| DELETE | `/api/connections/garmin` | disconnect (data stays) |
+| POST | `/api/connections/sync` | sync now in the background |
+| GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
+| GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |
+
+Sync: `web` runs a daily sync for every connected user after 06:00 Europe/Amsterdam (`api/sync_runner.py`, off with `SYNC_IN_WEB=false`); the Railway cron `sync` (`tools/sync.py run_all_users`) does the same. Garmin sessions are encrypted with `TOKEN_ENCRYPTION_KEY` (fallback: derived from `TRAINING_JWT_SECRET`); give `web` and `sync` the same key.
 
 Existing:
 

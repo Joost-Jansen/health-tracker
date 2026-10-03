@@ -7,6 +7,7 @@ Run it yourself in a terminal (it asks for your password and MFA code):
 Your password is only sent to Garmin; it is not stored. Re-run when the sync reports a Garmin login error.
 """
 
+import os
 import getpass
 import subprocess
 import sys
@@ -16,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from garminconnect import Garmin  # noqa: E402
 
-PROJECT = "<project-id>"
+PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "")  # your Railway project id
 
 
 def set_railway(name: str, value: str) -> None:

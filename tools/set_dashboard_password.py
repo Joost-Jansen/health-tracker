@@ -8,13 +8,14 @@ Values go to Railway via stdin of the Railway CLI, so they never appear in shell
 Setting a new signing key logs out every open session.
 """
 
+import os
 import getpass
 import secrets
 import subprocess
 
 import bcrypt
 
-PROJECT = "<project-id>"
+PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "")  # your Railway project id
 SERVICE = "web"
 ENVIRONMENT = "production"
 

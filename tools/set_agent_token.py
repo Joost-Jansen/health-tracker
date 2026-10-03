@@ -6,11 +6,12 @@ Railway gets only the SHA-256 hash (TRAINING_AGENT_TOKEN_HASH). The token itself
 put it where your agents read it (see docs/DEVELOPMENT.md, "Agents"). A new token replaces the old one.
 """
 
+import os
 import hashlib
 import secrets
 import subprocess
 
-PROJECT = "<project-id>"
+PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "")  # your Railway project id
 
 
 def main() -> None:

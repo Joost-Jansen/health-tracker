@@ -17,10 +17,10 @@ export const NAV: NavGroup[] = [
   {
     items: [
       { id: "dashboard", label: "Vandaag", href: "/dashboard/", icon: "layout" },
-      { id: "plan", label: "Schema", href: "/plan/", icon: "clipboard" },
-      { id: "historie", label: "Historie", href: "/historie/", icon: "map" },
-      { id: "rondjes", label: "Rondjes", href: "/rondjes/", icon: "route" },
       { id: "trends", label: "Trends", href: "/trends/", icon: "chart" },
+      { id: "rondjes", label: "Rondjes", href: "/rondjes/", icon: "route" },
+      { id: "historie", label: "Historie", href: "/historie/", icon: "map" },
+      { id: "plan", label: "Schema", href: "/plan/", icon: "clipboard" },
       {
         id: "logboek",
         label: "Logboek",

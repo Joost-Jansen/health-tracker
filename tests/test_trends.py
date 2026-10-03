@@ -1,6 +1,6 @@
 from datetime import date
 
-from api.trends import build_trends, insights, predictions, races, records, recovery_weekly, standalone_runs, vo2max, weekly_volume, z2_pace
+from api.trends import build_trends, insights, predictions, races, records, recovery_daily, recovery_weekly, standalone_runs, vo2max, weekly_volume, z2_pace
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}}
 
@@ -64,9 +64,23 @@ def test_recovery_weekly_averages():
     assert out == [{"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None}]
 
 
+def test_recovery_daily_keeps_each_day_and_skips_empty_days():
+    out = recovery_daily(
+        {
+            "2026-09-29": {"resting_hr": 50, "sleep_h": 7.256, "extra": 1},
+            "2026-09-28": {"resting_hr": 48, "body_battery_high": 80},
+            "2026-09-30": {"steps": 1000},
+        }
+    )
+    assert out == [
+        {"date": "2026-09-28", "resting_hr": 48, "sleep_h": None, "body_battery_high": 80, "stress_avg": None, "hrv": None},
+        {"date": "2026-09-29", "resting_hr": 50, "sleep_h": 7.26, "body_battery_high": None, "stress_avg": None, "hrv": None},
+    ]
+
+
 def test_build_trends_shape():
     out = build_trends([act("a", "2026-09-01T08:00:00")], {}, ZONES, lambda aid: None, date(2026, 9, 3))
-    assert set(out) >= {"form", "weekly", "z2_pace", "vo2max", "recovery_weekly", "records", "races"}
+    assert set(out) >= {"form", "weekly", "z2_pace", "vo2max", "recovery_weekly", "recovery_daily", "records", "races"}
     assert out["form"][-1]["date"] == "2026-09-03"
 
 

@@ -125,6 +125,19 @@ def recovery_weekly(wellness: dict) -> list[dict]:
     return out
 
 
+def recovery_daily(wellness: dict) -> list[dict]:
+    """One row per day with any recovery value, oldest first: the dense series behind the weekly averages, so the
+    Trends charts can show short periods and a 7- or 28-day moving average."""
+    keys = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv")
+    out = []
+    for day in sorted(wellness):
+        w = wellness[day] or {}
+        row = {k: (round(w[k], 2) if isinstance(w.get(k), float) else w.get(k)) for k in keys}
+        if any(v is not None for v in row.values()):
+            out.append({"date": day[:10], **row})
+    return out
+
+
 def records(activities: list[dict]) -> dict:
     """Progression of the fastest split per distance (Garmin's fastestSplit_*): every time a new best was set."""
     out = {}
@@ -267,6 +280,7 @@ def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn
         "z2_pace": z2_pace(activities, streams_fn, zones),
         "vo2max": vo2max(activities),
         "recovery_weekly": recovery_weekly(wellness),
+        "recovery_daily": recovery_daily(wellness),
         "records": records(activities),
         "races": races(activities),
         "predictions": predictions(activities, today),

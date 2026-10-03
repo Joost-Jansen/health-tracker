@@ -25,7 +25,7 @@ Railway project "training" (EU, europe-west4)
  ├─ web                 Dockerfile in repo root: Next.js static export (web/out) served by FastAPI (api/)
  │                       auth: cookie (Joost, browser) or Bearer agent token (agents)
  └─ sync (cron, daily)  tools/sync.py: Garmin -> Postgres, then derived data (zones per activity, routes)
-GitHub Joost-Jansen/training (private): code only; every push to main redeploys web
+GitHub Joost-Jansen/health-tracker (private; renamed from `training`, old URLs redirect): code only; every push to main redeploys web
 ```
 
 Current state (2026-10-01): everything runs on Railway. `sync` (cron) writes Garmin data into Postgres and runs derive; `web` serves the site and API from Postgres. The GitHub Action and the repo's data files are gone (T12); they remain in git history. File-mode code (`FileSink`, `tools/build.py`, `tools/summarize.py` markdown, `tools/migrate_files_to_db.py`) is kept for tests and for rebuilding a database from history.
@@ -46,7 +46,7 @@ Coaching agents use `tools/tr.py` with `TRAINING_API_URL` and `TRAINING_API_TOKE
 |---|---|
 | Project | `training`, id `<project-id>`, workspace "Joost Jansen's Projects" |
 | Environment | `production`, id `<environment-id>` |
-| Service `web` | id `<service-id>`, source `Joost-Jansen/training@main`, healthcheck `/api/health` |
+| Service `web` | id `<service-id>`, source `Joost-Jansen/health-tracker@main`, healthcheck `/api/health` |
 | Service `Postgres` | id `<service-id>` (template `postgres`, volume, us-west2, private network only) |
 | Service `sync` | id `<service-id>`, `Dockerfile.sync`, cron `0 4 * * *` (UTC), variables `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, `GARMINTOKENS` (initial only; the database keeps the rotated copy, encrypted) |
 | Domain | https://your-domain.example |

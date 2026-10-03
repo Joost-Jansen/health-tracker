@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from api import agent_tokens, connections, mcp, routes_api, settings_api, users, zones_api
+from api import agent_tokens, connections, mcp, onboarding, routes_api, settings_api, users, zones_api
 from api.sync_runner import SyncRunner
 from api.content import content_router
 from api.dashboard import build_dashboard
@@ -135,6 +135,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.include_router(agent_tokens.make_router(current_user))
     app.include_router(connections.make_router(current_user, runner, runner.key, garmin_auth, today))
     app.include_router(settings_api.make_router(current_user))
+    app.include_router(onboarding.make_router(current_user, runner))
     app.include_router(mcp.make_router(today, current_user, token_user))
 
     static_dir = static_dir or ROOT / "web" / "out"

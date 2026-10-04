@@ -10,6 +10,7 @@ from api.dashboard import (
     load_indicator,
     next_race,
     plan_week,
+    recent_items,
     today_tsb,
 )
 from api.plans import match_sessions
@@ -263,3 +264,68 @@ def test_no_race_without_a_date():
     assert next_race({"race": "Marathon"}, [sess("2026-10-04", km=10)], TODAY) is None
     assert next_race({"race": None}, [], TODAY) is None
     assert next_race({"race": "Marathon 31-02"}, [], TODAY) is None
+
+
+# --- recent activities: split runs as one session, races marked -------------------------------------
+
+
+def at(day, time, sport="run", km=5.0, secs=1800, hr=140, name="Loop", z=None, **extra):
+    return {**act(day, sport=sport, km=km, secs=secs, hr=hr, z=z, name=name), "id": f"{day}_{time.replace(':', '')}_{sport}", "start_local": f"{day}T{time}:00", **extra}
+
+
+def test_runs_with_a_short_break_are_one_item_with_their_parts():
+    a = at("2026-09-29", "08:00", km=5, secs=1800, hr=140, max_hr=150, elevation_gain_m=10)
+    b = at("2026-09-29", "08:40", km=3, secs=1200, hr=150, max_hr=165, elevation_gain_m=5)  # 10 min after the first ended
+    items = recent_items([a, b])
+    assert len(items) == 1
+    item = items[0]
+    assert item["id"] == a["id"] and item["parts"] == 2 and item["activity_ids"] == [a["id"], b["id"]]
+    assert item["distance_km"] == 8.0 and item["moving_time_s"] == 3000 and item["avg_hr"] == 144
+    assert item["max_hr"] == 165 and item["elevation_gain_m"] == 15
+    assert item["hr_zones_s"]["Z2"] == 3000
+
+
+def test_runs_far_apart_and_other_sports_stay_separate_newest_first():
+    items = recent_items([at("2026-09-29", "08:00"), at("2026-09-29", "10:00"), at("2026-09-29", "08:35", sport="ride")])
+    assert [i["start_local"][11:16] for i in items] == ["10:00", "08:35", "08:00"]
+    assert all("parts" not in i for i in items)
+
+
+def test_recent_keeps_six_items_after_merging():
+    acts = [at(f"2026-09-{d:02d}", t) for d in range(20, 30) for t in ("08:00", "08:35")]
+    items = recent_items(acts)
+    assert len(items) == 6 and all(i["parts"] == 2 for i in items)
+    assert items[0]["start_local"].startswith("2026-09-29")
+
+
+def test_races_are_marked_by_name_heart_rate_and_triathlon_day():
+    hard = {"Z1": 0, "Z2": 0, "Z3": 0, "Z4": 600, "Z5": 2400}
+    items = recent_items(
+        [
+            at("2026-09-27", "09:00", name="Stadsloop wedstrijd"),
+            at("2026-09-28", "09:00", km=10, secs=3000, z=hard),
+            at("2026-09-29", "09:00"),
+            at("2026-09-26", "08:00", sport="swim", km=1.5),
+            at("2026-09-26", "09:00", sport="ride", km=40),
+            at("2026-09-26", "10:30", km=10),
+        ]
+    )
+    marked = {i["start_local"][:16]: i.get("race", False) for i in items}
+    assert marked == {
+        "2026-09-29T09:00": False,
+        "2026-09-28T09:00": True,
+        "2026-09-27T09:00": True,
+        "2026-09-26T10:30": True,
+        "2026-09-26T09:00": True,
+        "2026-09-26T08:00": True,
+    }
+
+
+def test_a_session_is_a_race_when_one_of_its_parts_is():
+    items = recent_items([at("2026-09-29", "08:00", name="Race"), at("2026-09-29", "08:35")])
+    assert items[0]["parts"] == 2 and items[0]["race"] is True
+
+
+def test_dashboard_recent_uses_the_merged_items():
+    d = build_dashboard([at("2026-09-29", "08:00"), at("2026-09-29", "08:35")], {}, ZONES, TODAY, last_sync="x")
+    assert len(d["recent"]) == 1 and d["recent"][0]["parts"] == 2

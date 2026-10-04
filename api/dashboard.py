@@ -9,6 +9,7 @@ from statistics import median
 
 from api.plans import parse_date
 from tools.analytics import fitness_series
+from tools.summarize import run_sessions
 from tools.zones import NAMES
 
 DEFAULT_RHR = 60  # population average; used only without the user's own resting HR (sleep data or profile)
@@ -185,6 +186,38 @@ def summary(a: dict) -> dict:
     return {k: a.get(k) for k in SUMMARY_FIELDS if a.get(k) is not None}
 
 
+def recent_items(activities: list[dict], n: int = 6) -> list[dict]:
+    """The newest `n` items for "Laatste activiteiten": runs with <= 30 min between them are one item (tools.summarize
+    run_sessions) with `parts` and `activity_ids`; `race: True` when an activity (or one of the parts) is a race by the
+    same rules as Trends (api.trends.races)."""
+    from api.trends import races  # api.trends imports this module, so not at the top
+
+    race_ids = {i for r in races(activities) for i in r["activity_ids"]}
+    runs = sorted((a for a in activities if a["sport"] == "run"), key=lambda a: a["start_local"])
+    items, i = [], 0
+    for session in run_sessions(activities):  # same order as `runs`; each session covers the next `parts` runs
+        parts = runs[i : i + session["parts"]]
+        i += session["parts"]
+        item = summary(parts[0])
+        if len(parts) > 1:
+            item.update({k: session[k] for k in ("distance_km", "moving_time_s", "avg_hr", "hr_zones_s") if session.get(k) is not None})
+            max_hr = [a["max_hr"] for a in parts if a.get("max_hr")]
+            gain = [a["elevation_gain_m"] for a in parts if a.get("elevation_gain_m") is not None]
+            if max_hr:
+                item["max_hr"] = max(max_hr)
+            if gain:
+                item["elevation_gain_m"] = round(sum(gain), 1)
+            item["parts"] = len(parts)
+            item["activity_ids"] = [a["id"] for a in parts]
+        if any(a["id"] in race_ids for a in parts):
+            item["race"] = True
+        items.append(item)
+    for a in activities:
+        if a["sport"] != "run":
+            items.append(dict(summary(a), race=True) if a["id"] in race_ids else summary(a))
+    return sorted(items, key=lambda x: x["start_local"], reverse=True)[:n]
+
+
 def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: date, last_sync: str, rhr_fallback: float | None = None) -> dict:
     monday = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
@@ -225,7 +258,7 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
         "zones": {"week": _zone_share(week), "month": _zone_share(month)},
         "volume": {"week": _volume(week), "avg4w": _volume(prev4, weeks=4)},
         "form": form,
-        "recent": [summary(a) for a in sorted(activities, key=lambda a: a["start_local"], reverse=True)[:6]],
+        "recent": recent_items(activities),
         "recovery": {
             "days": [dict(wellness[d], date=d) for d in recent_days if d in wellness],
             "baseline_rhr": median(rhr_60) if rhr_60 else None,

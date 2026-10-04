@@ -133,7 +133,7 @@ def test_each_user_their_own_onboarding(admin, anna):
     a = anna.get("/api/onboarding").json()
     assert j["done"] is False and j["step"] == 2 and j["choice"] is None and j["hidden"] == [] and j["visited"] == []
     assert a["done"] is True and a["step"] == 0 and a["choice"] == "site" and a["hidden"] == ["data"]
-    # Joost's activity, zones and sync are not Anna's
+    # The admin's activity, zones and sync are not Anna's
     assert a["status"]["activities"]["count"] == 0 and a["status"]["zones"]["set"] == [] and a["status"]["sync"]["last_sync"] is None
 
 

@@ -47,13 +47,13 @@ def test_plans_are_private_per_user():
 
 def test_users_invites_and_delete_with_all_data():
     e = fresh()
-    joost = db.create_user(e, "Joost", "hash", is_admin=True)
+    admin = db.create_user(e, "Alice", "hash", is_admin=True)
     anna = db.create_user(e, "anna", "hash2")
-    assert db.get_user_by_name(e, " JOOST ")["id"] == joost and "password_hash" not in db.get_user(e, joost)
-    assert db.get_user(e, joost, with_hash=True)["password_hash"] == "hash"
+    assert db.get_user_by_name(e, " ALICE ")["id"] == admin and "password_hash" not in db.get_user(e, admin)
+    assert db.get_user(e, admin, with_hash=True)["password_hash"] == "hash"
 
-    db.create_invite(e, "abc", joost)
-    db.create_invite(e, "old", joost, expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    db.create_invite(e, "abc", admin)
+    db.create_invite(e, "old", admin, expires_at=datetime.now(timezone.utc) - timedelta(days=1))
     assert db.invite_usable(e, "abc") and not db.invite_usable(e, "old") and not db.invite_usable(e, "nope")
     assert db.use_invite(e, "abc", anna) and not db.use_invite(e, "abc", anna)
 

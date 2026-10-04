@@ -68,7 +68,7 @@ def test_same_activity_from_both_sources_is_merged_into_one_file(tmp_path):
     rec = json.loads(p1.read_text())
     assert set(rec["sources"]) == {"garmin", "strava"}
     assert rec["avg_hr"] == 150  # garmin wins for metrics
-    assert rec["name"] == "Ochtendloop"  # strava name is the one Joost edits
+    assert rec["name"] == "Ochtendloop"  # strava name is the one the user edits
     assert rec["streams"]["latlng"]  # strava streams kept
     assert rec["laps"]  # garmin laps kept
 

@@ -8,7 +8,7 @@
 // moeten per staaf vijf aandelen plus uren in de regel, vandaar een eigen
 // component.
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { fmtDuration, ZONE_COLOUR, ZONES, type ZoneHistoryItem } from "@/lib/training";
 
 export type ZoneStackBar = ZoneHistoryItem & {
@@ -31,6 +31,20 @@ export default function ZoneStackChart({
 }) {
   const [active, setActive] = useState<number | null>(null);
   const shown = active !== null ? bars[active] : null;
+  // Hoeveel labels passen er op deze breedte? Een label ("25 mei") is ~45 px; op een telefoon met 27 weken
+  // liepen ze anders in elkaar ("25 mei15 jun").
+  const row = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const every = width ? Math.max(labelEvery, Math.ceil(bars.length / Math.max(2, Math.floor(width / 52)))) : labelEvery;
 
   return (
     <div>
@@ -94,15 +108,18 @@ export default function ZoneStackChart({
         ))}
       </div>
 
-      <div aria-hidden="true" className="mt-1.5 flex gap-[3px]">
-        {bars.map((bar, i) => (
-          <span
-            key={bar.start}
-            className={`min-w-0 flex-1 whitespace-nowrap text-center text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}
-          >
-            {(bars.length - 1 - i) % labelEvery === 0 ? bar.short : ""}
-          </span>
-        ))}
+      {/* Flex in plaats van text-center: een label breder dan zijn staaf steekt dan aan beide kanten even ver uit
+          (tekst loopt altijd naar rechts over), en het eerste en laatste label blijven binnen de kaart. */}
+      <div ref={row} aria-hidden="true" className="mt-1.5 flex gap-[3px]">
+        {bars.map((bar, i) => {
+          const label = (bars.length - 1 - i) % every === 0;
+          const edge = i === 0 ? "justify-start" : i === bars.length - 1 ? "justify-end" : "justify-center";
+          return (
+            <span key={bar.start} className={`flex min-w-0 flex-1 ${edge} whitespace-nowrap text-[11px] leading-tight ${i === active ? "font-semibold text-text" : "text-ink-muted"}`}>
+              <span className="flex-none">{label ? bar.short : ""}</span>
+            </span>
+          );
+        })}
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-ink-muted">

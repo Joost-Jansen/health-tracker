@@ -1,9 +1,11 @@
-// De navigatie van de site, op één plek.
+// De navigatie van de site, op één plek. De namen staan in lib/i18n (nav.items, nav.tabs); localizeNav vult ze in.
 
-export type NavTab = { id: string; label: string; href: string; adminOnly?: boolean };
+import type { Messages } from "@/lib/i18n";
+
+export type NavTab = { id: keyof Messages["nav"]["tabs"]; label: string; href: string; adminOnly?: boolean };
 
 export type NavItem = {
-  id: string;
+  id: keyof Messages["nav"]["items"];
   label: string;
   href: string;
   icon: string;
@@ -13,55 +15,56 @@ export type NavItem = {
 
 export type NavGroup = { label?: string; items: NavItem[] };
 
+const tab = (id: NavTab["id"], href: string, adminOnly?: boolean): NavTab => ({ id, label: "", href, ...(adminOnly ? { adminOnly } : {}) });
+
 export const NAV: NavGroup[] = [
   {
     items: [
-      { id: "dashboard", label: "Vandaag", href: "/dashboard/", icon: "layout" },
-      { id: "trends", label: "Trends", href: "/trends/", icon: "chart" },
-      { id: "rondjes", label: "Rondjes", href: "/rondjes/", icon: "route" },
-      { id: "historie", label: "Historie", href: "/historie/", icon: "map" },
-      { id: "plan", label: "Schema", href: "/plan/", icon: "clipboard" },
+      { id: "dashboard", label: "", href: "/dashboard/", icon: "layout" },
+      { id: "trends", label: "", href: "/trends/", icon: "chart" },
+      { id: "rondjes", label: "", href: "/rondjes/", icon: "route" },
+      { id: "historie", label: "", href: "/historie/", icon: "map" },
+      { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
       {
         id: "logboek",
-        label: "Logboek",
+        label: "",
         href: "/log/",
         icon: "book",
         extraPaths: ["/analyses/"],
-        tabs: [
-          { id: "log", label: "Log", href: "/log/" },
-          { id: "analyses", label: "Analyses", href: "/analyses/" },
-          { id: "doelen", label: "Doelen", href: "/analyses/doelen/" },
-          { id: "profiel", label: "Profiel", href: "/analyses/profiel/" },
-        ],
+        tabs: [tab("log", "/log/"), tab("analyses", "/analyses/"), tab("doelen", "/analyses/doelen/"), tab("profiel", "/analyses/profiel/")],
       },
       {
         id: "instellingen",
-        label: "Instellingen",
+        label: "",
         href: "/instellingen/",
         icon: "settings",
         tabs: [
-          { id: "account", label: "Account", href: "/instellingen/" },
-          { id: "koppelingen", label: "Koppelingen", href: "/instellingen/koppelingen/" },
-          { id: "zones", label: "Zones en profiel", href: "/instellingen/zones/" },
-          { id: "agents", label: "Agents", href: "/instellingen/agents/" },
-          { id: "beheer", label: "Beheer", href: "/instellingen/beheer/", adminOnly: true },
+          tab("account", "/instellingen/"),
+          tab("koppelingen", "/instellingen/koppelingen/"),
+          tab("zones", "/instellingen/zones/"),
+          tab("agents", "/instellingen/agents/"),
+          tab("beheer", "/instellingen/beheer/", true),
         ],
       },
       {
         // Eén plek voor alle uitleg: de checklist, de handleiding en Claude als coach.
         id: "help",
-        label: "Help",
+        label: "",
         href: "/help/",
         icon: "help",
-        tabs: [
-          { id: "start", label: "Aan de slag", href: "/help/" },
-          { id: "handleiding", label: "Handleiding", href: "/help/handleiding/" },
-          { id: "claude", label: "Claude", href: "/help/claude/" },
-        ],
+        tabs: [tab("start", "/help/"), tab("handleiding", "/help/handleiding/"), tab("claude", "/help/claude/")],
       },
     ],
   },
 ];
+
+/** NAV with the names in the user's language. */
+export function localizeNav(groups: NavGroup[], t: Messages): NavGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((i) => ({ ...i, label: t.nav.items[i.id], tabs: i.tabs?.map((x) => ({ ...x, label: t.nav.tabs[x.id] })) })),
+  }));
+}
 
 export function findItem(groups: NavGroup[], pathname: string): NavItem | undefined {
   const path = pathname.endsWith("/") ? pathname : pathname + "/";

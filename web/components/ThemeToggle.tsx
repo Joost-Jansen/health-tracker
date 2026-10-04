@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "@/components/icons";
 import { IconButton } from "@/components/ds";
+import { useT } from "@/lib/i18n";
 
 function currentTheme(): "light" | "dark" {
   const set = document.documentElement.getAttribute("data-theme");
@@ -18,6 +19,7 @@ function currentTheme(): "light" | "dark" {
 export default function ThemeToggle() {
   // Rendered as moon until mounted: the server cannot know the client theme,
   // and a wrong icon for one frame beats a hydration mismatch.
+  const t = useT();
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
 
   useEffect(() => setTheme(currentTheme()), []);
@@ -36,7 +38,7 @@ export default function ThemeToggle() {
   return (
     <IconButton
       onClick={toggle}
-      label={theme === "dark" ? "Wissel naar licht thema" : "Wissel naar donker thema"}
+      label={theme === "dark" ? t.nav.toLight : t.nav.toDark}
       icon={
         theme === "dark" ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />
       }

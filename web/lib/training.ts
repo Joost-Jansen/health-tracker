@@ -321,7 +321,7 @@ export type ZoneHistory = {
 
 // ── Accounts (T19) ───────────────────────────────────────────────────────────
 
-export type Me = { id: number; username: string; display_name: string | null; is_admin: boolean; via: "cookie" | "agent" };
+export type Me = { id: number; username: string; display_name: string | null; is_admin: boolean; via: "cookie" | "agent"; locale?: "nl" | "en" | null };
 export type AdminUser = {
   id: number;
   username: string;

@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { NavGroup } from "@/lib/nav";
+import { useT } from "@/lib/i18n";
 import Logomark from "@/components/ds/Logomark";
 import { ChartLineIcon, ClipboardIcon, HelpIcon, LayoutIcon, MapIcon, NewspaperIcon, RouteIcon, SettingsIcon } from "@/components/icons";
 
@@ -95,6 +96,7 @@ export default function SidebarNav({
   onOpen: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const panel = useRef<HTMLElement>(null);
   const drawer = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -228,7 +230,7 @@ export default function SidebarNav({
     <>
       {/* Breed scherm: het paneel staat er gewoon, over de volle hoogte. */}
       <nav
-        aria-label="Hoofdnavigatie"
+        aria-label={t.nav.main}
         className="ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen lg:flex"
       >
         <Wordmark />
@@ -248,7 +250,7 @@ export default function SidebarNav({
         <nav
           ref={panel}
           tabIndex={-1}
-          aria-label="Hoofdnavigatie"
+          aria-label={t.nav.main}
           className="ds-sidebar ds-sidebar--ink ds-navdrawer__panel"
           style={styleAt(drag, "panel")}
         >

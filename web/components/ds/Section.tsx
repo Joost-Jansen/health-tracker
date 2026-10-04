@@ -11,6 +11,7 @@
 // wat werkelijk zweeft: dialogen en menu's.
 
 import InfoPopover from "@/components/InfoPopover";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   /** Het kapitaaltjes-label boven de streep. */
@@ -66,6 +67,7 @@ export default function Section({
   className = "",
   children,
 }: Props) {
+  const t = useT();
   // Het kopje met zijn "i" als één blok, zodat de knop links bij de tekst blijft
   // staan en niet naar het midden van de kopregel drijft. items-center en niet
   // baseline: een knop zonder tekst heeft zijn basislijn onderaan, en dan hangt
@@ -76,7 +78,7 @@ export default function Section({
         {label}
         {info && (
           <InfoPopover
-            label={infoLabel ?? (typeof label === "string" ? `Uitleg ${label}` : "Uitleg")}
+            label={infoLabel ?? (typeof label === "string" ? t.common.explain(label) : t.common.explainPlain)}
           >
             {info}
           </InfoPopover>
@@ -160,12 +162,13 @@ export function Figure({
   tone?: "gain" | "loss";
   className?: string;
 }) {
+  const t = useT();
   return (
     <div className={`flex flex-col gap-[5px] ${className}`}>
       <span className="flex items-center gap-1">
         <Eyebrow>{label}</Eyebrow>
         {info && (
-          <InfoPopover label={typeof label === "string" ? `Uitleg ${label}` : "Uitleg"}>
+          <InfoPopover label={typeof label === "string" ? t.common.explain(label) : t.common.explainPlain}>
             {info}
           </InfoPopover>
         )}

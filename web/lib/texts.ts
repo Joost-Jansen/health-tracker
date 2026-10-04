@@ -257,7 +257,7 @@ export const T = {
       close: "Sluiten",
     },
 
-    sport: { label: "Sport", all: "Alle sporten", runOnly: (what: string) => `${what} gaat alleen over hardlopen.` },
+    sport: { label: "Sport", all: "Alle sporten", runOnly: "Tempo in Z2, VO2max, langste run, records en voorspellingen gaan alleen over hardlopen: kies Alle sporten of Hardlopen om ze te zien." },
 
     insights: {
       title: "Inzichten",

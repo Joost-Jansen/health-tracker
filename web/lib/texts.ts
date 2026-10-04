@@ -1,6 +1,8 @@
 // Alle uitlegteksten over gezondheid en prestaties, op één plek (T19). Niets hierin gaat over één bepaalde persoon:
 // wat over de gebruiker gaat (zones, max hartslag, welke sporten geschat zijn, waarop een voorspelling is gebaseerd)
 // komt als parameter uit diens eigen instellingen en data. Pagina's halen hun tekst hier, niet uit een eigen string.
+// Dit is de Nederlandse bron; de Engelse versie staat in lib/i18n/texts.en.ts (zelfde sleutels, `npm run check:i18n`).
+// Vertaalde pagina's lezen T via useT().texts in de taal van de gebruiker.
 
 import { fmtClock, fmtDate, sportLabel, type HrFlagReason, type InsightCode, type RecordKey } from "@/lib/training";
 

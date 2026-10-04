@@ -5,9 +5,14 @@
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Error code from api/errors.py; the site shows it in the user's language (lib/i18n errorText). */
+  code?: string;
+  params?: Record<string, unknown>;
+  constructor(status: number, message: string, code?: string, params?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.params = params;
   }
 }
 
@@ -19,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.detail || res.statusText);
+    throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : res.statusText, body.code, body.params);
   }
   return res.json() as Promise<T>;
 }

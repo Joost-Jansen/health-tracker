@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 import { fontVariables } from "@/lib/fonts";
+import { LOCALE_INIT_SCRIPT } from "@/lib/i18n/locale";
 
 export const metadata: Metadata = {
   title: "health-tracker",
@@ -19,7 +20,8 @@ export const viewport: Viewport = {
   ],
 };
 
-// Voor de eerste verf, zodat een opgeslagen themakeuze nooit het andere thema laat flitsen.
+// Voor de eerste verf, zodat een opgeslagen themakeuze nooit het andere thema laat flitsen. Ook <html lang> volgt
+// meteen de taal van dit apparaat (lib/i18n/locale.ts); de Nederlandse statische export is de standaard.
 const themeInit = `
 try {
   var t = localStorage.getItem("theme");
@@ -31,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="nl" className={fontVariables} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        <script dangerouslySetInnerHTML={{ __html: themeInit + LOCALE_INIT_SCRIPT }} />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -8,11 +8,10 @@
 import { useLayoutEffect, useMemo, useState } from "react";
 import { Tabs } from "@/components/ds";
 import { niceTicks, tickDecimals } from "@/lib/chartScale";
-import { fmtDate, type DateWindow } from "@/lib/timeline";
-import { T } from "@/lib/texts";
+import { fmtDate, type DateWindow, type TimeLocale } from "@/lib/timeline";
+import { useFormat, useLocale, useT } from "@/lib/i18n";
 import type { FormRow, RecoveryDay } from "@/lib/training";
 
-const TS = T.trends.sleepLoad;
 const MIN_POINTS = 6;
 const MIN_DAYS_PER_WEEK = 4;
 const PAD = { top: 8, right: 10, bottom: 20, left: 38 };
@@ -20,7 +19,6 @@ const H = 190;
 
 type Point = { label: string; load: number; sleep: number | null; rhr: number | null };
 
-const num = (v: number, d = 1) => v.toFixed(d).replace(".", ",");
 const nextDay = (d: string) => {
   const x = new Date(d + "T12:00:00Z");
   x.setUTCDate(x.getUTCDate() + 1);
@@ -33,14 +31,14 @@ const mondayOf = (d: string) => {
 };
 const avg = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
 
-function points(form: FormRow[], recovery: RecoveryDay[], w: DateWindow, mode: "day" | "week", today: string): Point[] {
+function points(form: FormRow[], recovery: RecoveryDay[], w: DateWindow, mode: "day" | "week", today: string, locale: TimeLocale): Point[] {
   const night = new Map(recovery.map((r) => [r.date, r]));
   if (mode === "day") {
     return form
       .filter((f) => f.date >= w.from && f.date <= w.to)
       .map((f) => {
         const r = night.get(nextDay(f.date));
-        return { label: fmtDate(f.date), load: f.load, sleep: r?.sleep_h ?? null, rhr: r?.resting_hr ?? null };
+        return { label: fmtDate(f.date, true, locale), load: f.load, sleep: r?.sleep_h ?? null, rhr: r?.resting_hr ?? null };
       })
       .filter((p) => p.sleep != null || p.rhr != null);
   }
@@ -60,7 +58,7 @@ function points(form: FormRow[], recovery: RecoveryDay[], w: DateWindow, mode: "
   return [...weeks.entries()]
     .filter(([, c]) => c.days === 7 && (c.sleep.length >= MIN_DAYS_PER_WEEK || c.rhr.length >= MIN_DAYS_PER_WEEK))
     .map(([wk, c]) => ({
-      label: fmtDate(wk),
+      label: fmtDate(wk, true, locale),
       load: c.load,
       sleep: c.sleep.length >= MIN_DAYS_PER_WEEK ? avg(c.sleep) : null,
       rhr: c.rhr.length >= MIN_DAYS_PER_WEEK ? avg(c.rhr) : null,
@@ -86,6 +84,9 @@ function fit(xy: [number, number][]): [number, number] | null {
 }
 
 function Scatter({ pts, field, title, unit, digits, colour }: { pts: Point[]; field: "sleep" | "rhr"; title: string; unit: string; digits: number; colour: string }) {
+  const TS = useT().texts.trends.sleepLoad;
+  const fm = useFormat();
+  const num = (v: number, d = 1) => fm.num(v, d);
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(320);
   useLayoutEffect(() => {
@@ -148,8 +149,12 @@ function Scatter({ pts, field, title, unit, digits, colour }: { pts: Point[]; fi
 }
 
 export default function SleepLoad({ form, recovery, window: w, today }: { form: FormRow[]; recovery: RecoveryDay[]; window: DateWindow; today: string }) {
+  const TS = useT().texts.trends.sleepLoad;
+  const fm = useFormat();
+  const { locale } = useLocale();
+  const num = (v: number, d = 1) => fm.num(v, d);
   const [mode, setMode] = useState<"day" | "week">("week");
-  const pts = useMemo(() => points(form, recovery, w, mode, today), [form, recovery, w, mode, today]);
+  const pts = useMemo(() => points(form, recovery, w, mode, today, locale), [form, recovery, w, mode, today, locale]);
   const sleep = halves(pts, "sleep");
   const rhr = halves(pts, "rhr");
   const hasRhr = pts.some((p) => p.rhr != null);

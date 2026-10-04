@@ -23,22 +23,28 @@ import SleepLoad from "@/components/trends/SleepLoad";
 import { ALL_SPORTS, useSportFilter } from "@/components/trends/useSportFilter";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
-import { T } from "@/lib/texts";
-import { fmtDate } from "@/lib/timeline";
-import { type RecordKey, type TrendsPlus, fmtClock, fmtKm, sportLabel } from "@/lib/training";
+import { useFormat, useLocale, useT } from "@/lib/i18n";
+import { fmtDate as fmtDateIn } from "@/lib/timeline";
+import { type RecordKey, type TrendsPlus, fmtClock } from "@/lib/training";
 
 type RecoveryKey = "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg" | "hrv";
 
-const TT = T.trends;
 const MAIN = ["run", "ride", "swim"];
 const SPORT_COLOUR: Record<string, string> = { run: "var(--chart-1)", ride: "var(--chart-4)", swim: "var(--chart-3)" };
 const RECORD_COLOUR: Record<RecordKey, string> = { "1k": "var(--chart-4)", "5k": "var(--chart-1)", "10k": "var(--chart-3)", "21k": "var(--chart-5)" };
 const href = (id: string) => `/historie/activiteit/?id=${encodeURIComponent(id)}`;
-const fmtDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-const dec = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const levelColour = (level: string) => (level === "goed" ? "var(--zone-2)" : level === "let_op" ? "var(--zone-4)" : "var(--zone-1)");
 
 export default function TrendsPage() {
+  const tr = useT();
+  const T = tr.texts;
+  const TT = T.trends;
+  const f = useFormat();
+  const { locale } = useLocale();
+  const fmtDay = (d: string) => f.day(d);
+  const fmtDate = (d: string) => fmtDateIn(d, true, locale);
+  const fmtKm = (v: number) => f.km(v);
+  const dec = (v: number, digits = 1) => f.num(v, digits);
   const [metric, setMetric] = useState<"hours" | "km">("hours");
   const q = useQuery({ queryKey: ["trends"], queryFn: () => api.get<TrendsPlus>("/api/trends") });
   const { sport, choose: chooseSport, all } = useSportFilter();
@@ -69,7 +75,7 @@ export default function TrendsPage() {
     const val = (v: { km: number; seconds: number }) => (metric === "hours" ? v.seconds / 3600 : v.km);
     const one = (s: string): ChartSeries => ({
       key: s,
-      label: sportLabel(s),
+      label: tr.sport(s),
       colour: SPORT_COLOUR[s] ?? "var(--chart-5)",
       kind: "bar",
       ma: true,
@@ -97,7 +103,8 @@ export default function TrendsPage() {
     const weeks = t.weekly.filter((w) => w.week >= from && w.week <= win.to && w.week < monday);
     const total = weeks.reduce((sum, w) => sum + Object.entries(w.sports).filter(([s]) => counts(s)).reduce((x, [, v]) => x + val(v), 0), 0);
     return { series, avg: weeks.length ? total / weeks.length : 0, weeks: weeks.length };
-  }, [t, from, win.to, metric, all, sport]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, from, win.to, metric, all, sport, tr]);
 
   if (q.isLoading) return <p className="text-sm text-ink-muted">{TT.loading}</p>;
   if (!t) return <p className="text-sm text-ink-muted">{TT.loadError}</p>;
@@ -110,7 +117,7 @@ export default function TrendsPage() {
   const fmtVol = (v: number) => {
     if (metric !== "hours") return fmtKm(v);
     const min = Math.round(v * 60);
-    return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} u`;
+    return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} ${f.hourUnit}`;
   };
 
   const z2 = t.z2_pace.map((r) => ({ d: r.week, v: r.pace_s_per_km }));
@@ -148,7 +155,7 @@ export default function TrendsPage() {
           <Select aria-label={TT.sport.label} value={sport} onChange={(e) => chooseSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
             <option value={ALL_SPORTS}>{TT.sport.all}</option>
             {(sports.includes(sport) || all ? sports : [...sports, sport]).map((s) => (
-              <option key={s} value={s}>{sportLabel(s)}</option>
+              <option key={s} value={s}>{tr.sport(s)}</option>
             ))}
           </Select>
         </div>
@@ -291,7 +298,7 @@ export default function TrendsPage() {
           </div>
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.sleep}</h3>
-            <TrendChart label={TT.recovery.sleep} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-sleep" points={series("sleep_h")} format={(v) => dec(v)} unit=" u" height={140} colour="var(--chart-5)" />
+            <TrendChart label={TT.recovery.sleep} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-sleep" points={series("sleep_h")} format={(v) => dec(v)} unit={` ${f.hourUnit}`} height={140} colour="var(--chart-5)" />
           </div>
           <div>
             <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.bb}</h3>

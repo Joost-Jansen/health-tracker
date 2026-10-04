@@ -5,6 +5,7 @@
 // Aanwijzen geeft één cursor door alle drie de panelen en meldt de positie (0..1) aan de kaart.
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { useFormat, useT } from "@/lib/i18n";
 import { fmtClock, ZONES } from "@/lib/training";
 
 type Panel = {
@@ -59,6 +60,8 @@ export default function StreamChart({
   sport: string;
   onCursor?: (fraction: number | null) => void;
 }) {
+  const t = useT();
+  const f = useFormat();
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(720);
   const [hover, setHover] = useState<number | null>(null);
@@ -75,18 +78,18 @@ export default function StreamChart({
   const n = time.length;
   const panels: Panel[] = [];
   if (heartrate?.some((v) => v)) {
-    panels.push({ key: "hr", label: "Hartslag", values: smooth(heartrate.map((v) => v || null), 2), colour: "var(--n-800)", format: (v) => `${Math.round(v)}`, bands: bounds ?? undefined, height: 150 });
+    panels.push({ key: "hr", label: t.charts.hr, values: smooth(heartrate.map((v) => v || null), 2), colour: "var(--n-800)", format: (v) => `${Math.round(v)}`, bands: bounds ?? undefined, height: 150 });
   }
   if (velocity?.some((v) => v)) {
     const moving = velocity.map((v) => (v && v > (sport === "ride" ? 1.5 : 1.2) ? v : null));
     if (sport === "ride") {
-      panels.push({ key: "speed", label: "Snelheid", values: smooth(moving.map((v) => (v == null ? null : v * 3.6)), 3), colour: "var(--chart-1)", format: (v) => `${v.toFixed(0)} km/u`, height: 110 });
+      panels.push({ key: "speed", label: t.charts.speed, values: smooth(moving.map((v) => (v == null ? null : v * 3.6)), 3), colour: "var(--chart-1)", format: (v) => `${f.num(v)} ${f.kmhUnit}`, height: 110 });
     } else if (sport !== "swim") {
-      panels.push({ key: "pace", label: "Tempo", values: smooth(moving.map((v) => (v == null ? null : 1000 / v)), 3), colour: "var(--chart-1)", format: (v) => fmtClock(v), invert: true, height: 110 });
+      panels.push({ key: "pace", label: t.charts.pace, values: smooth(moving.map((v) => (v == null ? null : 1000 / v)), 3), colour: "var(--chart-1)", format: (v) => fmtClock(v), invert: true, height: 110 });
     }
   }
   if (altitude?.some((v) => v != null) && sport !== "swim") {
-    panels.push({ key: "alt", label: "Hoogte", values: altitude, colour: "var(--chart-3)", format: (v) => `${Math.round(v)} m`, fill: true, height: 70 });
+    panels.push({ key: "alt", label: t.charts.altitude, values: altitude, colour: "var(--chart-3)", format: (v) => `${Math.round(v)} m`, fill: true, height: 70 });
   }
   if (n < 2 || panels.length === 0) return null;
 

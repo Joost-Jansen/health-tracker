@@ -9,19 +9,23 @@
 
 import Link from "next/link";
 import { dayNumber, type DateWindow } from "@/lib/timeline";
-import { T } from "@/lib/texts";
-import { fmtClock, fmtKm, type RecentRecord, type RecordKey, type RecordRowPlus } from "@/lib/training";
+import { useFormat, useT } from "@/lib/i18n";
+import { fmtClock, type RecentRecord, type RecordKey, type RecordRowPlus } from "@/lib/training";
 
 const KEYS: RecordKey[] = ["1k", "5k", "10k", "21k"];
 const KM: Record<RecordKey, number> = { "1k": 1, "5k": 5, "10k": 10, "21k": 21.0975 };
 const H = 30;
 const PAD_Y = 6;
-const TR = T.trends.records;
-const LABEL = TR.label;
 
-const fmtDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
+/** The record texts and date format in the user's language. */
+function useRecordTexts() {
+  const TR = useT().texts.trends.records;
+  const f = useFormat();
+  return { TR, LABEL: TR.label, fmtDay: (d: string) => f.day(d), fmtKm: (v: number) => f.km(v) };
+}
 
 function Steps({ rows, window: w, colour }: { rows: RecordRowPlus[]; window: DateWindow; colour: string }) {
+  const { TR, fmtDay } = useRecordTexts();
   const lo = dayNumber(w.from);
   const span = Math.max(dayNumber(w.to) - lo, 1);
   const before = [...rows].reverse().find((r) => r.date < w.from);
@@ -74,6 +78,7 @@ export default function RecordTable({
   href: (id: string) => string;
   colours: Record<RecordKey, string>;
 }) {
+  const { TR, LABEL, fmtDay, fmtKm } = useRecordTexts();
   const fresh = new Set(recent.map((r) => r.key));
   return (
     <div className="flex flex-col">

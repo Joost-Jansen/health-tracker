@@ -871,6 +871,39 @@ export const nl = {
     pp: "pp",
   },
 
+  trendsPage: {
+    brushAria: (window: string) => `Venster op de hele geschiedenis: ${window}. Gebruik de datumvelden of de knoppen om het met het toetsenbord te wijzigen.`,
+  },
+
+  charts: {
+    tooLittle: "Nog te weinig data.",
+    nothing: "Nog niets te tonen.",
+    noData: "Geen data in deze periode.",
+    weekOf: (day: string) => `Week van ${day}`,
+    value: "waarde",
+    avg: (label: string) => `gem. ${label}`,
+    total: "Totaal",
+    peak: "piek",
+    best: "beste",
+    seriesToggle: "Reeksen tonen of verbergen",
+    show: (label: string) => `${label} tonen`,
+    hide: (label: string) => `${label} verbergen`,
+    average: "Gemiddelde",
+    maAria: "Voortschrijdend gemiddelde",
+    ma: (days: number, weeks: boolean): string => (days === 0 ? "Uit" : weeks ? `${days / 7} wk` : `${days} d`),
+    keyboard: (label: string) => `${label}. Pijltjes lezen af, Shift + pijltjes verschuiven, plus en min zoomen.`,
+    gestures: "Slepen: verschuiven · Ctrl/⌘ + scrollen of knijpen: zoomen · dubbelklik: terug",
+    same: "gelijk",
+    trend: (change: string, weeks: number) => `${change}${weeks >= 2 ? ` in ${weeks} weken` : ""} volgens de trend`,
+    peakOn: (best: boolean, value: string, day: string) => `${best ? "beste" : "piek"} ${value} op ${day}`,
+    noMeasure: "geen meting in deze periode",
+    lastOn: (value: string, day: string) => `laatste ${value} op ${day}`,
+    hr: "Hartslag",
+    speed: "Snelheid",
+    pace: "Tempo",
+    altitude: "Hoogte",
+  },
+
   texts: T,
 };
 

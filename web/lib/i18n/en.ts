@@ -877,6 +877,39 @@ export const en: Messages = {
     pp: "pp",
   },
 
+  trendsPage: {
+    brushAria: (window: string) => `Window on the whole history: ${window}. Use the date fields or the buttons to change it with the keyboard.`,
+  },
+
+  charts: {
+    tooLittle: "Not enough data yet.",
+    nothing: "Nothing to show yet.",
+    noData: "No data in this period.",
+    weekOf: (day: string) => `Week of ${day}`,
+    value: "value",
+    avg: (label: string) => `avg. ${label}`,
+    total: "Total",
+    peak: "peak",
+    best: "best",
+    seriesToggle: "Show or hide series",
+    show: (label: string) => `Show ${label}`,
+    hide: (label: string) => `Hide ${label}`,
+    average: "Average",
+    maAria: "Moving average",
+    ma: (days: number, weeks: boolean): string => (days === 0 ? "Off" : weeks ? `${days / 7} wk` : `${days} d`),
+    keyboard: (label: string) => `${label}. Arrow keys read values, Shift + arrows move, plus and minus zoom.`,
+    gestures: "Drag: move · Ctrl/⌘ + scroll or pinch: zoom · double-click: reset",
+    same: "unchanged",
+    trend: (change: string, weeks: number) => `${change}${weeks >= 2 ? ` in ${weeks} weeks` : ""} by the trend`,
+    peakOn: (best: boolean, value: string, day: string) => `${best ? "best" : "peak"} ${value} on ${day}`,
+    noMeasure: "no measurement in this period",
+    lastOn: (value: string, day: string) => `last ${value} on ${day}`,
+    hr: "Heart rate",
+    speed: "Speed",
+    pace: "Pace",
+    altitude: "Elevation",
+  },
+
   texts: withFallback<typeof T>(T, textsEn),
 };
 

@@ -14,11 +14,8 @@ import { Button, Input, Tabs } from "@/components/ds";
 import RangeBrush from "@/components/timefilter/RangeBrush";
 import type { TimeRange } from "@/components/timefilter/useTimeRange";
 import { PERIODS, fmtWindow, moveWindow, windowDays, type DayPoint } from "@/lib/timeline";
-import { T } from "@/lib/texts";
+import { useLocale, useT } from "@/lib/i18n";
 
-const TF = T.trends.timeFilter;
-const periodLabel = (p: string) => T.trends.periods[p] ?? p;
-const PERIOD_TABS = PERIODS.map((id) => ({ id, label: periodLabel(id) }));
 
 /** Hoogte van de vaste bovenbalk (`.ds-topbar` in app/ds.css: height 60px). De tijdbalk plakt eronder. */
 export const TOPBAR_HEIGHT = 60;
@@ -28,7 +25,7 @@ export default function TimeFilterBar({
   first,
   last,
   overview,
-  label = TF.group,
+  label,
 }: {
   range: TimeRange;
   first: string;
@@ -37,6 +34,12 @@ export default function TimeFilterBar({
   overview?: DayPoint[];
   label?: string;
 }) {
+  const T = useT().texts;
+  const { locale } = useLocale();
+  const TF = T.trends.timeFilter;
+  const periodLabel = (p: string) => T.trends.periods[p] ?? p;
+  const PERIOD_TABS = PERIODS.map((id) => ({ id, label: periodLabel(id) }));
+  label ??= TF.group;
   const [open, setOpen] = useState(false);
   const [stuck, setStuck] = useState(false);
   const panelId = useId();
@@ -90,14 +93,14 @@ export default function TimeFilterBar({
       type="button"
       onClick={reset}
       title={TF.backTo(periodLabel(range.preset))}
-      aria-label={TF.removeCustom(fmtWindow(w), periodLabel(range.preset))}
+      aria-label={TF.removeCustom(fmtWindow(w, locale), periodLabel(range.preset))}
       className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs transition-colors hover:bg-surface"
     >
-      <span className="truncate tabular-nums">{fmtWindow(w)}</span>
+      <span className="truncate tabular-nums">{fmtWindow(w, locale)}</span>
       <span aria-hidden className="shrink-0 text-ink-muted">×</span>
     </button>
   ) : (
-    <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-muted">{fmtWindow(w)}</span>
+    <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-muted">{fmtWindow(w, locale)}</span>
   );
 
   return (

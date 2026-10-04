@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tabs } from "@/components/ds";
 import { niceTicks } from "@/lib/chartScale";
+import { useLocale, useT } from "@/lib/i18n";
 import { trueMinus } from "@/lib/typography";
 import {
   clampRange,
@@ -69,18 +70,11 @@ export type ChartSeries = {
 };
 
 export type ChartMarker = { d: string; label: string };
-export type MaOption = { days: number; label: string };
+/** A moving-average choice; without `label` the chart names it in the user's language ("7 d", "4 wk", "Uit"). */
+export type MaOption = { days: number; label?: string; weeks?: boolean };
 
-export const DAILY_MA: MaOption[] = [
-  { days: 0, label: "Uit" },
-  { days: 7, label: "7 d" },
-  { days: 28, label: "28 d" },
-];
-export const WEEKLY_MA: MaOption[] = [
-  { days: 0, label: "Uit" },
-  { days: 28, label: "4 wk" },
-  { days: 56, label: "8 wk" },
-];
+export const DAILY_MA: MaOption[] = [{ days: 0 }, { days: 7 }, { days: 28 }];
+export const WEEKLY_MA: MaOption[] = [{ days: 0 }, { days: 28, weeks: true }, { days: 56, weeks: true }];
 
 const PAD = { top: 18, right: 46, bottom: 22 };
 const DASH: Record<string, string | undefined> = { solid: undefined, dashed: "5 4", dotted: "1 4" };
@@ -126,9 +120,9 @@ export default function TimeChart({
   barDays = 7,
   markers = [],
   legend,
-  totalLabel = "Totaal",
+  totalLabel,
   clock = false,
-  empty = "Nog te weinig data.",
+  empty,
 }: {
   series: ChartSeries[];
   ariaLabel: string;
@@ -163,6 +157,12 @@ export default function TimeChart({
 }) {
   // Een callback-ref via state: de grafiek kan eerst leeg zijn en pas later een element krijgen,
   // en dan moeten de meting en de wiel-handler alsnog aanhaken.
+  const t = useT();
+  const { locale } = useLocale();
+  const tc = t.charts;
+  const maLabel = (o?: MaOption) => (o ? (o.label ?? tc.ma(o.days, !!o.weeks)) : "");
+  totalLabel ??= tc.total;
+  empty ??= tc.tooLittle;
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
   box.current = el;
@@ -563,12 +563,12 @@ export default function TimeChart({
         if (j >= 0 && Math.abs(s.days[j] - readDay) <= Math.max(s.step * 0.6, 0.5)) i = j;
       }
       // Bij één reeks staat de naam al boven de grafiek: dan alleen "waarde" en "gem. 7 d".
-      if (i >= 0) rows.push({ key: s.key, label: solo ? "waarde" : s.label, colour: s.colour, value: `${format(s.points[i].v)}${unit}`, at: s.kind === "step" ? undefined : s.days[i] });
+      if (i >= 0) rows.push({ key: s.key, label: solo ? tc.value : s.label, colour: s.colour, value: `${format(s.points[i].v)}${unit}`, at: s.kind === "step" ? undefined : s.days[i] });
       if (s.avg.length) {
         const j = nearestIndex(s.avgDays, readDay);
         if (j >= 0 && Math.abs(s.avgDays[j] - readDay) <= Math.max(s.step * 0.6, 0.5)) {
           const opt = maOptions?.find((o) => o.days === maDays);
-          rows.push({ key: `${s.key}-avg`, label: `${solo ? "" : `${s.label} · `}gem. ${opt?.label ?? `${maDays} d`}`, colour: s.colour, value: `${format(s.avg[j].v)}${unit}`, strong: true });
+          rows.push({ key: `${s.key}-avg`, label: `${solo ? "" : `${s.label} · `}${tc.avg(opt ? maLabel(opt) : `${maDays} d`)}`, colour: s.colour, value: `${format(s.avg[j].v)}${unit}`, strong: true });
         }
       }
     }
@@ -582,7 +582,7 @@ export default function TimeChart({
       const j = stack.avgDays.indexOf(readDay);
       if (j >= 0) {
         const opt = maOptions?.find((o) => o.days === maDays);
-        rows.push({ key: "stack-avg", label: `gem. ${opt?.label ?? ""}`.trim(), colour: MA_COLOUR_BARS, value: `${format(stack.avg[j].v)}${unit}` });
+        rows.push({ key: "stack-avg", label: tc.avg(maLabel(opt)).trim(), colour: MA_COLOUR_BARS, value: `${format(stack.avg[j].v)}${unit}` });
       }
     }
   }
@@ -590,7 +590,7 @@ export default function TimeChart({
   const halfStepPx = hoverIsBar ? (barDays / 2 / span) * plotW : 6;
   const hoverMarkers = hover === null ? [] : markers.filter((m) => Math.abs(x(dayNumber(m.d)) - x(hover)) <= Math.max(6, halfStepPx));
   const weekly = hoverIsBar || (shown.length > 0 && shown.every((s) => s.kind === "bar" || (s.kind !== "step" && s.step >= 6)));
-  const readLabel = readDay === null ? "" : weekly ? `Week van ${fmtDate(isoDay(readDay))}` : fmtWeekday(isoDay(readDay));
+  const readLabel = readDay === null ? "" : weekly ? tc.weekOf(fmtDate(isoDay(readDay), true, locale)) : fmtWeekday(isoDay(readDay), locale);
 
   // ── Markeringen: piek, laatste punt, trend
   const extras = useMemo(() => {
@@ -605,7 +605,7 @@ export default function TimeChart({
       if (s.peak) {
         let best = i0;
         for (let i = i0; i <= i1; i++) if (s.peak === "max" ? s.points[i].v > s.points[best].v : s.points[i].v < s.points[best].v) best = i;
-        peaks.push({ key: s.key, px: x(s.days[best]), py: y(s.points[best].v), colour: s.colour, text: `${s.peakLabel ?? (s.peak === "max" ? "piek" : "beste")} ${format(s.points[best].v)}` });
+        peaks.push({ key: s.key, px: x(s.days[best]), py: y(s.points[best].v), colour: s.colour, text: `${s.peakLabel ?? (s.peak === "max" ? tc.peak : tc.best)} ${format(s.points[best].v)}` });
       }
       if (s.trend) {
         const t = linearTrend(s.points.slice(i0, i1 + 1));
@@ -622,7 +622,7 @@ export default function TimeChart({
     return <p className="py-6 text-center text-sm text-ink-muted">{empty}</p>;
   }
 
-  const xTicks = timeTicks(a, b, plotW);
+  const xTicks = timeTicks(a, b, plotW, locale);
   const showLegend = legend ?? series.length > 1;
   const hasMa = !!maOptions && series.some((s) => s.ma);
   const hx = hover !== null ? x(hover) : 0;
@@ -636,7 +636,7 @@ export default function TimeChart({
       {(showLegend || hasMa) && (
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           {showLegend ? (
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11.5px]" role="group" aria-label="Reeksen tonen of verbergen">
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11.5px]" role="group" aria-label={tc.seriesToggle}>
               {series.map((s) => {
                 const off = hidden.has(s.key);
                 return (
@@ -644,7 +644,7 @@ export default function TimeChart({
                     key={s.key}
                     type="button"
                     aria-pressed={!off}
-                    title={off ? `${s.label} tonen` : `${s.label} verbergen`}
+                    title={off ? tc.show(s.label) : tc.hide(s.label)}
                     onClick={() =>
                       setHidden((h) => {
                         const n = new Set(h);
@@ -670,13 +670,13 @@ export default function TimeChart({
           )}
           {hasMa && (
             <div className="flex items-center gap-2">
-              <span className="text-[11.5px] text-ink-muted">Gemiddelde</span>
+              <span className="text-[11.5px] text-ink-muted">{tc.average}</span>
               <Tabs
                 variant="segmented"
-                items={maOptions!.map((o) => ({ id: String(o.days), label: o.label }))}
+                items={maOptions!.map((o) => ({ id: String(o.days), label: maLabel(o) }))}
                 value={String(maDays)}
                 onChange={(id) => chooseMa(Number(id))}
-                ariaLabel="Voortschrijdend gemiddelde"
+                ariaLabel={tc.maAria}
               />
             </div>
           )}
@@ -688,8 +688,8 @@ export default function TimeChart({
         className="ds-chart relative cursor-grab select-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--sage-300)] active:cursor-grabbing"
         tabIndex={0}
         role="group"
-        aria-label={`${ariaLabel}. Pijltjes lezen af, Shift + pijltjes verschuiven, plus en min zoomen.`}
-        title="Slepen: verschuiven · Ctrl/⌘ + scrollen of knijpen: zoomen · dubbelklik: terug"
+        aria-label={tc.keyboard(ariaLabel)}
+        title={tc.gestures}
         style={{ height, WebkitTouchCallout: "none", touchAction: "pan-y" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -852,7 +852,7 @@ export default function TimeChart({
 
         {yModel.empty && (
           <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[12.5px] text-ink-muted" style={{ paddingRight: PAD.right }}>
-            Geen data in deze periode.
+            {tc.noData}
           </p>
         )}
 

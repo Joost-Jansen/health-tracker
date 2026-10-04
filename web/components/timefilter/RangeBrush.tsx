@@ -6,6 +6,7 @@
 // het loslaten naar de pagina, zodat niet elke pixel alle grafieken opnieuw tekent.
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useT } from "@/lib/i18n";
 import { clampRange, dayNumber, fmtWindow, timeTicks, toRange, toWindow, type DateWindow, type DayPoint, type DayRange } from "@/lib/timeline";
 
 const H = 46;
@@ -26,6 +27,8 @@ export default function RangeBrush({
   /** Een reeks als silhouet onder de balk, bijvoorbeeld de fitheid. */
   points?: DayPoint[];
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(600);
   const [drag, setDrag] = useState<DayRange | null>(null);
@@ -106,7 +109,7 @@ export default function RangeBrush({
     setDrag(null);
   }
 
-  const ticks = timeTicks(lo, hi, w);
+  const ticks = timeTicks(lo, hi, w, locale);
   const ax = x(r.a);
   const bx = x(r.b);
 
@@ -121,7 +124,7 @@ export default function RangeBrush({
         onPointerUp={up}
         onPointerCancel={up}
         role="img"
-        aria-label={`Venster op de hele geschiedenis: ${fmtWindow(toWindow({ a: Math.round(r.a), b: Math.round(r.b) }))}. Gebruik de datumvelden of de knoppen om het met het toetsenbord te wijzigen.`}
+        aria-label={t.trendsPage.brushAria(fmtWindow(toWindow({ a: Math.round(r.a), b: Math.round(r.b) }), locale))}
       >
         <svg width="100%" height={H} viewBox={`0 0 ${w} ${H}`} className="block overflow-visible">
           <rect x="0" y="0" width={w} height={plotH} rx="4" fill="var(--surface-inset)" />

@@ -10,6 +10,7 @@
 
 import ChartHeadline from "@/components/charts/ChartHeadline";
 import TimeChart, { type ChartMarker, type MaOption } from "@/components/charts/TimeChart";
+import { useLocale, useT } from "@/lib/i18n";
 import { dayNumber, fmtDate, linearTrend, type DateWindow, type DayPoint } from "@/lib/timeline";
 
 export type TrendPoint = DayPoint;
@@ -23,7 +24,7 @@ export default function TrendChart({
   colour = "var(--chart-1)",
   height = 180,
   unit = "",
-  empty = "Nog te weinig data.",
+  empty,
   window,
   domain,
   onWindow,
@@ -54,7 +55,9 @@ export default function TrendChart({
   /** Verticale markeringen (ruitjes), bijvoorbeeld runs die niet meetellen. */
   markers?: ChartMarker[];
 }) {
-  if (points.length < 2) return <p className="py-6 text-center text-sm text-ink-muted">{empty}</p>;
+  const tc = useT().charts;
+  const { locale } = useLocale();
+  if (points.length < 2) return <p className="py-6 text-center text-sm text-ink-muted">{empty ?? tc.tooLittle}</p>;
 
   const inView = window ? points.filter((p) => p.d >= window.from && p.d <= window.to) : points;
   const sign = lowerIsBetter ? -1 : 1;
@@ -67,12 +70,11 @@ export default function TrendChart({
     const better = sign * change > 0;
     const flat = Math.abs(change) < 1e-9 || format(Math.abs(change)) === format(0);
     const weeks = trend.length ? Math.round((dayNumber(trend[1].d) - dayNumber(trend[0].d)) / 7) : 0;
-    const over = weeks >= 2 ? ` in ${weeks} weken` : "";
     return {
       big: `${format(last.v)}${unit}`,
-      primary: flat ? "gelijk" : `${change > 0 ? "+" : "−"}${format(Math.abs(change))}${unit}${over} volgens de trend`,
+      primary: flat ? tc.same : tc.trend(`${change > 0 ? "+" : "−"}${format(Math.abs(change))}${unit}`, weeks),
       tone: flat ? "text-ink-muted" : better ? "text-gain" : "text-loss",
-      secondary: `${lowerIsBetter ? "beste" : "piek"} ${format(peak.v)}${unit} op ${fmtDate(peak.d)}`,
+      secondary: tc.peakOn(lowerIsBetter, `${format(peak.v)}${unit}`, fmtDate(peak.d, true, locale)),
     };
   })();
 
@@ -81,7 +83,7 @@ export default function TrendChart({
       {headline ? (
         <ChartHeadline big={headline.big} primary={headline.primary} primaryTone={headline.tone} secondary={headline.secondary} />
       ) : (
-        <ChartHeadline big="–" primary="geen meting in deze periode" secondary={`laatste ${format(points[points.length - 1].v)}${unit} op ${fmtDate(points[points.length - 1].d)}`} />
+        <ChartHeadline big="–" primary={tc.noMeasure} secondary={tc.lastOn(`${format(points[points.length - 1].v)}${unit}`, fmtDate(points[points.length - 1].d, true, locale))} />
       )}
       <TimeChart
         ariaLabel={label}

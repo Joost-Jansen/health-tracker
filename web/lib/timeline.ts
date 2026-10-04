@@ -19,6 +19,12 @@ const MONTHS: Record<string, number> = { "3M": 3, "6M": 6, "1J": 12 };
 const DAY = 86400000;
 export const NL_MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 const NL_WEEKDAYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+const EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const EN_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** Labels in the user's language (lib/i18n useLocale); Dutch when not given. */
+export type TimeLocale = "nl" | "en";
+const MONTHS_OF: Record<TimeLocale, string[]> = { nl: NL_MONTHS, en: EN_MONTHS };
+const WEEKDAYS_OF: Record<TimeLocale, string[]> = { nl: NL_WEEKDAYS, en: EN_WEEKDAYS };
 
 export const dayNumber = (d: string) => Date.parse(`${d.slice(0, 10)}T00:00:00Z`) / DAY;
 export const isoDay = (n: number) => new Date(Math.round(n) * DAY).toISOString().slice(0, 10);
@@ -85,20 +91,20 @@ export function moveWindow(w: DateWindow, first: string, last: string, scale: nu
 const parts = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) - 1, day: Number(d.slice(8, 10)) });
 
 /** "7 sep 2026", of "7 sep" zonder jaar. */
-export function fmtDate(d: string, year = true): string {
+export function fmtDate(d: string, year = true, locale: TimeLocale = "nl"): string {
   const p = parts(d);
-  return `${p.day} ${NL_MONTHS[p.m]}${year ? ` ${p.y}` : ""}`;
+  return `${p.day} ${MONTHS_OF[locale][p.m]}${year ? ` ${p.y}` : ""}`;
 }
 
 /** "ma 7 sep 2026". */
-export function fmtWeekday(d: string): string {
-  return `${NL_WEEKDAYS[new Date(`${d}T00:00:00Z`).getUTCDay()]} ${fmtDate(d)}`;
+export function fmtWeekday(d: string, locale: TimeLocale = "nl"): string {
+  return `${WEEKDAYS_OF[locale][new Date(`${d}T00:00:00Z`).getUTCDay()]} ${fmtDate(d, true, locale)}`;
 }
 
 /** "3 mrt – 1 jun 2026", of met twee jaartallen over een jaargrens. */
-export function fmtWindow(w: DateWindow): string {
+export function fmtWindow(w: DateWindow, locale: TimeLocale = "nl"): string {
   const same = w.from.slice(0, 4) === w.to.slice(0, 4);
-  return `${fmtDate(w.from, !same)} – ${fmtDate(w.to)}`;
+  return `${fmtDate(w.from, !same, locale)} – ${fmtDate(w.to, true, locale)}`;
 }
 
 /** Aantal dagen in het venster, beide grenzen meegeteld. */
@@ -127,7 +133,7 @@ const UNITS: Unit[] = [
 const CHAR_PX = 6.4;
 const TICK_GAP_PX = 14;
 
-function ticksFor(unit: Unit, a: number, b: number): TimeTick[] {
+function ticksFor(unit: Unit, a: number, b: number, locale: TimeLocale = "nl"): TimeTick[] {
   const out: TimeTick[] = [];
   const first = Math.ceil(a);
   const last = Math.floor(b);
@@ -141,7 +147,7 @@ function ticksFor(unit: Unit, a: number, b: number): TimeTick[] {
       const p = parts(d);
       // Het eerste van de maand of een maandag na een maandwissel draagt de maand al; het jaar staat
       // op 1 januari zodat een venster over de jaargrens zich laat lezen.
-      out.push({ day: n, label: p.m === 0 && p.day <= period ? `${p.day} jan ${p.y}` : fmtDate(d, false), major: p.day <= period });
+      out.push({ day: n, label: p.m === 0 && p.day <= period ? `${p.day} ${MONTHS_OF[locale][0]} ${p.y}` : fmtDate(d, false, locale), major: p.day <= period });
     }
     return out;
   }
@@ -158,7 +164,7 @@ function ticksFor(unit: Unit, a: number, b: number): TimeTick[] {
       out.push(
         unit.kind === "year" || m === 0
           ? { day: n, label: String(y), major: true }
-          : { day: n, label: NL_MONTHS[m], major: false },
+          : { day: n, label: MONTHS_OF[locale][m], major: false },
       );
     }
     if (unit.kind === "year") y += 1;
@@ -175,11 +181,11 @@ function ticksFor(unit: Unit, a: number, b: number): TimeTick[] {
  * eenheid (dag, week, maand, kwartaal, jaar) waarbij geen twee labels elkaar
  * raken. Maanden heten "sep", januari draagt het jaartal.
  */
-export function timeTicks(a: number, b: number, width: number): TimeTick[] {
+export function timeTicks(a: number, b: number, width: number, locale: TimeLocale = "nl"): TimeTick[] {
   const span = Math.max(b - a, 1);
   const pxPerDay = width / span;
   for (const unit of UNITS) {
-    const ticks = ticksFor(unit, a, b);
+    const ticks = ticksFor(unit, a, b, locale);
     if (ticks.length < 2 && unit.kind !== "year") continue;
     const widest = Math.max(...ticks.map((t) => t.label.length), 3) * CHAR_PX;
     const approxGap = { day: 1, week: 7, month: 30.4, year: 365.25 }[unit.kind] * unit.step * pxPerDay;
@@ -187,7 +193,7 @@ export function timeTicks(a: number, b: number, width: number): TimeTick[] {
     const minGap = unit.kind === "month" ? approxGap * (28 / 30.4) : approxGap;
     if (minGap >= widest + TICK_GAP_PX) return ticks;
   }
-  return ticksFor({ kind: "year", step: 10 }, a, b);
+  return ticksFor({ kind: "year", step: 10 }, a, b, locale);
 }
 
 // ── Reeksen ───────────────────────────────────────────────────────────────────

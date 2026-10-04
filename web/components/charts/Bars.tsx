@@ -17,6 +17,7 @@
 // staaf die staaf. Zo beweegt de grafiek niet als je hem aanraakt.
 
 import { useId, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 export type BarSegment = {
   /** Uniek binnen de staaf; wordt ook de legendasleutel. */
@@ -74,7 +75,7 @@ export default function Bars({
   height = "h-[150px] sm:h-[180px]",
   maxBarWidth = 64,
   ariaLabel,
-  emptyLabel = "Nog niets te tonen.",
+  emptyLabel,
   onSelect,
 }: {
   bars: BarDatum[];
@@ -95,6 +96,8 @@ export default function Bars({
   /** Een klik op een staaf, met zijn `key` — bijvoorbeeld om die maand te kiezen. */
   onSelect?: (key: string) => void;
 }) {
+  const t = useT();
+  emptyLabel ??= t.charts.nothing;
   const [active, setActive] = useState<number | null>(null);
   const idPrefix = useId();
 

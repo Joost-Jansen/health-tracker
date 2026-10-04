@@ -26,7 +26,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { niceTicks } from "@/lib/chartScale";
-import { fmtDayMonth } from "@/lib/format";
+import { useFormat } from "@/lib/i18n";
 import { trueMinus } from "@/lib/typography";
 
 export type LinePoint = { d: string; v: number };
@@ -59,7 +59,7 @@ export default function LineChart({
   gridLines = 3,
   ariaLabel,
   className = "",
-  xFormat = fmtDayMonth,
+  xFormat,
 }: {
   series: LineSeries[];
   /** Stippellijn op deze waarde, bijvoorbeeld 100 (index) of 0 (%). */
@@ -75,6 +75,8 @@ export default function LineChart({
    *  jaar of over een jaargrens hoort het jaartal erbij. */
   xFormat?: (d: string) => string;
 }) {
+  const f = useFormat();
+  xFormat ??= f.dayMonth;
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(720);
   const [hover, setHover] = useState<number | null>(null);

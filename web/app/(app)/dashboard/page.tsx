@@ -142,6 +142,12 @@ export default function DashboardPage() {
                 <div><dt className="text-ink-muted">Vorm</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}</dd></div>
               </dl>
               <p className="text-[11.5px] leading-relaxed text-ink-muted">{T.formTsb} Piek fitheid {Math.round(form.ctl_peak)} op {fmtDate(form.ctl_peak_date)}.</p>
+              {form.stopped_at_sync && (
+                <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
+                  <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
+                  {T.vandaag.formStopped(fmtDate(form.until))}
+                </p>
+              )}
             </div>
             <div>
             <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">

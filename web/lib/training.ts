@@ -42,6 +42,15 @@ export type ZoneShare = { seconds: ZoneSeconds; total_s: number; pct: Record<Zon
 export type Volume = { count: number; km: number; seconds: number };
 export type FormRow = { date: string; load: number; ctl: number; atl: number; tsb: number };
 
+/** Acute (ATL) tegenover chronische (CTL) belasting, zie api/dashboard.py load_indicator. */
+export type LoadIndicator = {
+  band: "low" | "build" | "high" | "unknown";
+  acwr: number | null;
+  ramp: number | null;
+  reason: "ratio" | "ramp" | null;
+  thresholds: { low: number; high: number; ramp_high: number };
+};
+
 export type Dashboard = {
   today: string;
   last_sync: string;
@@ -50,7 +59,19 @@ export type Dashboard = {
   zones_set?: string[];
   zones: { week: Record<string, ZoneShare>; month: Record<string, ZoneShare> };
   volume: { week: Record<string, Volume>; avg4w: Record<string, Volume> };
-  form: null | { ctl: number; atl: number; tsb: number; status: string; ctl_peak: number; ctl_peak_date: string; series: FormRow[] };
+  form: null | {
+    ctl: number;
+    atl: number;
+    tsb: number;
+    status: string;
+    ctl_peak: number;
+    ctl_peak_date: string;
+    /** Laatste dag van de reeks: vandaag, of de laatst gesyncte dag als de sync ouder is dan gisteren. */
+    until: string;
+    stopped_at_sync: boolean;
+    load: LoadIndicator;
+    series: FormRow[];
+  };
   recent: ActivitySummary[];
   recovery: { days: ({ date: string } & Record<string, number | string>)[]; baseline_rhr: number | null };
   upcoming: PlanSession[];

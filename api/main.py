@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from api import agent_tokens, connections, mcp, onboarding, routes_api, settings_api, users, zones_api
 from api.sync_runner import SyncRunner
 from api.content import content_router
-from api.dashboard import build_dashboard
+from api.dashboard import build_dashboard, today_tsb
 from api.history import activity_detail, heatmap, list_activities
 from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
@@ -87,7 +87,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def dashboard(u=Depends(current_user)):
         s, day = u.store, today()
         out = build_dashboard(s.activities, s.wellness, s.zones, day, s.last_sync, s.rhr_fallback)
-        out["readiness"] = readiness(s.wellness, day, out["form"]["tsb"] if out["form"] else None)
+        out["readiness"] = readiness(s.wellness, day, today_tsb(out["form"]))
         plan = db.active_plan(u.scope)
         if plan:
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]

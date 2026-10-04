@@ -18,7 +18,7 @@ from typing import Callable
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
-from api.dashboard import build_dashboard, summary
+from api.dashboard import build_dashboard, summary, today_tsb
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
 from api.readiness import as_text as readiness_text, readiness
@@ -214,7 +214,7 @@ class Server:
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
             parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
-            rd = readiness(s.wellness, today, f["tsb"] if f else None)
+            rd = readiness(s.wellness, today, today_tsb(f))
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 from statistics import median
@@ -10,6 +11,16 @@ from tools.analytics import fitness_series
 from tools.zones import NAMES
 
 DEFAULT_RHR = 60  # population average; used only without the user's own resting HR (sleep data or profile)
+# Load indicator: acute (ATL, 7 days) against chronic (CTL, 42 days) load. The 0.8-1.3 band is the "sweet spot" of the
+# acute:chronic workload ratio in Gabbett (2016), Br J Sports Med 50:273-280. Used here only as a soft guide to how fast
+# load changes against what the user is used to, not as an injury prediction.
+ACWR_LOW = 0.8
+ACWR_HIGH = 1.3
+# Ramp rate: CTL change over 7 days. Coaching guidance for CTL/ATL models (Coggan, TrainingPeaks) calls a rise of
+# roughly 5-8 points per week steep but sustainable; above that the build is faster than most people absorb.
+RAMP_HIGH = 8.0
+LOAD_MIN_DAYS = 28  # CTL is a 42-day average: with less than four weeks of data the ratio says little
+LOAD_MIN_CTL = 5.0  # below this (hardly any training) a ratio swings wildly on a single session
 SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s")
 
 
@@ -72,6 +83,34 @@ def _volume(activities: list[dict], weeks: int = 1) -> dict:
     }
 
 
+def sync_day(last_sync: str | None) -> date | None:
+    """The day of the last sync from the store's text ("2026-09-30 06:02", maybe "; mislukt: ..."), None if unknown."""
+    m = re.match(r"\d{4}-\d{2}-\d{2}", last_sync or "")
+    try:
+        return date.fromisoformat(m[0]) if m else None
+    except ValueError:
+        return None
+
+
+def load_indicator(series: list[dict]) -> dict:
+    """Acute vs chronic load from a fitness series (tools.analytics.fitness_series): `acwr` = ATL / CTL at the last
+    day, `ramp` = CTL change over 7 days, `band` low|build|high|unknown and, for high, `reason` ratio|ramp."""
+    thresholds = {"low": ACWR_LOW, "high": ACWR_HIGH, "ramp_high": RAMP_HIGH}
+    if len(series) < LOAD_MIN_DAYS or series[-1]["ctl"] < LOAD_MIN_CTL:
+        return {"band": "unknown", "acwr": None, "ramp": None, "reason": None, "thresholds": thresholds}
+    now, week_ago = series[-1], series[-8]
+    acwr = round(now["atl"] / now["ctl"], 2)
+    ramp = round(now["ctl"] - week_ago["ctl"], 1)
+    reason = "ratio" if acwr > ACWR_HIGH else "ramp" if ramp > RAMP_HIGH else None
+    band = "high" if reason else "low" if acwr < ACWR_LOW else "build"
+    return {"band": band, "acwr": acwr, "ramp": ramp, "reason": reason, "thresholds": thresholds}
+
+
+def today_tsb(form: dict | None) -> float | None:
+    """Form to judge today by (readiness): None when the series stopped at an older sync."""
+    return form["tsb"] if form and not form.get("stopped_at_sync") else None
+
+
 def summary(a: dict) -> dict:
     return {k: a.get(k) for k in SUMMARY_FIELDS if a.get(k) is not None}
 
@@ -84,7 +123,10 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
     prev4 = [a for a in activities if monday - timedelta(weeks=4) <= _day(a) < monday]
 
     rhr = resting_hr(wellness, rhr_fallback)
-    series = fitness_series(activities, rhr, max_by_sport(zones, activities), end=today)
+    # After a sync older than yesterday the days since are unknown, not rest: the series stops at the last synced day.
+    synced = sync_day(last_sync)
+    stopped = synced is not None and synced < today - timedelta(days=1)
+    series = fitness_series(activities, rhr, max_by_sport(zones, activities), end=synced if stopped else today)
     form = None
     if series:
         now, peak = series[-1], max(series, key=lambda r: r["ctl"])
@@ -95,6 +137,9 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
             "status": form_status(now["tsb"]),
             "ctl_peak": peak["ctl"],
             "ctl_peak_date": peak["date"],
+            "until": now["date"],
+            "stopped_at_sync": stopped,
+            "load": load_indicator(series),
             "series": series[-91:],
         }
 

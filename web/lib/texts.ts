@@ -39,7 +39,7 @@ export const T = {
 
   /** De data is ouder dan een dag: wat de site sindsdien niet weet. */
   syncStale: (days: number) =>
-    `De laatste sync is ${days} dagen oud. Trainingen en herstel van daarna ontbreken nog; fitheid, vermoeidheid en vorm tellen die dagen als rustdagen.`,
+    `De laatste sync is ${days} dagen oud. Trainingen en herstel van daarna ontbreken nog; fitheid, vermoeidheid en vorm blijven staan op de laatst gesyncte dag.`,
 
   /** Onder Volume deze week: de lopende week is nog niet af. */
   volumeWeek: (through: string) => `Deze week tot en met ${through}; het gemiddelde is over de vier hele weken ervoor.`,
@@ -160,5 +160,9 @@ export const T = {
         return "";
       },
     },
+
+    /** Vorm-kaart als de reeks stopt bij een sync van eergisteren of ouder. */
+    formStopped: (day: string) =>
+      `Stand op ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,
   },
 };

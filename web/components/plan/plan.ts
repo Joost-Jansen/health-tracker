@@ -1,20 +1,12 @@
 // Gedeelde hulpjes voor de Schema-pagina en de schema-editor (T24): datums in de eigen tijdzone, weken en dagen,
 // de wedstrijd uit het schema, kleuren per sport en status.
 
+import type { Format } from "@/lib/i18n";
 import type { PlanSession, SessionStatus } from "@/lib/training";
 
 /** Wat de API als sport accepteert (api/plans.py SPORTS). */
 export const PLAN_SPORTS = ["run", "ride", "swim", "strength_training", "rest"] as const;
 export type PlanSport = (typeof PLAN_SPORTS)[number];
-
-export const SPORT_NAME: Record<string, string> = {
-  run: "Hardlopen",
-  ride: "Fietsen",
-  swim: "Zwemmen",
-  strength_training: "Kracht",
-  rest: "Rust",
-};
-export const sportName = (s: string) => SPORT_NAME[s] ?? s.replace(/_/g, " ");
 
 /** Dezelfde sportkleuren als op Trends. */
 export const SPORT_COLOUR: Record<string, string> = {
@@ -29,21 +21,13 @@ export const sportColour = (s: string) => SPORT_COLOUR[s] ?? "var(--chart-6)";
 /** Zones die de API begrijpt (parse_zone): één zone of een bereik. */
 export const ZONE_OPTIONS = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z1-Z2", "Z2-Z3", "Z3-Z4", "Z4-Z5"];
 
-/** Soorten training als suggestie in de editor, per sport. Vrij invulbaar. */
-export const KIND_SUGGESTIONS: Record<string, string[]> = {
-  run: ["duurloop", "herstel", "tempo", "interval", "heuvels", "fartlek", "wedstrijd"],
-  ride: ["duurrit", "herstel", "tempo", "interval", "wedstrijd"],
-  swim: ["techniek", "herstel", "duur", "interval", "wedstrijd"],
-  strength_training: ["kracht", "core", "mobiliteit"],
-  rest: ["rust"],
-};
-
-export const STATUS_META: Record<SessionStatus, { label: string; tone: "gain" | "loss" | "brand" | "neutral" }> = {
-  gedaan: { label: "Gedaan", tone: "gain" },
-  gemist: { label: "Gemist", tone: "loss" },
-  vandaag: { label: "Vandaag", tone: "brand" },
-  gepland: { label: "Gepland", tone: "neutral" },
-  rust: { label: "Rust", tone: "neutral" },
+/** Kleur per status; de namen staan in lib/i18n (plan.statuses), soorten training als suggestie in plan.kinds. */
+export const STATUS_TONE: Record<SessionStatus, "gain" | "loss" | "brand" | "neutral"> = {
+  gedaan: "gain",
+  gemist: "loss",
+  vandaag: "brand",
+  gepland: "neutral",
+  rust: "neutral",
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -78,17 +62,10 @@ export function daysBetween(from: string, to: string): number {
 
 export const isValidIso = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(parseIso(s).getTime()) && isoLocal(parseIso(s)) === s;
 
-const fmt = (day: string, o: Intl.DateTimeFormatOptions) => parseIso(day).toLocaleDateString("nl-NL", o);
-export const fmtWeekday = (day: string) => fmt(day, { weekday: "short" }).replace(".", "");
-export const fmtDayMonth = (day: string) => fmt(day, { day: "numeric", month: "short" }).replace(".", "");
-export const fmtLong = (day: string) => fmt(day, { weekday: "long", day: "numeric", month: "long" });
-
-/** "28 sep – 4 okt" */
-export function fmtWeekRange(monday: string): string {
-  return `${fmtDayMonth(monday)} – ${fmtDayMonth(addDays(monday, 6))}`;
+/** "28 sep – 4 okt" / "28 Sep – 4 Oct" */
+export function fmtWeekRange(monday: string, f: Format): string {
+  return `${f.dayMonth(monday)} – ${f.dayMonth(addDays(monday, 6))}`;
 }
-
-export const fmtNum = (n: number, digits = 1) => n.toFixed(digits).replace(".", ",").replace(/,0$/, "");
 
 const MONTHS: Record<string, number> = { jan: 1, feb: 2, mrt: 3, mar: 3, apr: 4, mei: 5, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, okt: 10, oct: 10, nov: 11, dec: 12 };
 
@@ -123,13 +100,14 @@ export function joinRace(name: string, date: string): string {
 
 const RACE_KIND = /wedstrijd|race|marathon|triathlon/i;
 
-/** De wedstrijd van het schema: datum uit het race-veld, anders de laatste sessie van het soort wedstrijd. */
+/** De wedstrijd van het schema: datum uit het race-veld, anders de laatste sessie van het soort wedstrijd (naam leeg:
+ *  de pagina zegt dan "de wedstrijd" in de eigen taal). */
 export function planRace(race: string | null | undefined, sessions: PlanSession[]): { name: string; date: string | null } {
   const year = sessions[0] ? parseIso(sessions[0].date).getFullYear() : new Date().getFullYear();
   const r = splitRace(race, year);
   if (r.date) return r;
   const s = [...sessions].reverse().find((x) => RACE_KIND.test(x.kind ?? ""));
-  return { name: r.name || (s ? "Wedstrijd" : ""), date: s?.date ?? null };
+  return { name: r.name, date: s?.date ?? null };
 }
 
 /** `outside`: voor de eerste of na de laatste sessie van het schema (geen rustdag, het schema loopt dan niet). */

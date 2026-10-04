@@ -8,11 +8,13 @@
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
+import { useT } from "@/lib/i18n";
 import { cssVar, tileLayerFor, useDark } from "./useTheme";
 
 export type MapLine = { id: string; label?: string; points: [number, number][]; colour?: string; variant?: boolean };
 
 export default function RoutesMap({ lines, height = 340, interactive = true }: { lines: MapLine[]; height?: number; interactive?: boolean }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const dark = useDark();
   const all = lines.filter((l) => l.points.length >= 2);
@@ -45,7 +47,7 @@ export default function RoutesMap({ lines, height = 340, interactive = true }: {
       });
       const start = drawn[0].points[0];
       const dot = Lf.circleMarker(start, { radius: interactive ? 6 : 4, color: casing, weight: 2, fillColor: cssVar("--n-800", "#1f2a26"), fillOpacity: 1, interactive }).addTo(m);
-      if (interactive) dot.bindTooltip("Start");
+      if (interactive) dot.bindTooltip(t.common.start);
       // inzoomen op de hoofdroute; varianten die ver uitwijken (een stuk uit de stad) vallen dan deels buiten beeld
       m.fitBounds(Lf.latLngBounds(drawn.flatMap((l) => l.points)), { padding: interactive ? [16, 16] : [8, 8] });
     })();
@@ -53,16 +55,16 @@ export default function RoutesMap({ lines, height = 340, interactive = true }: {
       cancelled = true;
       remove();
     };
-  }, [JSON.stringify(all.map((l) => [l.id, l.points.length, l.colour, l.variant])), dark, interactive]);
+  }, [JSON.stringify(all.map((l) => [l.id, l.points.length, l.colour, l.variant])), dark, interactive, t]);
 
-  if (drawn.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">Geen GPS-spoor voor deze route.</p>;
+  if (drawn.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">{t.routes.noTrack}</p>;
   return (
     <div
       ref={box}
       className="z-0 w-full overflow-hidden rounded"
       style={{ height, pointerEvents: interactive ? undefined : "none" }}
       role="img"
-      aria-label={variants.length ? `Kaart van de route met ${variants.length} andere keren licht eronder` : "Kaart van de route"}
+      aria-label={t.routes.mapAria(variants.length)}
     />
   );
 }

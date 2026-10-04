@@ -1,14 +1,17 @@
 // Eén horizontale balk per sport: de tijd per hartslagzone naast elkaar, met eronder % en uren.
 
-import { fmtDuration, sportLabel, ZONE_COLOUR, ZONES, zoneRanges, type ZoneShare } from "@/lib/training";
+import { useFormat, useT } from "@/lib/i18n";
+import { ZONE_COLOUR, ZONES, zoneRanges, type ZoneShare } from "@/lib/training";
 
 export default function ZoneBar({ sport, share, bounds }: { sport: string; share: ZoneShare; bounds?: number[] }) {
+  const t = useT();
+  const f = useFormat();
   const ranges = bounds ? zoneRanges(bounds) : null;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between text-[13px]">
-        <span className="font-medium">{sportLabel(sport)}</span>
-        <span className="text-ink-muted tabular-nums">{fmtDuration(share.total_s)} u</span>
+        <span className="font-medium">{t.sport(sport)}</span>
+        <span className="text-ink-muted tabular-nums">{f.hours(share.total_s)}</span>
       </div>
       <div className="flex h-3 overflow-hidden rounded-full" style={{ background: "var(--surface-inset)" }} role="img"
         aria-label={ZONES.map((z) => `${z} ${Math.round(share.pct[z])}%`).join(", ")}>
@@ -24,7 +27,7 @@ export default function ZoneBar({ sport, share, bounds }: { sport: string; share
               {z}
             </span>
             <span className="font-medium">{Math.round(share.pct[z])}%</span>
-            <span className="text-ink-muted">{fmtDuration(share.seconds[z])}</span>
+            <span className="text-ink-muted">{f.duration(share.seconds[z])}</span>
             {ranges && <span className="text-[10.5px] text-ink-muted">{ranges[z]}</span>}
           </div>
         ))}

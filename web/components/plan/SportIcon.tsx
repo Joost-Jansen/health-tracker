@@ -2,7 +2,8 @@
 // badgetje in de sportkleur voor in de weekkaarten.
 
 import type { SVGProps } from "react";
-import { sportColour, sportName } from "./plan";
+import { useT } from "@/lib/i18n";
+import { sportColour } from "./plan";
 
 type P = SVGProps<SVGSVGElement>;
 
@@ -54,10 +55,11 @@ export function SportGlyph({ sport, ...props }: { sport: string } & P) {
 
 /** Rond badgetje: zachte sportkleur als vlak, de glyph in de volle kleur. */
 export function SportBadge({ sport, size = 30 }: { sport: string; size?: number }) {
+  const t = useT();
   const c = sportColour(sport);
   return (
     <span
-      title={sportName(sport)}
+      title={t.sport(sport)}
       className="inline-flex flex-none items-center justify-center rounded-full"
       style={{ width: size, height: size, background: `color-mix(in srgb, ${c} 18%, transparent)`, color: c }}
     >

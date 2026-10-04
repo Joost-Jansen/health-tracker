@@ -324,6 +324,7 @@ export const en: Messages = {
     heatRoutes: (n: number) => f.plural(n, { one: "# route.", other: "# routes." }),
     heatNote: "The more often you pass somewhere, the fuller the line. The map starts at home; zoom out for holidays.",
     heatAria: (n: number) => `Heatmap of ${n} routes`,
+    noGps: "No routes with GPS.",
   },
 
   activity: {
@@ -406,6 +407,7 @@ export const en: Messages = {
     summary: (n: number, done: string, since: string) => `${n}× ${done} since ${since}`,
     map: "Map",
     mostTypical: "Most typical time",
+    noTrack: "No GPS track for this route.",
     mapNote: (n: number) => `Thick line: the most typical time (most like all the others). Thin and light: the ${n} other times, so you see where you deviated or started earlier or later.`,
     mapAria: (n: number) => (n ? `Map of the route with ${n} other times drawn lightly underneath` : "Map of the route"),
     speedTitle: "Speed on this loop",

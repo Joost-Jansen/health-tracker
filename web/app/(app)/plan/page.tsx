@@ -15,13 +15,14 @@ import VolumeChart from "@/components/plan/VolumeChart";
 import WeekCard from "@/components/plan/WeekView";
 import { buildWeeks, planRace, todayIso } from "@/components/plan/plan";
 import { api } from "@/lib/api";
-import { T } from "@/lib/texts";
+import { useT } from "@/lib/i18n";
 import type { Plan } from "@/lib/training";
 
 type ActiveResponse = { persistent: boolean; plan: Plan | null };
 type Mode = "view" | "edit" | "new" | "import";
 
 export default function PlanPage() {
+  const t = useT();
   const qc = useQueryClient();
   const [mode, setMode] = useState<Mode>("view");
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
@@ -46,12 +47,12 @@ export default function PlanPage() {
   const race = useMemo(() => planRace(plan?.race, plan?.sessions ?? []), [plan]);
   useEffect(() => setToggled({}), [plan?.id]);
 
-  if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
-  if (!q.data) return <p className="text-sm text-ink-muted">Kon het schema niet laden.</p>;
+  if (q.isLoading) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">{t.plan.loadFailed}</p>;
 
   const warn = !q.data.persistent && (
     <p className="rounded border border-border bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px] text-ink-muted">
-      Let op: de database is nog niet gekoppeld (DATABASE_URL). Schema&apos;s worden tijdelijk opgeslagen en verdwijnen bij een nieuwe deploy.
+      {t.plan.noDatabase}
     </p>
   );
 
@@ -80,12 +81,12 @@ export default function PlanPage() {
         <section className="rounded border border-border bg-surface p-4 sm:p-[18px]">
           <EmptyState
             icon={<CalendarIcon width={22} height={22} />}
-            title="Nog geen actief schema"
-            body="Maak er zelf een met de editor, plak een tabel uit een spreadsheet, of laat een coachingagent er een maken (die schrijft via dezelfde API)."
+            title={t.plan.emptyTitle}
+            body={t.plan.emptyBody}
             action={
               <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <Button size="sm" variant="primary" onClick={() => go("new")}>Schema maken</Button>
-                <Button size="sm" variant="ghost" onClick={() => go("import")}>Plakken uit tabel</Button>
+                <Button size="sm" variant="primary" onClick={() => go("new")}>{t.plan.create}</Button>
+                <Button size="sm" variant="ghost" onClick={() => go("import")}>{t.plan.paste}</Button>
               </div>
             }
           />
@@ -110,13 +111,13 @@ export default function PlanPage() {
           weekCount={weeks.length}
           onEdit={() => go("edit")}
           onNew={() => go("new")}
-          onFinish={() => confirm("Schema afronden? Het verdwijnt dan van deze pagina en van Vandaag.") && finish.mutate(plan.id)}
+          onFinish={() => confirm(t.plan.finishConfirm) && finish.mutate(plan.id)}
         />
         <VolumeChart weeks={weeks} today={today} raceDate={race.date} />
       </div>
 
       {pastCount > 0 && pastCount === weeks.length && (
-        <p className="text-[13px] text-ink-muted">Alle weken van dit schema liggen achter je. Rond het af of maak een nieuw schema.</p>
+        <p className="text-[13px] text-ink-muted">{t.plan.allPast}</p>
       )}
       <div className="flex flex-col gap-3">
         {weeks.map((w, i) => (
@@ -132,7 +133,7 @@ export default function PlanPage() {
           />
         ))}
       </div>
-      <p className="max-w-prose text-[12px] text-ink-muted">{T.plan.matching}</p>
+      <p className="max-w-prose text-[12px] text-ink-muted">{t.texts.plan.matching}</p>
     </div>
   );
 }

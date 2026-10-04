@@ -1,6 +1,8 @@
 // Doelzone als gekleurd etiket in de zonekleuren (--zone-1..5). Een bereik (Z2-Z3) krijgt een verloop van de
 // eerste naar de laatste zone.
 
+import { useT } from "@/lib/i18n";
+
 const zoneVar = (n: number) => `var(--zone-${n})`;
 
 export function zoneNumbers(zone: string | null | undefined): number[] {
@@ -11,6 +13,7 @@ export function zoneNumbers(zone: string | null | undefined): number[] {
 }
 
 export default function ZoneChip({ zone, className = "" }: { zone?: string | null; className?: string }) {
+  const t = useT();
   const nums = zoneNumbers(zone);
   if (!nums.length) return null;
   const lo = nums[0], hi = nums[nums.length - 1];
@@ -21,7 +24,7 @@ export default function ZoneChip({ zone, className = "" }: { zone?: string | nul
     <span
       className={`inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11px] font-semibold tabular-nums ${className}`}
       style={{ background: bg, boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${zoneVar(hi)} 45%, transparent)` }}
-      title={`Doelzone ${lo === hi ? `Z${lo}` : `Z${lo}-Z${hi}`}`}
+      title={t.plan.zoneTitle(lo === hi ? `Z${lo}` : `Z${lo}-Z${hi}`)}
     >
       <span className="flex gap-[2px]" aria-hidden>
         {[lo, hi].filter((z, i) => i === 0 || z !== lo).map((z) => (

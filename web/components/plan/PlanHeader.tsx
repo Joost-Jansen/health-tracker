@@ -6,29 +6,33 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Markdown from "@/components/log/Markdown";
 import { Button } from "@/components/ds";
+import { useFormat, useT } from "@/lib/i18n";
 import type { Plan } from "@/lib/training";
-import { daysBetween, fmtLong, fmtNum } from "./plan";
+import { daysBetween } from "./plan";
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 function Countdown({ name, date, today }: { name: string; date: string; today: string }) {
+  const t = useT();
+  const f = useFormat();
   const days = daysBetween(today, date);
-  const big = days > 0 ? String(days) : days === 0 ? "Vandaag" : "✓";
-  const line = days > 1 ? "dagen tot" : days === 1 ? "dag tot" : days === 0 ? "is het zover:" : "geweest:";
+  const big = days > 0 ? f.num(days) : days === 0 ? t.plan.header.today : "✓";
+  const line = days > 0 ? t.plan.header.daysTo(days, name) : t.plan.header.todayIs(name);
   return (
     <div className="flex min-w-[150px] flex-col justify-center rounded-md bg-[var(--surface-brand-soft)] px-4 py-3 sm:items-end sm:text-right">
       <span className="flex items-baseline gap-2 sm:flex-col sm:items-end sm:gap-0">
-        <span className="font-display text-[40px] font-light leading-none tabular-nums text-brand">{days < 0 ? fmtNum(-days, 0) : big}</span>
+        <span className="font-display text-[40px] font-light leading-none tabular-nums text-brand">{days < 0 ? f.num(-days) : big}</span>
         <span className="text-[12.5px] text-[var(--text-secondary)]">
-          {days < 0 ? `dagen geleden: ${name || "wedstrijd"}` : `${line} ${name || "de wedstrijd"}`}
+          {days < 0 ? t.plan.header.daysAgo(name) : line}
         </span>
       </span>
-      <span className="mt-1 text-[12px] text-ink-muted">{fmtLong(date)}</span>
+      <span className="mt-1 text-[12px] text-ink-muted">{f.long(date)}</span>
     </div>
   );
 }
 
 function Notes({ text }: { text: string }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [long, setLong] = useState(false);
@@ -44,7 +48,7 @@ function Notes({ text }: { text: string }) {
       </div>
       {long && (
         <button type="button" className="mt-1 text-[12.5px] font-semibold text-brand hover:underline" onClick={() => setOpen(!open)} aria-expanded={open}>
-          {open ? "Minder" : "Meer"}
+          {open ? t.plan.header.less : t.plan.header.more}
         </button>
       )}
     </div>
@@ -70,6 +74,8 @@ export default function PlanHeader({
   onNew: () => void;
   onFinish: () => void;
 }) {
+  const t = useT();
+  const h = t.plan.header;
   const train = plan.sessions.filter((s) => s.sport !== "rest");
   const done = train.filter((s) => s.status === "gedaan").length;
   const due = train.filter((s) => s.status === "gedaan" || s.status === "gemist").length;
@@ -81,44 +87,44 @@ export default function PlanHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
         <div className="min-w-0">
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-            Actief schema{weekIndex != null ? ` · week ${weekIndex + 1} van ${weekCount}` : ` · ${weekCount} ${weekCount === 1 ? "week" : "weken"}`}
+            {h.active} · {weekIndex != null ? h.weekOf(weekIndex + 1, weekCount) : h.weeks(weekCount)}
           </span>
           <h1 className="mt-1 font-display text-[28px] font-light leading-tight sm:text-[32px]">{plan.title}</h1>
           {plan.goal && (
             <p className="mt-1.5 text-[14px]">
-              <span className="text-ink-muted">Doel: </span>
+              <span className="text-ink-muted">{h.goal}</span>
               <span className="font-medium">{plan.goal}</span>
             </p>
           )}
           {race.name && !race.date && <p className="mt-0.5 text-[13px] text-ink-muted">{race.name}</p>}
           <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-ink-muted">
             <div>
-              <dt className="sr-only">Uitgevoerd</dt>
+              <dt className="sr-only">{h.doneLabel}</dt>
               <dd>
                 {pct != null ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="inline-block h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-inset)]">
                       <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: "var(--data-gain)" }} />
                     </span>
-                    <span className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{done} van {due}</span> sessies tot nu gedaan</span>
+                    <span className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{h.doneOf(done, due)}</span>{h.sessionsDone}</span>
                   </span>
                 ) : (
-                  "Nog niets te vergelijken"
+                  h.nothingYet
                 )}
               </dd>
             </div>
-            <div><dt className="sr-only">Nog te gaan</dt><dd className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{left}</span> nog te gaan</dd></div>
-            <div><dt className="sr-only">Gemaakt door</dt><dd>gemaakt door {plan.author}</dd></div>
+            <div><dt className="sr-only">{h.leftLabel}</dt><dd className="tabular-nums"><span className="font-semibold text-[var(--text-primary)]">{left}</span>{h.left}</dd></div>
+            <div><dt className="sr-only">{h.byLabel}</dt><dd>{h.by(plan.author)}</dd></div>
           </dl>
         </div>
         {race.date && <Countdown name={race.name} date={race.date} today={today} />}
       </div>
       {plan.notes && <Notes text={plan.notes} />}
       <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
-        <Button size="sm" onClick={onEdit}>Bewerken</Button>
-        <Button size="sm" variant="ghost" onClick={onNew}>Nieuw schema</Button>
+        <Button size="sm" onClick={onEdit}>{t.common.edit}</Button>
+        <Button size="sm" variant="ghost" onClick={onNew}>{h.newPlan}</Button>
         <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={onFinish}>Afronden</Button>
+        <Button size="sm" variant="ghost" onClick={onFinish}>{h.finish}</Button>
       </div>
     </section>
   );

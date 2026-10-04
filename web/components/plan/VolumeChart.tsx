@@ -5,14 +5,18 @@
 // 10 km lopen tellen niet op tot iets zinnigs.
 
 import { useMemo, useState } from "react";
-import { T } from "@/lib/texts";
+import { useFormat, useT } from "@/lib/i18n";
 import type { PlanSession } from "@/lib/training";
 import InfoPopover from "@/components/InfoPopover";
-import { type Week, fmtDayMonth, fmtNum, kmBySport, sportColour, sportName } from "./plan";
+import { type Week, kmBySport, sportColour } from "./plan";
 
 const RACE = /wedstrijd|race/i;
 
 export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[]; today: string; raceDate: string | null }) {
+  const t = useT();
+  const f = useFormat();
+  const v = t.plan.volume;
+  const fmtNum = (n: number) => f.trim(n);
   const sports = useMemo(() => {
     const all = kmBySport(weeks.flatMap((w) => w.sessions) as PlanSession[]);
     return Object.entries(all).filter(([, v]) => v.planned > 0).sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned)).map(([s]) => s);
@@ -37,11 +41,11 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
     <section className="flex flex-col rounded border border-border bg-surface p-4 sm:p-[18px]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-[13.5px] font-semibold">
-          Kilometers per week
-          <InfoPopover label="Uitleg kilometers per week">{T.plan.volume}</InfoPopover>
+          {v.title}
+          <InfoPopover label={t.common.explain(v.title.toLowerCase())}>{t.texts.plan.volume}</InfoPopover>
         </h2>
         {sports.length > 1 && (
-          <div className="flex gap-1" role="group" aria-label="Sport">
+          <div className="flex gap-1" role="group" aria-label={v.sport}>
             {sports.map((s) => (
               <button
                 key={s}
@@ -51,18 +55,18 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
                 className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] ${s === sport ? "bg-[var(--surface-active)] font-semibold" : "text-ink-muted hover:bg-[var(--surface-hover)]"}`}
               >
                 <span className="inline-block h-2 w-2 rounded-full" style={{ background: sportColour(s) }} aria-hidden />
-                {sportName(s)}
+                {t.sport(s)}
               </button>
             ))}
           </div>
         )}
       </div>
       <p className="mb-3 text-[12px] tabular-nums text-ink-muted">
-        {fmtNum(done)} van {fmtNum(total)} km {sportName(sport).toLowerCase()} gedaan
+        {v.doneOf(fmtNum(done), fmtNum(total), sport)}
       </p>
-      <div className="flex h-[132px] items-end gap-2 sm:gap-3 lg:h-auto lg:min-h-[132px] lg:flex-1" role="list" aria-label={`Kilometers ${sportName(sport).toLowerCase()} per week`}>
+      <div className="flex h-[132px] items-end gap-2 sm:gap-3 lg:h-auto lg:min-h-[132px] lg:flex-1" role="list" aria-label={v.aria(sport)}>
         {rows.map((r) => (
-          <div key={r.monday} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`Week van ${fmtDayMonth(r.monday)}: ${fmtNum(r.done)} van ${fmtNum(r.planned)} km`}>
+          <div key={r.monday} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={v.bar(f.dayMonth(r.monday), fmtNum(r.done), fmtNum(r.planned))}>
             <span className="mb-1 text-[11.5px] tabular-nums text-ink-muted">
               {r.started && r.done > 0 ? <><span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/</> : null}
               {r.raceKm > 0 && r.planned > r.raceKm ? <>{fmtNum(r.planned - r.raceKm)}<span className="text-brand"> + {fmtNum(r.raceKm)}</span></> : fmtNum(r.planned)}
@@ -86,20 +90,20 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
       <div className="mt-1.5 flex gap-2 border-t border-border pt-1.5 sm:gap-3">
         {rows.map((r) => (
           <span key={r.monday} className={`min-w-0 flex-1 truncate text-center text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}>
-            {r.race ? "Race" : r.current ? "Nu" : fmtDayMonth(r.monday)}
+            {r.race ? v.race : r.current ? v.now : f.dayMonth(r.monday)}
           </span>
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: colour }} aria-hidden /> Gedaan
+          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: colour }} aria-hidden /> {v.done}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 40%, transparent) 0 2px, transparent 2px 4px)` }} aria-hidden /> Gepland
+          <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: `repeating-linear-gradient(135deg, color-mix(in srgb, ${colour} 40%, transparent) 0 2px, transparent 2px 4px)` }} aria-hidden /> {v.planned}
         </span>
         {rows.some((r) => r.raceKm > 0) && (
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)" }} aria-hidden /> Wedstrijd
+            <span className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: "color-mix(in srgb, var(--surface-brand) 22%, var(--surface-card))", boxShadow: "inset 0 0 0 1.5px var(--surface-brand)" }} aria-hidden /> {v.raceLegend}
           </span>
         )}
       </div>

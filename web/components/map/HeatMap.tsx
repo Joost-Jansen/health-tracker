@@ -5,9 +5,11 @@
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
+import { useT } from "@/lib/i18n";
 import { cssVar, tileLayerFor, useDark } from "./useTheme";
 
 export default function HeatMap({ tracks, height = 520 }: { tracks: [number, number][][]; height?: number }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const dark = useDark();
 
@@ -40,6 +42,6 @@ export default function HeatMap({ tracks, height = 520 }: { tracks: [number, num
     };
   }, [tracks, dark]);
 
-  if (tracks.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">Geen routes met GPS.</p>;
-  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label={`Heatmap van ${tracks.length} routes`} />;
+  if (tracks.length === 0) return <p className="py-6 text-center text-sm text-ink-muted">{t.history.noGps}</p>;
+  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label={t.history.heatAria(tracks.length)} />;
 }

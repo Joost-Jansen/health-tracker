@@ -316,6 +316,7 @@ export const nl = {
     heatRoutes: (n: number) => f.plural(n, { one: "# route.", other: "# routes." }),
     heatNote: "Hoe vaker je ergens langs komt, hoe voller de lijn. De kaart start bij thuis; zoom uit voor vakanties.",
     heatAria: (n: number) => `Heatmap van ${n} routes`,
+    noGps: "Geen routes met GPS.",
   },
 
   activity: {
@@ -399,6 +400,7 @@ export const nl = {
     summary: (n: number, done: string, since: string) => `${n}× ${done} sinds ${since}`,
     map: "Kaart",
     mostTypical: "Meest typische keer",
+    noTrack: "Geen GPS-spoor voor deze route.",
     mapNote: (n: number) => `Dikke lijn: de meest typische keer (lijkt het meest op alle andere). Dun en licht: de ${n} andere keren, zodat je ziet waar je afweek of eerder of later begon.`,
     mapAria: (n: number): string => (n ? `Kaart van de route met ${n} andere keren licht eronder` : "Kaart van de route"),
     speedTitle: "Snelheid op dit rondje",

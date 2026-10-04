@@ -8,6 +8,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type * as L from "leaflet";
 import { ZONES, type Zone } from "@/lib/training";
+import { useT } from "@/lib/i18n";
 import { cssVar, tileLayerFor, useDark } from "./useTheme";
 
 type Track = { latlng: [number, number][]; zone: (Zone | null)[] };
@@ -24,6 +25,7 @@ function segments(track: Track) {
 }
 
 export default function ActivityMap({ track, cursor, height = 360 }: { track: Track; cursor?: number | null; height?: number }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.CircleMarker | null>(null);
@@ -48,8 +50,8 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
       const ink = cssVar("--n-800", "#1f2a26");
       const start = track.latlng[0];
       const end = track.latlng[track.latlng.length - 1];
-      Lf.circleMarker(end, { radius: 5, color: casing, weight: 2, fillColor: ink, fillOpacity: 1 }).bindTooltip("Finish").addTo(m);
-      Lf.circleMarker(start, { radius: 5, color: ink, weight: 2, fillColor: casing, fillOpacity: 1 }).bindTooltip("Start").addTo(m);
+      Lf.circleMarker(end, { radius: 5, color: casing, weight: 2, fillColor: ink, fillOpacity: 1 }).bindTooltip(t.common.finish).addTo(m);
+      Lf.circleMarker(start, { radius: 5, color: ink, weight: 2, fillColor: casing, fillOpacity: 1 }).bindTooltip(t.common.start).addTo(m);
       marker.current = Lf.circleMarker(start, { radius: 6, color: casing, weight: 2, fillColor: cssVar("--sage-600", "#3e7258"), fillOpacity: 0, opacity: 0 }).addTo(m);
       m.fitBounds(Lf.latLngBounds(track.latlng), { padding: [16, 16] });
     })();
@@ -59,7 +61,7 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
       map.current = null;
       marker.current = null;
     };
-  }, [track, dark]);
+  }, [track, dark, t]);
 
   useEffect(() => {
     const mk = marker.current;
@@ -73,5 +75,5 @@ export default function ActivityMap({ track, cursor, height = 360 }: { track: Tr
     mk.setStyle({ opacity: 1, fillOpacity: 1 });
   }, [cursor, track]);
 
-  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label="Kaart van de route, gekleurd per hartslagzone" />;
+  return <div ref={box} className="z-0 w-full overflow-hidden rounded" style={{ height }} role="img" aria-label={t.activity.mapAria} />;
 }

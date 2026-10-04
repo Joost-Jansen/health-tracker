@@ -35,7 +35,8 @@ export function makeFormat(locale: Locale) {
   const dateWith = (o: Intl.DateTimeFormatOptions) => (iso: string | null | undefined) => {
     if (!iso) return "–";
     const d = toDate(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(tag, o).replace(/\.(?=\s|$)/g, "");
+    // en-GB writes "Sept"; the charts' time axis says "Sep", keep one spelling.
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(tag, o).replace(/\.(?=\s|$)/g, "").replace(/\bSept\b/, "Sep");
   };
   const clock = (seconds?: number | null) => {
     if (seconds == null) return "–";

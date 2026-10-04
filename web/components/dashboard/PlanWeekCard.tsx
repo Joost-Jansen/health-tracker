@@ -36,17 +36,15 @@ function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
   const pct = planned ? Math.min(100, (done / planned) * 100) : row.sessions ? (row.done / row.sessions) * 100 : 0;
   const amount = byKm ? t.ofPlanned(fmtKm(row.done_km), fmtKm(row.planned_km)) : planned ? t.ofPlanned(fmtDuration(row.done_s), fmtDuration(row.planned_s)) : t.ofPlanned(String(row.done), String(row.sessions));
   return (
-    <li className="grid grid-cols-[22px_1fr_auto] items-center gap-x-2.5 gap-y-1 border-t border-border py-2 text-[13px] first:border-t-0">
-      <SportBadge sport={sport} size={22} />
-      <span className="min-w-0">
-        <span className="font-medium">{sportLabel(sport)}</span>
-        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
-          <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: "var(--data-gain)" }} />
-        </span>
-      </span>
+    <li className="grid grid-cols-[22px_1fr_auto] items-baseline gap-x-2.5 gap-y-1 border-t border-border py-2 text-[13px] first:border-t-0">
+      <span className="row-span-2 self-center"><SportBadge sport={sport} size={22} /></span>
+      <span className="font-medium">{sportLabel(sport)}</span>
       <span className="text-right tabular-nums">
-        <span className="block">{amount}</span>
-        {byKm && row.planned_s > 0 && <span className="block text-[11.5px] text-ink-muted">{t.ofPlanned(fmtDuration(row.done_s), fmtDuration(row.planned_s))}</span>}
+        {amount}
+        {byKm && row.planned_s > 0 && <span className="ml-2 text-[11.5px] text-ink-muted">{t.ofPlanned(fmtDuration(row.done_s), fmtDuration(row.planned_s))}</span>}
+      </span>
+      <span className="col-span-2 block h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: "var(--data-gain)" }} />
       </span>
     </li>
   );

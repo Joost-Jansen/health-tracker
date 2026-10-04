@@ -65,3 +65,9 @@ def test_run_without_heart_rate_or_streams_gives_nothing():
     s["heartrate"] = [None] * len(s["time"])
     assert run_stats(s) is None
     assert run_stats({}) is None
+
+
+def test_low_against_the_relation_but_close_to_the_run_itself_is_not_flagged():
+    # an easy day: the whole run sits 30 bpm under the usual relation, the first km only 10 under the rest of the run
+    assert assess(run_stats(run_streams(hr=120, start_hr=110)), reference()) == []
+    assert assess(run_stats(run_streams(hr=150, start_hr=110)), reference()) == ["low_start"]

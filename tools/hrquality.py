@@ -4,7 +4,9 @@ A wrist sensor often reads far too low in the first minutes (poor contact, cold 
 out. Three checks, each a reason code:
 
 - ``low_start``: in the first km (after a two-minute lag) the heart rate is far below what this user's own pace-HR
-  relation expects at that speed. Without enough runs for a relation, the run's own steady part is the reference.
+  relation expects at that speed, and (when the rest of the run went at a similar speed) also far below the run's own
+  steady part, so an easy day is not mistaken for a sensor problem. Without enough runs for a relation, the run's own
+  steady part is the only reference.
 - ``flat``: the heart rate stays at exactly one value for minutes while moving.
 - ``dropout``: no heart rate for a minute or more while moving.
 
@@ -114,13 +116,16 @@ def assess(stats: dict | None, relation: Relation | None) -> list[str]:
     if not stats:
         return []
     out = []
-    if stats["start_hr"] is not None:
-        expected = None
+    start = stats["start_hr"]
+    if start is not None:
+        similar = stats["steady_hr"] is not None and stats["start_v"] >= SIMILAR_SPEED * stats["steady_v"]
+        below_self = start < stats["steady_hr"] - LOW_START_BPM if similar else None
         if relation is not None:
-            expected, margin = relation.at(stats["start_v"]), max(LOW_START_BPM, 3 * relation.sd)
-        elif stats["steady_hr"] is not None and stats["start_v"] >= SIMILAR_SPEED * stats["steady_v"]:
-            expected, margin = stats["steady_hr"], LOW_START_BPM
-        if expected is not None and stats["start_hr"] < expected - margin:
+            below_relation = start < relation.at(stats["start_v"]) - max(LOW_START_BPM, 3 * relation.sd)
+            low = below_relation and below_self is not False
+        else:
+            low = bool(below_self)
+        if low:
             out.append("low_start")
     if stats["flat_s"] >= FLAT_S:
         out.append("flat")

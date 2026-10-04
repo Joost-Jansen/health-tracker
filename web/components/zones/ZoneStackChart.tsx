@@ -9,7 +9,8 @@
 // component.
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { fmtDuration, ZONE_COLOUR, ZONES, type ZoneHistoryItem } from "@/lib/training";
+import { useFormat, useT } from "@/lib/i18n";
+import { ZONE_COLOUR, ZONES, type ZoneHistoryItem } from "@/lib/training";
 
 export type ZoneStackBar = ZoneHistoryItem & {
   /** Kort label onder de staaf. */
@@ -29,6 +30,8 @@ export default function ZoneStackChart({
   labelEvery?: number;
   ariaLabel: string;
 }) {
+  const t = useT();
+  const f = useFormat();
   const [active, setActive] = useState<number | null>(null);
   const shown = active !== null ? bars[active] : null;
   // Hoeveel labels passen er op deze breedte? Een label ("25 mei") is ~45 px; op een telefoon met 27 weken
@@ -53,7 +56,7 @@ export default function ZoneStackChart({
           <>
             <span className="text-[13px]">
               <span className="font-semibold">{shown.label}</span>
-              <span className="text-ink-muted"> · {shown.total_s ? `${fmtDuration(shown.total_s)} u` : "geen hartslagdata"}{shown.partial ? " · loopt nog" : ""}</span>
+              <span className="text-ink-muted"> · {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}{shown.partial ? ` · ${t.zones.running}` : ""}</span>
             </span>
             {shown.total_s > 0 && (
               <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
@@ -62,7 +65,7 @@ export default function ZoneStackChart({
                     <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[z] }} />
                     <span className="text-ink-muted">{z}</span>
                     <span className="font-medium">{Math.round(shown.pct[z])}%</span>
-                    <span className="text-ink-muted">{fmtDuration(shown.seconds[z])}</span>
+                    <span className="text-ink-muted">{f.duration(shown.seconds[z])}</span>
                   </span>
                 ))}
               </span>
@@ -82,7 +85,7 @@ export default function ZoneStackChart({
             onBlur={() => setActive(null)}
             onMouseEnter={() => setActive(i)}
             onClick={() => setActive(i)}
-            aria-label={`${bar.label}: ${bar.total_s ? ZONES.map((z) => `${z} ${Math.round(bar.pct[z])}%`).join(", ") : "geen hartslagdata"}`}
+            aria-label={`${bar.label}: ${bar.total_s ? ZONES.map((z) => `${z} ${Math.round(bar.pct[z])}%`).join(", ") : t.zones.noHr}`}
             className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
           >
             {bar.total_s > 0 ? (
@@ -129,7 +132,7 @@ export default function ZoneStackChart({
             {z}
           </span>
         ))}
-        {bars.some((b) => b.partial) && <span>· lichter = loopt nog</span>}
+        {bars.some((b) => b.partial) && <span>· {t.zones.lighter}</span>}
       </div>
     </div>
   );

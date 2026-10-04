@@ -4,15 +4,15 @@
 import Card from "@/components/Card";
 import InfoPopover from "@/components/InfoPopover";
 import { SportBadge } from "@/components/plan/SportIcon";
-import { fmtLong } from "@/components/plan/plan";
-import { T } from "@/lib/texts";
-import { fmtDuration, fmtKm, type NextRace, type PlanWeekSport, type PlanWeekSummary, sportLabel } from "@/lib/training";
+import { useFormat, useT } from "@/lib/i18n";
+import type { NextRace, PlanWeekSport, PlanWeekSummary } from "@/lib/training";
 
 const SPORT_ORDER = ["run", "ride", "swim"];
 const bySportOrder = (a: string, b: string) => (SPORT_ORDER.indexOf(a) + 1 || 99) - (SPORT_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b);
 
 function Countdown({ race }: { race: NextRace }) {
-  const t = T.vandaag.race;
+  const t = useT().texts.vandaag.race;
+  const f = useFormat();
   const today = race.days === 0;
   return (
     <div className="mb-3.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 rounded-md bg-[var(--surface-brand-soft)] px-3.5 py-2.5">
@@ -21,7 +21,7 @@ function Countdown({ race }: { race: NextRace }) {
         {today ? t.todayIs(race.name) : `${t.days(race.days)} ${t.until(race.name)}`}
       </span>
       <span className="w-full text-[12px] text-ink-muted sm:ml-auto sm:w-auto">
-        {[fmtLong(race.date), race.distance_km ? fmtKm(race.distance_km) : null].filter(Boolean).join(" · ")}
+        {[f.long(race.date), race.distance_km ? f.km(race.distance_km) : null].filter(Boolean).join(" · ")}
       </span>
     </div>
   );
@@ -29,19 +29,21 @@ function Countdown({ race }: { race: NextRace }) {
 
 /** Kilometers als het schema afstanden heeft, anders de tijd. */
 function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
-  const t = T.vandaag.planWeek;
+  const tt = useT();
+  const t = tt.texts.vandaag.planWeek;
+  const f = useFormat();
   const byKm = row.planned_km > 0;
   const planned = byKm ? row.planned_km : row.planned_s;
   const done = byKm ? row.done_km : row.done_s;
   const pct = planned ? Math.min(100, (done / planned) * 100) : row.sessions ? (row.done / row.sessions) * 100 : 0;
-  const amount = byKm ? t.ofPlanned(fmtKm(row.done_km), fmtKm(row.planned_km)) : planned ? t.ofPlanned(fmtDuration(row.done_s), fmtDuration(row.planned_s)) : t.ofPlanned(String(row.done), String(row.sessions));
+  const amount = byKm ? t.ofPlanned(f.km(row.done_km), f.km(row.planned_km)) : planned ? t.ofPlanned(f.duration(row.done_s), f.duration(row.planned_s)) : t.ofPlanned(String(row.done), String(row.sessions));
   return (
     <li className="grid grid-cols-[22px_1fr_auto] items-baseline gap-x-2.5 gap-y-1 border-t border-border py-2 text-[13px] first:border-t-0">
       <span className="row-span-2 self-center"><SportBadge sport={sport} size={22} /></span>
-      <span className="font-medium">{sportLabel(sport)}</span>
+      <span className="font-medium">{tt.sport(sport)}</span>
       <span className="text-right tabular-nums">
         {amount}
-        {byKm && row.planned_s > 0 && <span className="ml-2 text-[11.5px] text-ink-muted">{t.ofPlanned(fmtDuration(row.done_s), fmtDuration(row.planned_s))}</span>}
+        {byKm && row.planned_s > 0 && <span className="ml-2 text-[11.5px] text-ink-muted">{t.ofPlanned(f.duration(row.done_s), f.duration(row.planned_s))}</span>}
       </span>
       <span className="col-span-2 block h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
         <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: "var(--data-gain)" }} />
@@ -51,7 +53,7 @@ function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
 }
 
 export default function PlanWeekCard({ week, race, className = "" }: { week: PlanWeekSummary; race?: NextRace | null; className?: string }) {
-  const t = T.vandaag.planWeek;
+  const t = useT().texts.vandaag.planWeek;
   const sports = Object.keys(week.sports).sort(bySportOrder);
   const c = week.sessions;
   return (

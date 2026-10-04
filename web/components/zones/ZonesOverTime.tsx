@@ -9,7 +9,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Select, Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
-import { fmtDuration, sportLabel, ZONE_COLOUR, ZONES, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
+import { useFormat, useT } from "@/lib/i18n";
+import { periodLabel } from "@/lib/i18n/period";
+import { ZONE_COLOUR, ZONES, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
 import { compareZones, fmtPct, fmtPp } from "./compare";
 import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
 
@@ -19,23 +21,15 @@ const DEFAULT_X: Record<ZonePeriod, number> = { week: 4, month: 3 };
 // en de keuze van X niets opnieuw te laden.
 const COUNT: Record<ZonePeriod, number> = { week: 104, month: 36 };
 const FALLBACK_SHOWN = 12;
-const MONTHS_SHORT = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-
-const unit = (p: ZonePeriod, n: number) => (p === "week" ? (n === 1 ? "week" : "weken") : n === 1 ? "maand" : "maanden");
-
-function short(period: ZonePeriod, start: string): string {
-  const d = new Date(start + "T12:00:00");
-  if (period === "week") return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-  return MONTHS_SHORT[d.getMonth()];
-}
 
 // Twee rijen in één grid (zie gebruik), zodat beide balken op dezelfde x beginnen.
 function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: string }) {
+  const t = useT();
   return (
     <>
       <span className="text-[12px] text-ink-muted">{label}</span>
       <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "var(--surface-inset)" }} role="img"
-        aria-label={pct ? ZONES.map((z) => `${z} ${Math.round(pct[z])}%`).join(", ") : "geen data"}>
+        aria-label={pct ? ZONES.map((z) => `${z} ${Math.round(pct[z])}%`).join(", ") : t.zones.noData}>
         {pct && ZONES.map((z) => pct[z] > 0 && <div key={z} style={{ width: `${pct[z]}%`, background: ZONE_COLOUR[z] }} />)}
       </div>
     </>
@@ -44,6 +38,11 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
 
 /** `sport`: het sportfilter van de pagina ("all" of één sport). Dan volgt de kaart dat en toont geen eigen keuze. */
 export default function ZonesOverTime({ window: win, sport: pageSport }: { window?: { from: string; to: string }; sport?: string }) {
+  const t = useT();
+  const f = useFormat();
+  const z = t.zones;
+  const unit = z.unit;
+  const short = (p: ZonePeriod, start: string) => (p === "week" ? f.dayMonth(start) : f.monthShort(start));
   const [period, setPeriod] = useState<ZonePeriod>("week");
   const [ownSport, setSport] = useState("all");
   const sport = pageSport ?? ownSport;
@@ -55,7 +54,11 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
     queryFn: () => api.get<ZoneHistory>(`/api/zones/history?period=${period}&count=${COUNT[period]}&sport=${encodeURIComponent(sport)}`),
     placeholderData: keepPreviousData,
   });
-  const h = q.data;
+  // The API's labels are Dutch; build them in the user's language from start and end.
+  const h = useMemo<ZoneHistory | undefined>(
+    () => (q.data ? { ...q.data, items: q.data.items.map((it) => ({ ...it, label: periodLabel(q.data!.period, it.start, it.end, t, f) })) } : undefined),
+    [q.data, t, f],
+  );
 
   const bars = useMemo<ZoneStackBar[]>(() => {
     if (!h) return [];
@@ -65,6 +68,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
       ? h.items.filter((it) => it.end >= win.from && it.start <= win.to)
       : h.items.slice(-FALLBACK_SHOWN);
     return items.map((it) => ({ ...it, short: short(h.period, it.start), partial: it === last }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [h, win?.from, win?.to]);
 
   const cmp = useMemo(() => (h ? compareZones(h.items, x, which) : null), [h, x, which]);
@@ -80,41 +84,41 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
     const tot = items.reduce((s, b) => s + b.total_s, 0);
     return tot ? ZONES.map((z) => `${z} ${Math.round((items.reduce((s, b) => s + b.seconds[z], 0) / tot) * 100)}%`).join(" · ") : "";
   };
-  const thisName = period === "week" ? (which === "current" ? "Deze week" : "Vorige week") : which === "current" ? "Deze maand" : "Vorige maand";
-  const avgName = `Gem. vorige ${x} ${unit(period, x)}`;
+  const thisName = (which === "current" ? z.current : z.previous)[period];
+  const avgName = z.avgPrev(x, unit(period, x));
 
   return (
     <Card
-      title="Tijd per hartslagzone over tijd"
+      title={z.title}
       action={
         <div className="flex flex-wrap items-center gap-2">
           {pageSport === undefined && (
-            <Select aria-label="Sport" value={sport} onChange={(e) => setSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
-              <option value="all">Alle sporten</option>
+            <Select aria-label={t.history.sport} value={sport} onChange={(e) => setSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
+              <option value="all">{t.sport("all")}</option>
               {(sports.includes(sport) || sport === "all" ? sports : [...sports, sport]).map((s) => (
-                <option key={s} value={s}>{sportLabel(s)}</option>
+                <option key={s} value={s}>{t.sport(s)}</option>
               ))}
             </Select>
           )}
-          <Tabs variant="segmented" items={[{ id: "week", label: "Week" }, { id: "month", label: "Maand" }]} value={period} onChange={(v) => switchPeriod(v as ZonePeriod)} ariaLabel="Week of maand" />
+          <Tabs variant="segmented" items={[{ id: "week", label: t.dashboard.week }, { id: "month", label: t.dashboard.month }]} value={period} onChange={(v) => switchPeriod(v as ZonePeriod)} ariaLabel={z.weekOrMonth} />
         </div>
       }
     >
 
       {q.isLoading ? (
-        <p className="py-6 text-center text-sm text-ink-muted">Laden…</p>
+        <p className="py-6 text-center text-sm text-ink-muted">{t.common.loading}</p>
       ) : !h ? (
-        <p className="py-6 text-center text-sm text-ink-muted">Kon de zones niet laden.</p>
+        <p className="py-6 text-center text-sm text-ink-muted">{z.loadFailed}</p>
       ) : !h.items.some((it) => it.total_s > 0) ? (
         // Nog nergens hartslagdata (nieuw account, of deze sport nooit met hartslag): geen lege staven en een tabel vol streepjes.
-        <p className="py-6 text-center text-sm text-ink-muted">Nog geen trainingen met hartslag{sport === "all" ? "" : ` voor ${sportLabel(sport).toLowerCase()}`}.</p>
+        <p className="py-6 text-center text-sm text-ink-muted">{z.noHrYet(sport === "all" ? null : sport)}</p>
       ) : (
         <div className={`transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
           <ZoneStackChart
             bars={bars}
             labelEvery={Math.max(1, Math.ceil(bars.length / (period === "week" ? 10 : 12)))}
-            ariaLabel={`Verdeling over hartslagzones per ${period === "week" ? "week" : "maand"}, ${bars.length} ${unit(period, bars.length)}`}
-            summary={withData.length ? `${bars.length} ${unit(period, bars.length)} samen: ${avgOver(withData)}` : "Geen hartslagdata in deze periode."}
+            ariaLabel={z.aria(period, bars.length, unit(period, bars.length))}
+            summary={withData.length ? z.together(bars.length, unit(period, bars.length), avgOver(withData)) : z.noHrPeriod}
           />
 
           {cmp && (
@@ -122,14 +126,14 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
                 <Tabs
                   variant="segmented"
-                  items={[{ id: "current", label: period === "week" ? "Deze week" : "Deze maand" }, { id: "previous", label: period === "week" ? "Vorige week" : "Vorige maand" }]}
+                  items={[{ id: "current", label: z.current[period] }, { id: "previous", label: z.previous[period] }]}
                   value={which}
                   onChange={(v) => setWhich(v as "current" | "previous")}
-                  ariaLabel="Welke periode vergelijken"
+                  ariaLabel={z.whichAria}
                 />
                 <label className="flex items-center gap-2 text-[12.5px] text-ink-muted">
-                  vergelijk met gemiddelde van de vorige
-                  <Select aria-label="Aantal perioden" value={String(x)} onChange={(e) => setX(Number(e.target.value))} className="!h-[32px] !w-auto">
+                  {z.compareWith}
+                  <Select aria-label={z.countAria} value={String(x)} onChange={(e) => setX(Number(e.target.value))} className="!h-[32px] !w-auto">
                     {CHOICES[period].map((n) => <option key={n} value={n}>{n} {unit(period, n)}</option>)}
                   </Select>
                 </label>
@@ -144,12 +148,12 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                 <table className="w-full text-[12.5px] tabular-nums sm:text-[13px]">
                   <thead>
                     <tr className="text-left text-[11.5px] text-ink-muted">
-                      <th className="pb-2 font-normal">Zone</th>
+                      <th className="pb-2 font-normal">{z.zone}</th>
                       <th className="pb-2 text-right font-normal">{thisName}</th>
-                      <th className="pb-2 text-right font-normal" title={avgName}>Gem.</th>
-                      <th className="pb-2 text-right font-normal">Verschil</th>
-                      <th className="pb-2 text-right font-normal">Uren</th>
-                      <th className="pb-2 text-right font-normal" title={`Gemiddelde uren per ${period === "week" ? "week" : "maand"}`}>Gem. uren</th>
+                      <th className="pb-2 text-right font-normal" title={avgName}>{z.avg}</th>
+                      <th className="pb-2 text-right font-normal">{z.diff}</th>
+                      <th className="pb-2 text-right font-normal">{z.hours}</th>
+                      <th className="pb-2 text-right font-normal" title={z.avgHoursTitle(period)}>{z.avgHours}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -166,19 +170,19 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                           </td>
                           <td className="py-1.5 text-right font-medium">{fmtPct(r.pct)}</td>
                           <td className="py-1.5 text-right text-ink-muted">{fmtPct(r.avgPct)}</td>
-                          <td className={`py-1.5 text-right ${tone}`}>{fmtPp(r.diff)}</td>
-                          <td className="py-1.5 text-right">{fmtDuration(r.seconds)}</td>
-                          <td className="py-1.5 text-right text-ink-muted">{fmtDuration(r.avgSeconds)}</td>
+                          <td className={`py-1.5 text-right ${tone}`}>{fmtPp(r.diff, f)}</td>
+                          <td className="py-1.5 text-right">{f.duration(r.seconds)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">{f.duration(r.avgSeconds)}</td>
                         </tr>
                       );
                     })}
                     <tr className="border-t border-border-strong">
-                      <td className="py-1.5 font-medium">Totaal</td>
+                      <td className="py-1.5 font-medium">{z.total}</td>
                       <td className="py-1.5" />
                       <td className="py-1.5" />
                       <td className="py-1.5" />
-                      <td className="py-1.5 text-right font-medium">{fmtDuration(cmp.total.seconds)}</td>
-                      <td className="py-1.5 text-right text-ink-muted">{fmtDuration(cmp.total.avgSeconds)}</td>
+                      <td className="py-1.5 text-right font-medium">{f.duration(cmp.total.seconds)}</td>
+                      <td className="py-1.5 text-right text-ink-muted">{f.duration(cmp.total.avgSeconds)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -186,10 +190,10 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
 
               <p className="mt-2 text-[11.5px] text-ink-muted">
                 {cmp.target.label.charAt(0).toUpperCase() + cmp.target.label.slice(1)}
-                {which === "current" ? " loopt nog: het aandeel is al te vergelijken, de uren nog niet." : "."}
-                {cmp.target.total_s === 0 && " Geen hartslagdata in deze periode."}
-                {" "}Gemiddeld aandeel is tijdgewogen over {cmp.periods} {unit(period, cmp.periods)} ({cmp.withData} met hartslagdata); uren zijn per {period === "week" ? "week" : "maand"} (u:mm).
-                {sport === "all" && " Alle sporten telt elke sport met zijn eigen zones."}
+                {which === "current" ? z.runningNote : "."}
+                {cmp.target.total_s === 0 && ` ${z.noHrPeriod}`}
+                {" "}{z.method(cmp.periods, unit(period, cmp.periods), cmp.withData, period)}
+                {sport === "all" && ` ${z.allSports}`}
               </p>
             </div>
           )}

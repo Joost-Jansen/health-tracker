@@ -101,6 +101,8 @@ export function makeFormat(locale: Locale) {
     monthShortYear: dateWith({ month: "short", year: "2-digit" }),
     /** "okt". */
     monthShort: dateWith({ month: "short" }),
+    /** Any date with Intl options, e.g. { weekday: "long" }. */
+    date: (iso: string | null | undefined, o: Intl.DateTimeFormatOptions) => dateWith(o)(iso),
     /** "4 okt 2026, 06:02". */
     dateTime: dateWith({ day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
     /** "a, b en c" / "a, b and c". */

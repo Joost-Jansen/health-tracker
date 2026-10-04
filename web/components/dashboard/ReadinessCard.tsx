@@ -2,7 +2,7 @@
 // (api/readiness.py); de zinnen komen uit T.vandaag.readiness.
 
 import Card from "@/components/Card";
-import { T } from "@/lib/texts";
+import { useT } from "@/lib/i18n";
 import type { Readiness } from "@/lib/training";
 
 const VERDICT_COLOUR: Record<Readiness["verdict"], string> = {
@@ -14,6 +14,7 @@ const VERDICT_COLOUR: Record<Readiness["verdict"], string> = {
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
 
 export default function ReadinessCard({ r, className = "" }: { r: Readiness; className?: string }) {
+  const T = useT().texts;
   const t = T.vandaag.readiness;
   const advice = r.verdict === "onbekend" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
   const text = r.no_night ? `${advice} ${t.noNight}` : advice;

@@ -62,9 +62,6 @@ export function daysBetween(from: string, to: string): number {
 
 export const isValidIso = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(parseIso(s).getTime()) && isoLocal(parseIso(s)) === s;
 
-/** Dutch long date for pages not translated yet (components/dashboard); translated pages use useFormat().long. */
-export const fmtLong = (day: string) => parseIso(day).toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
-
 /** "28 sep – 4 okt" / "28 Sep – 4 Oct" */
 export function fmtWeekRange(monday: string, f: Format): string {
   return `${f.dayMonth(monday)} – ${f.dayMonth(addDays(monday, 6))}`;

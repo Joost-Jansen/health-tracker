@@ -3,6 +3,7 @@
 // week met twintig minuten niet even zwaar telt als een week met acht uur.
 // Gemiddelde uren zijn per periode, lege perioden tellen mee als nul.
 
+import type { Format } from "@/lib/i18n";
 import { ZONES, type Zone, type ZoneHistoryItem } from "@/lib/training";
 
 export type ZoneCompareRow = {
@@ -52,9 +53,9 @@ export function compareZones(items: ZoneHistoryItem[], x: number, which: "curren
 export const fmtPct = (v: number | null) => (v == null ? "–" : `${Math.round(v)}%`);
 
 /** "+3,2 pp" / "−1,0 pp": procentpunten met een echt minteken. */
-export function fmtPp(v: number | null): string {
+export function fmtPp(v: number | null, f?: Format): string {
   if (v == null) return "–";
   const r = Math.round(v * 10) / 10;
   if (r === 0) return "0 pp";
-  return `${r > 0 ? "+" : "−"}${Math.abs(r).toFixed(1).replace(".", ",")} pp`;
+  return `${r > 0 ? "+" : "−"}${f ? f.num(Math.abs(r), 1) : Math.abs(r).toFixed(1).replace(".", ",")} pp`;
 }

@@ -3,7 +3,7 @@
 
 import Card from "@/components/Card";
 import InfoPopover from "@/components/InfoPopover";
-import { T } from "@/lib/texts";
+import { useFormat, useT } from "@/lib/i18n";
 import type { LoadIndicator } from "@/lib/training";
 
 // De schaal van de balk; waarden daarbuiten staan op de rand.
@@ -11,13 +11,14 @@ const MIN = 0.4;
 const MAX = 1.8;
 const BAND_COLOUR = { low: "var(--zone-1)", build: "var(--zone-2)", high: "var(--zone-4)", unknown: "var(--text-faint)" };
 
-/** 1,3 en 0,85: komma, zonder nullen achter de komma. */
-const num = (v: number, digits = 2) => v.toFixed(digits).replace(".", ",").replace(/(,\d*?)0+$/, "$1").replace(/,$/, "");
 const pos = (v: number) => `${((Math.min(MAX, Math.max(MIN, v)) - MIN) / (MAX - MIN)) * 100}%`;
 
 /** `wide`: de kaart staat alleen in zijn rij; dan staat de balk naast de uitleg in plaats van eronder. */
 export default function LoadCard({ load, wide = false, className = "" }: { load: LoadIndicator; wide?: boolean; className?: string }) {
-  const t = T.vandaag.load;
+  const t = useT().texts.vandaag.load;
+  const f = useFormat();
+  /** 1,3 en 0,85 (1.3 and 0.85): no trailing zeros. */
+  const num = (v: number, digits = 2) => f.trim(v, digits);
   const { low, high, ramp_high } = load.thresholds;
   const explain =
     load.band === "high" ? (load.reason === "ramp" ? t.highRamp(num(load.ramp ?? 0, 1)) : t.highRatio(num(high))) : t.explain[load.band];

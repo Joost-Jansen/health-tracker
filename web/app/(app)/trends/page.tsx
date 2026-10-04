@@ -118,6 +118,7 @@ export default function TrendsPage() {
     t.races
       .filter((r) => r.sport === "run" && r.distance_km < km && r.distance_km >= km * 0.98 && r.seconds > 0)
       .reduce<Trends["races"][number] | null>((b, r) => (!b || r.seconds < b.seconds ? r : b), null);
+  const hasRecords = Object.values(t.records).some((rows) => rows.length > 0);
   const anyRaceRecord = (Object.keys(RECORD_LABEL) as (keyof Trends["records"])[]).some((k) => {
     const r = raceRecord(RECORD_KM[k]);
     const best = (t.records[k] ?? []).slice(-1)[0];
@@ -131,7 +132,7 @@ export default function TrendsPage() {
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Card title="Inzichten">
           {t.insights.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">Niets bijzonders.</p>
+            <p className="text-[13px] text-ink-muted">{t.form.length ? "Niets bijzonders." : "Nog geen inzichten: daar zijn eerst een paar weken trainingen voor nodig."}</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {t.insights.map((i) => (
@@ -207,13 +208,13 @@ export default function TrendsPage() {
       </Card>
 
       <Card title="Volume per week" action={<Tabs variant="segmented" items={[{ id: "hours", label: "Uren" }, { id: "km", label: "Km" }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel="Eenheid" />}>
-        <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">
+        {t.weekly.length > 0 && <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">
           {volume.weeks > 0 ? (
             <>Gemiddeld <b className="text-ink">{fmtVol(volume.avg)}</b> per week over {volume.weeks} hele {volume.weeks === 1 ? "week" : "weken"} (de lopende week telt niet mee)</>
           ) : (
             "Nog geen hele week in deze periode."
           )}
-        </p>
+        </p>}
         <TimeChart
           {...shared}
           ariaLabel="Volume per week per sport"
@@ -262,6 +263,9 @@ export default function TrendsPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <Card title="Records (snelste stuk in een run)">
+          {!hasRecords && !anyRaceRecord ? (
+            <p className="text-[13px] text-ink-muted">Nog geen records: die komen uit hardloopactiviteiten met snelste splits.</p>
+          ) : (
           <table className="w-full text-[13px] tabular-nums">
             <thead>
               <tr className="text-left text-[11.5px] text-ink-muted">
@@ -301,6 +305,7 @@ export default function TrendsPage() {
               })}
             </tbody>
           </table>
+          )}
           <p className="mt-2 text-[11.5px] text-ink-muted">{T.records}{anyRaceRecord ? ` ${T.recordRace}` : ""}</p>
           {recordSeries.length > 0 && (
             <div className="mt-4">

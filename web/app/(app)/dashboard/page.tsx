@@ -242,6 +242,9 @@ export default function DashboardPage() {
 
         <div className="flex flex-col gap-4">
           <Card title="Volume deze week">
+            {volSports.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">Nog geen trainingen deze week of de vier weken ervoor.</p>
+            ) : (
             <table className="w-full text-[13px] tabular-nums">
               <thead>
                 <tr className="text-left text-[11.5px] text-ink-muted">
@@ -264,7 +267,8 @@ export default function DashboardPage() {
                 })}
               </tbody>
             </table>
-            <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>
+            )}
+            {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
           </Card>
           <Card title="Herstel, laatste 7 dagen" className="flex-1">
             {d.recovery.days.length === 0 ? (
@@ -301,6 +305,7 @@ export default function DashboardPage() {
       </div>
 
       <Card title="Laatste activiteiten" more="Historie" moreHref="/historie/">
+        {d.recent.length === 0 && <p className="text-[13px] text-ink-muted">Nog geen activiteiten. Ze verschijnen hier na de eerste sync.</p>}
         <ul className="flex flex-col">
           {d.recent.map((a) => (
             <li key={a.id} className="grid grid-cols-[72px_1fr] items-baseline gap-x-3 gap-y-0.5 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr_auto]">

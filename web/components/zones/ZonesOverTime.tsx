@@ -101,6 +101,9 @@ export default function ZonesOverTime({ window: win }: { window?: { from: string
         <p className="py-6 text-center text-sm text-ink-muted">Laden…</p>
       ) : !h ? (
         <p className="py-6 text-center text-sm text-ink-muted">Kon de zones niet laden.</p>
+      ) : !h.items.some((it) => it.total_s > 0) ? (
+        // Nog nergens hartslagdata (nieuw account, of deze sport nooit met hartslag): geen lege staven en een tabel vol streepjes.
+        <p className="py-6 text-center text-sm text-ink-muted">Nog geen trainingen met hartslag{sport === "all" ? "" : ` voor ${sportLabel(sport).toLowerCase()}`}.</p>
       ) : (
         <div className={`transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
           <ZoneStackChart

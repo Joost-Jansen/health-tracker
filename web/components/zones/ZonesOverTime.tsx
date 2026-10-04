@@ -42,9 +42,11 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
   );
 }
 
-export default function ZonesOverTime({ window: win }: { window?: { from: string; to: string } }) {
+/** `sport`: het sportfilter van de pagina ("all" of één sport). Dan volgt de kaart dat en toont geen eigen keuze. */
+export default function ZonesOverTime({ window: win, sport: pageSport }: { window?: { from: string; to: string }; sport?: string }) {
   const [period, setPeriod] = useState<ZonePeriod>("week");
-  const [sport, setSport] = useState("all");
+  const [ownSport, setSport] = useState("all");
+  const sport = pageSport ?? ownSport;
   const [x, setX] = useState(DEFAULT_X.week);
   const [which, setWhich] = useState<"current" | "previous">("current");
 
@@ -86,12 +88,14 @@ export default function ZonesOverTime({ window: win }: { window?: { from: string
       title="Tijd per hartslagzone over tijd"
       action={
         <div className="flex flex-wrap items-center gap-2">
-          <Select aria-label="Sport" value={sport} onChange={(e) => setSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
-            <option value="all">Alle sporten</option>
-            {(sports.includes(sport) || sport === "all" ? sports : [...sports, sport]).map((s) => (
-              <option key={s} value={s}>{sportLabel(s)}</option>
-            ))}
-          </Select>
+          {pageSport === undefined && (
+            <Select aria-label="Sport" value={sport} onChange={(e) => setSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
+              <option value="all">Alle sporten</option>
+              {(sports.includes(sport) || sport === "all" ? sports : [...sports, sport]).map((s) => (
+                <option key={s} value={s}>{sportLabel(s)}</option>
+              ))}
+            </Select>
+          )}
           <Tabs variant="segmented" items={[{ id: "week", label: "Week" }, { id: "month", label: "Maand" }]} value={period} onChange={(v) => switchPeriod(v as ZonePeriod)} ariaLabel="Week of maand" />
         </div>
       }

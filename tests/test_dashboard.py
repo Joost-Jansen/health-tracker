@@ -1,6 +1,18 @@
 from datetime import date, timedelta
 
-from api.dashboard import ACWR_HIGH, ACWR_LOW, LOAD_MIN_DAYS, RAMP_HIGH, build_dashboard, form_status, load_indicator, today_tsb
+from api.dashboard import (
+    ACWR_HIGH,
+    ACWR_LOW,
+    LOAD_MIN_DAYS,
+    RAMP_HIGH,
+    build_dashboard,
+    form_status,
+    load_indicator,
+    next_race,
+    plan_week,
+    today_tsb,
+)
+from api.plans import match_sessions
 
 TODAY = date(2026, 9, 30)  # Wednesday; week = 2026-09-28 .. 2026-10-04
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}, "ride": {"bounds": [127, 141, 156, 169], "max_hr": 182}}
@@ -181,3 +193,73 @@ def test_todays_form_only_when_the_series_reaches_today():
     stale = build_dashboard(DAILY, {}, ZONES, TODAY, last_sync="2026-09-20 06:02")["form"]
     assert today_tsb(fresh) == fresh["tsb"]
     assert today_tsb(stale) is None and today_tsb(None) is None
+
+
+# --- this week against the plan ----------------------------------------------------------------
+
+
+def sess(day, sport="run", km=None, minutes=None, kind=None):
+    return {"date": day, "sport": sport, "kind": kind, "distance_km": km, "duration_min": minutes, "target_zone": None}
+
+
+WEEK_PLAN = [
+    sess("2026-09-27", km=15),  # last week
+    sess("2026-09-28", km=10, minutes=60),
+    sess("2026-09-29", "ride", minutes=90),
+    sess("2026-09-30", km=8),
+    sess("2026-10-02", "swim", km=2, minutes=45),
+    sess("2026-10-03", "rest"),
+    sess("2026-10-04", km=20),
+    sess("2026-10-05", km=12),  # next week
+]
+
+
+def test_plan_week_planned_against_done_per_sport_and_session_counts():
+    done = [act("2026-09-28", km=10.2, secs=3700), act("2026-09-27", km=15)]
+    w = plan_week(match_sessions(WEEK_PLAN, done, TODAY), TODAY)
+    assert (w["start"], w["end"]) == ("2026-09-28", "2026-10-04")
+    assert w["sports"]["run"] == {"planned_km": 38.0, "done_km": 10.2, "planned_s": 3600, "done_s": 3700, "sessions": 3, "done": 1}
+    assert w["sports"]["ride"] == {"planned_km": 0.0, "done_km": 0.0, "planned_s": 5400, "done_s": 0, "sessions": 1, "done": 0}
+    assert w["sports"]["swim"]["planned_km"] == 2.0 and w["sports"]["swim"]["planned_s"] == 2700
+    assert w["sessions"] == {"total": 5, "done": 1, "missed": 1, "upcoming": 3}
+
+
+def test_plan_week_without_sessions_this_week_is_empty():
+    w = plan_week(match_sessions([sess("2026-10-12", km=10)], [], TODAY), TODAY)
+    assert w["sports"] == {} and w["sessions"] == {"total": 0, "done": 0, "missed": 0, "upcoming": 0}
+
+
+# --- race countdown -------------------------------------------------------------------------------
+
+
+def test_race_from_the_race_field_with_its_distance():
+    sessions = [sess("2026-10-01", km=10), sess("2026-10-18", km=42.2, kind="wedstrijd")]
+    r = next_race({"race": "Marathon, 2026-10-18"}, sessions, TODAY)
+    assert r == {"date": "2026-10-18", "days": 18, "name": "Marathon", "distance_km": 42.2, "sport": "run"}
+
+
+def test_race_field_with_a_short_date_takes_the_plan_year():
+    r = next_race({"race": "Stadsloop 18 okt"}, [sess("2026-09-01", km=5), sess("2026-10-18", km=10)], TODAY)
+    assert r["date"] == "2026-10-18" and r["name"] == "Stadsloop" and r["distance_km"] == 10
+
+
+def test_race_session_without_a_date_in_the_race_field():
+    r = next_race({"race": "Halve marathon"}, [sess("2026-10-11", km=21.1, kind="Wedstrijd")], TODAY)
+    assert r["date"] == "2026-10-11" and r["days"] == 11 and r["name"] == "Halve marathon"
+
+
+def test_the_next_race_comes_first_and_only_the_goal_race_gets_the_name():
+    sessions = [sess("2026-10-04", km=10, kind="wedstrijd"), sess("2026-10-18", km=42.2, kind="wedstrijd")]
+    r = next_race({"race": "Marathon, 2026-10-18"}, sessions, TODAY)
+    assert r["date"] == "2026-10-04" and r["name"] is None and r["distance_km"] == 10
+
+
+def test_race_today_and_past_races():
+    assert next_race({"race": "Marathon 2026-09-30"}, [], TODAY)["days"] == 0
+    assert next_race({"race": "Marathon 2026-09-20"}, [sess("2026-09-20", km=42.2, kind="wedstrijd")], TODAY) is None
+
+
+def test_no_race_without_a_date():
+    assert next_race({"race": "Marathon"}, [sess("2026-10-04", km=10)], TODAY) is None
+    assert next_race({"race": None}, [], TODAY) is None
+    assert next_race({"race": "Marathon 31-02"}, [], TODAY) is None

@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from statistics import median
 
+from api.plans import parse_date
 from tools.analytics import fitness_series
 from tools.zones import NAMES
 
@@ -21,6 +22,10 @@ ACWR_HIGH = 1.3
 RAMP_HIGH = 8.0
 LOAD_MIN_DAYS = 28  # CTL is a 42-day average: with less than four weeks of data the ratio says little
 LOAD_MIN_CTL = 5.0  # below this (hardly any training) a ratio swings wildly on a single session
+# A plan session is a race when its kind says so (same words as web/components/plan/plan.ts RACE_KIND).
+RACE_KIND = re.compile(r"wedstrijd|race|marathon|triathlon", re.I)
+# Dates in the free race field, in the order api.plans.parse_date tries them: 2026-10-18, 18-10(-2026), 18 okt (2026).
+RACE_FIELD_DATES = (r"\d{4}-\d{1,2}-\d{1,2}", r"\b\d{1,2}[-/.]\d{1,2}(?:[-/.]\d{2,4})?\b", r"\b\d{1,2}\s+[a-z]{3}[a-z]*\.?(?:\s+\d{4})?")
 SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s")
 
 
@@ -109,6 +114,71 @@ def load_indicator(series: list[dict]) -> dict:
 def today_tsb(form: dict | None) -> float | None:
     """Form to judge today by (readiness): None when the series stopped at an older sync."""
     return form["tsb"] if form and not form.get("stopped_at_sync") else None
+
+
+def plan_week(sessions: list[dict], today: date) -> dict:
+    """This week (Monday to Sunday) of a plan whose sessions went through api.plans.match_sessions: per sport the planned
+    and done km and time (planned time only from sessions with a duration) and the number of sessions done, missed and
+    still to come (today's open session counts as to come). Rest days are left out."""
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+    week = [s for s in sessions if s["sport"] != "rest" and monday.isoformat() <= s["date"] <= sunday.isoformat()]
+    sports: dict[str, dict] = {}
+    for s in week:
+        row = sports.setdefault(s["sport"], {"planned_km": 0.0, "done_km": 0.0, "planned_s": 0, "done_s": 0, "sessions": 0, "done": 0})
+        row["sessions"] += 1
+        row["planned_km"] += s.get("distance_km") or 0
+        row["planned_s"] += (s.get("duration_min") or 0) * 60
+        if s.get("status") == "gedaan":
+            row["done"] += 1
+            row["done_km"] += (s.get("done") or {}).get("distance_km") or 0
+            row["done_s"] += (s.get("done") or {}).get("moving_time_s") or 0
+    for row in sports.values():
+        row["planned_km"], row["done_km"] = round(row["planned_km"], 1), round(row["done_km"], 1)
+    status = [s.get("status") for s in week]
+    counts = {"total": len(week), "done": status.count("gedaan"), "missed": status.count("gemist"), "upcoming": status.count("gepland") + status.count("vandaag")}
+    return {"start": monday.isoformat(), "end": sunday.isoformat(), "sports": sports, "sessions": counts}
+
+
+def _race_field(text: str | None, year: int) -> tuple[str, str | None]:
+    """Name and ISO date from the plan's free race field ("Marathon, 2026-10-18"); the date is None if there is none."""
+    text = (text or "").strip()
+    for pattern in RACE_FIELD_DATES:
+        m = re.search(pattern, text, re.I)
+        if not m:
+            continue
+        try:
+            day = parse_date(m[0], year)
+        except ValueError:  # 31-02: looks like a date, is none
+            day = None
+        if day:
+            return re.sub(r"\s{2,}", " ", (text[: m.start()] + " " + text[m.end() :]).strip(" ,·–-")).strip(" ,·–-"), day
+    return text, None
+
+
+def next_race(plan: dict, sessions: list[dict], today: date) -> dict | None:
+    """The next race of the active plan: the date in its race field or a session of a race kind, whichever comes first
+    from today. `name` (from the race field) only for the plan's own race; `distance_km` and `sport` from the race
+    session that day (else the longest session that day). None when no race date lies ahead."""
+    ordered = sorted(sessions, key=lambda s: s["date"])
+    year = date.fromisoformat(ordered[0]["date"]).year if ordered else today.year
+    name, field_day = _race_field(plan.get("race"), year)
+    races = [s for s in ordered if s["sport"] != "rest" and RACE_KIND.search(s.get("kind") or "")]
+    goal_day = field_day or (races[-1]["date"] if races else None)
+    ahead = sorted({s["date"] for s in races} | ({field_day} if field_day else set()))
+    ahead = [d for d in ahead if d >= today.isoformat()]
+    if not ahead:
+        return None
+    day = ahead[0]
+    on_day = [s for s in ordered if s["date"] == day and s["sport"] != "rest"]
+    main = next((s for s in on_day if RACE_KIND.search(s.get("kind") or "")), None) or max(on_day, key=lambda s: s.get("distance_km") or 0, default=None)
+    return {
+        "date": day,
+        "days": (date.fromisoformat(day) - today).days,
+        "name": (name or None) if day == goal_day else None,
+        "distance_km": (main or {}).get("distance_km"),
+        "sport": (main or {}).get("sport"),
+    }
 
 
 def summary(a: dict) -> dict:

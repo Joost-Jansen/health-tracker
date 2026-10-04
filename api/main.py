@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from api import agent_tokens, connections, mcp, onboarding, routes_api, settings_api, users, zones_api
 from api.sync_runner import SyncRunner
 from api.content import content_router
-from api.dashboard import build_dashboard, today_tsb
+from api.dashboard import build_dashboard, next_race, plan_week, today_tsb
 from api.history import activity_detail, heatmap, list_activities
 from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
@@ -93,6 +93,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]
             out["upcoming"] = [x for x in sessions if x["date"] >= day.isoformat()][:5]
             out["plan_title"] = plan["title"]
+            out["plan_week"] = plan_week(sessions, day)
+            out["race"] = next_race(plan, sessions, day)
         return out
 
     cache: dict = {}

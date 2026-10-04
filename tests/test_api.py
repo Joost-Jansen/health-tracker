@@ -165,3 +165,7 @@ def test_dashboard_has_upcoming_sessions_and_readiness(client):
     d = client.get("/api/dashboard").json()
     assert [s["date"] for s in d["upcoming"]] == ["2099-01-01"] and d["plan_title"] == "Blok"
     assert "readiness" in d
+    assert d["plan_week"]["sessions"]["total"] == 0 and d["race"] is None
+    pid = client.get("/api/plans/active").json()["plan"]["id"]
+    client.patch(f"/api/plans/{pid}", json={"race": "Marathon, 2099-01-01"})
+    assert client.get("/api/dashboard").json()["race"]["name"] == "Marathon"

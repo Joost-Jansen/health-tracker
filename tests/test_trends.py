@@ -1,6 +1,23 @@
 from datetime import date
 
-from api.trends import build_trends, insights, predictions, races, records, recovery_daily, recovery_weekly, standalone_runs, vo2max, weekly_volume, z2_pace
+from api.trends import (
+    build_trends,
+    goal_from_plan,
+    hr_flags,
+    insights,
+    longest_runs,
+    predictions,
+    races,
+    recent_records,
+    records,
+    recovery_daily,
+    recovery_weekly,
+    standalone_runs,
+    vo2max,
+    weekly_volume,
+    z2_pace,
+)
+from tests.test_hrquality import run_streams
 
 ZONES = {"run": {"bounds": [132, 147, 162, 176], "max_hr": 189}}
 
@@ -106,9 +123,158 @@ def test_predictions_use_riegel_from_longest_recent_effort():
 def test_insights_flag_low_easy_share():
     acts = [hard_run("h", "2026-09-27T11:30:00")]
     out = insights([], [], acts, date(2026, 9, 30))
-    assert out[0]["level"] == "let_op" and "rustig" in out[0]["title"]
+    assert out[0]["level"] == "let_op" and out[0]["code"] == "easy_share"
+    assert out[0]["params"]["easy_pct"] == 0 and out[0]["params"]["hard_pct"] == 95
+
+
+def by_code(items):
+    return {i["code"]: i for i in items}
 
 
 def test_predictions_skip_triathlon_runs():
     acts = [act("s", "2026-09-27T08:00:00", sport="swim"), hard_run("h", "2026-09-27T11:30:00")]
     assert predictions(acts, date(2026, 9, 30)) == {}
+
+
+# --- records from races, recent records ---------------------------------------------------------------------------
+
+
+def test_race_measured_just_short_counts_for_the_record():
+    acts = [
+        act("s", "2026-08-01T08:00:00", raw={"fastestSplit_10000": 2700}),
+        hard_run("r", "2026-09-06T09:00:00", km=9.85, secs=2580),  # watch measured 1.5% short
+        hard_run("far", "2026-09-13T09:00:00", km=9.7, secs=2400),  # 3% short: not a 10 km
+    ]
+    rec = records(acts)
+    assert [(r["activity_id"], r["source"]) for r in rec["10k"]] == [("s", "split"), ("r", "race")]
+    assert rec["10k"][-1]["seconds"] == 2580 and rec["10k"][-1]["distance_km"] == 9.85
+
+
+def test_slower_race_does_not_replace_a_faster_split():
+    acts = [act("s", "2026-08-01T08:00:00", raw={"fastestSplit_10000": 2500}), hard_run("r", "2026-09-06T09:00:00", km=9.9, secs=2580)]
+    assert [r["activity_id"] for r in records(acts)["10k"]] == ["s"]
+
+
+def test_recent_records_only_improvements_in_the_last_two_weeks():
+    acts = [
+        act("a", "2026-06-01T08:00:00", raw={"fastestSplit_5000": 1500, "fastestSplit_1000": 280}),
+        act("b", "2026-09-25T08:00:00", raw={"fastestSplit_5000": 1450}),
+        act("c", "2026-09-26T08:00:00", raw={"fastestSplit_10000": 3000}),  # first 10 km ever: not an improvement
+    ]
+    out = recent_records(records(acts), date(2026, 9, 30))
+    assert out == [{"key": "5k", "date": "2026-09-25", "seconds": 1450, "previous_seconds": 1500, "activity_id": "b", "source": "split"}]
+    assert recent_records(records(acts), date(2026, 10, 20)) == []
+
+
+def test_record_insight_for_a_recent_record():
+    acts = [act("a", "2026-06-01T08:00:00", raw={"fastestSplit_5000": 1500}), act("b", "2026-09-25T08:00:00", raw={"fastestSplit_5000": 1450})]
+    out = by_code(build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30))["insights"])
+    assert out["record_set"]["params"] == {"key": "5k", "seconds": 1450, "previous_seconds": 1500, "date": "2026-09-25", "activity_id": "b"}
+
+
+# --- the user's own goal -------------------------------------------------------------------------------------------
+
+
+def test_goal_from_plan_reads_distance_time_and_date():
+    today = date(2026, 9, 1)
+    g = goal_from_plan({"race": "Stadsmarathon, 2026-10-18", "goal": "onder 3:30"}, today)
+    assert g == {"km": 42.195, "seconds": 3 * 3600 + 30 * 60, "date": "2026-10-18", "text": "onder 3:30 · Stadsmarathon, 2026-10-18"}
+    assert goal_from_plan({"goal": "10 km onder 50 minuten"}, today)["seconds"] == 3000
+    assert goal_from_plan({"goal": "10 km in 48:30"}, today)["seconds"] == 48 * 60 + 30  # m:ss for a 10 km
+    assert goal_from_plan({"race": "Halve marathon 18-10-2026", "goal": "sub 1:45"}, today)["km"] == 21.0975
+    assert goal_from_plan({"goal": "5 km"}, today) == {"km": 5.0, "seconds": None, "date": None, "text": "5 km"}
+
+
+def test_no_goal_without_a_distance_or_after_the_race():
+    today = date(2026, 9, 1)
+    assert goal_from_plan(None, today) is None
+    assert goal_from_plan({"goal": "fitter worden", "race": None}, today) is None
+    assert goal_from_plan({"race": "Stadsloop 10 km, 2026-08-01"}, today) is None  # already past
+
+
+def long_easy(aid, start, km):
+    return act(aid, start, distance_km=km, moving_time_s=round(km * 330), hr_zones_s={"Z2": round(km * 330)})
+
+
+def test_no_goal_means_no_goal_based_long_run_advice():
+    acts = [long_easy("l", "2026-09-20T08:00:00", 18.0)]
+    out = by_code(insights([], [], acts, date(2026, 9, 30)))
+    assert "longest_run" in out and out["longest_run"]["params"] == {"km": 18.0}
+    assert "long_run_goal" not in out and "goal_prediction" not in out
+
+
+def test_goal_sets_the_long_run_target_and_compares_the_prediction():
+    acts = [long_easy("l", "2026-09-20T08:00:00", 18.0), hard_run("h", "2026-09-27T11:30:00", km=21.0975, secs=6000)]
+    goal = {"km": 42.195, "seconds": 12600, "date": "2026-10-18", "text": "x"}
+    out = by_code(insights([], [], acts, date(2026, 9, 30), goal=goal))
+    assert out["long_run_goal"]["params"] == {"km": 21.1, "target_km": 30, "goal_km": 42.195}
+    assert out["long_run_goal"]["level"] == "info"
+    p = out["goal_prediction"]["params"]
+    assert p["goal_seconds"] == 12600 and p["predicted_seconds"] == round(6000 * 2**1.06) and p["goal_km"] == 42.195
+    half = by_code(insights([], [], acts, date(2026, 9, 30), goal={"km": 21.0975, "seconds": None, "date": None, "text": "x"}))
+    assert half["long_run_goal"]["params"]["target_km"] == 18 and half["long_run_goal"]["level"] == "goed"
+    assert "goal_prediction" not in half  # no goal time
+
+
+# --- this week so far ----------------------------------------------------------------------------------------------
+
+
+def test_run_volume_uses_the_current_week_not_the_last_week_with_activity():
+    acts = [act(f"w{i}", f"2026-09-{d:02d}T08:00:00", distance_km=10.0) for i, d in enumerate((1, 8, 15, 22))]
+    # today is Thursday 1 Oct; the current week (from Mon 28 Sep) has no run yet
+    out = by_code(insights([], weekly_volume(acts), acts, date(2026, 10, 1)))
+    assert out["run_volume"]["params"] == {"avg_km": 10.0, "week_km": 0.0, "week_start": "2026-09-28"}
+    acts.append(act("now", "2026-09-29T08:00:00", distance_km=6.0))
+    out = by_code(insights([], weekly_volume(acts), acts, date(2026, 10, 1)))
+    assert out["run_volume"]["params"]["week_km"] == 6.0 and out["run_volume"]["params"]["avg_km"] == 10.0
+
+
+# --- longest run per week ------------------------------------------------------------------------------------------
+
+
+def test_longest_run_per_week_merges_split_runs():
+    acts = [
+        act("a1", "2026-09-06T08:00:00", distance_km=12.0, moving_time_s=3600, elapsed_time_s=3600),
+        act("a2", "2026-09-06T09:10:00", distance_km=8.0, moving_time_s=2400),  # 10 min later: same session
+        act("b", "2026-09-03T08:00:00", distance_km=15.0, moving_time_s=4500),
+        act("c", "2026-09-10T08:00:00", distance_km=7.0, moving_time_s=2100),
+        act("x", "2026-09-11T08:00:00", sport="ride", distance_km=60.0),
+    ]
+    out = longest_runs(acts)
+    assert out == [
+        {"week": "2026-08-31", "date": "2026-09-06", "km": 20.0, "seconds": 6000, "parts": 2, "activity_id": "a1"},
+        {"week": "2026-09-07", "date": "2026-09-10", "km": 7.0, "seconds": 2100, "parts": 1, "activity_id": "c"},
+    ]
+
+
+# --- HRV ------------------------------------------------------------------------------------------------------------
+
+
+def test_hrv_comes_from_last_night_average():
+    out = recovery_daily({"2026-09-28": {"hrv_last_night": 61, "resting_hr": 48}})
+    assert out[0]["hrv"] == 61
+    assert recovery_weekly({"2026-09-28": {"hrv_last_night": 60}, "2026-09-29": {"hrv_last_night": 64}})[0]["hrv"] == 62.0
+
+
+# --- wrist HR quality -----------------------------------------------------------------------------------------------
+
+
+def test_hr_flags_and_z2_pace_leave_out_implausible_runs():
+    acts = [act(f"n{i}", f"2026-09-0{i + 1}T08:00:00") for i in range(5)] + [act("bad", "2026-09-07T08:00:00", name="Ochtendloop")]
+    streams = {a["id"]: run_streams(hr=140) for a in acts}
+    streams["bad"] = run_streams(hr=140, start_hr=90)
+    flags = hr_flags(acts, streams.get)
+    assert flags == {"bad": ["low_start"]}
+    weeks = z2_pace(acts, streams.get, ZONES, exclude=set(flags))
+    assert sum(w["runs"] for w in weeks) == 5
+    out = build_trends(acts, {}, ZONES, streams.get, date(2026, 9, 30))
+    assert out["hr_flags"] == [{"id": "bad", "date": "2026-09-07", "name": "Ochtendloop", "reasons": ["low_start"]}]
+    assert sum(w["runs"] for w in out["z2_pace"]) == 5
+
+
+def test_build_trends_has_goal_and_longest_runs():
+    plan = {"race": "Stadsloop 10 km, 2026-10-18", "goal": "onder 45:00"}
+    out = build_trends([act("a", "2026-09-01T08:00:00")], {}, ZONES, lambda aid: None, date(2026, 9, 3), plan=plan)
+    assert out["goal"]["km"] == 10.0 and out["goal"]["seconds"] == 2700
+    assert out["longest_runs"][0]["km"] == 10.0
+    assert build_trends([], {}, ZONES, lambda aid: None, date(2026, 9, 3))["goal"] is None

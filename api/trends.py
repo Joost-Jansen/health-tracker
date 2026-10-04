@@ -1,21 +1,28 @@
 """Trends: form (CTL/ATL/TSB), weekly volume per sport, Z2 running pace, VO2max, recovery, records and races.
 
 Pure functions over plain data (see api/history.py): works on the file store and on tools/db.py.
+Nothing here returns a sentence for the user: insights are codes with numbers, the page words them (web/lib/texts.ts).
 """
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 from statistics import mean
 from typing import Callable
 
 from api.dashboard import max_by_sport, resting_hr
+from tools import hrquality
 from tools.analytics import fitness_series
+from tools.summarize import run_sessions
 
 StreamsFn = Callable[[str], "dict | None"]
 
 RECORD_SPLITS = {"1k": "fastestSplit_1000", "5k": "fastestSplit_5000", "10k": "fastestSplit_10000", "21k": "fastestSplit_21098"}
+RECORD_KM = {"1k": 1.0, "5k": 5.0, "10k": 10.0, "21k": 21.0975}
+RACE_SHORT = 0.98  # a race the watch measured up to 2% short still counts for the record over that distance
+RECENT_RECORD_DAYS = 14
 RACE_WORDS = ("race", "wedstrijd", "marathon", "triathlon", "benchmark", "loop van", "run van")
 RACE_MIN_KM = 5.0
 RACE_HARD_SHARE = 0.85  # share of HR time in Z4-Z5: a sustained all-out effort, not a tempo run
@@ -24,6 +31,8 @@ PREDICT_KM = {"5k": 5.0, "10k": 10.0, "21k": 21.0975, "42k": 42.195}
 SPLIT_KM = {"fastestSplit_5000": 5.0, "fastestSplit_10000": 10.0, "fastestSplit_21098": 21.0975}
 MIN_Z2_SECONDS = 300  # a run needs at least 5 minutes in Z2 to count for the Z2 pace
 MIN_SPEED = 1.5  # m/s; slower is walking or standing
+# long run to aim for per goal distance (km): the usual rule of thumb, the page says it is one
+LONG_RUN_TARGET = ((42.0, 30), (21.0, 18), (10.0, 12), (5.0, 8))
 
 
 def week_of(day: str) -> str:
@@ -79,14 +88,15 @@ def z2_speed(streams: dict, bounds: list[int]) -> tuple[float, int] | None:
     return dist / secs, int(secs)
 
 
-def z2_pace(activities: list[dict], streams_fn: StreamsFn, zones: dict) -> list[dict]:
-    """Weekly pace while in Z2 (standalone, outdoor runs). Falling pace at the same HR = better aerobic base."""
+def z2_pace(activities: list[dict], streams_fn: StreamsFn, zones: dict, exclude: set[str] | None = None) -> list[dict]:
+    """Weekly pace while in Z2 (standalone, outdoor runs). Falling pace at the same HR = better aerobic base.
+    `exclude`: runs with an implausible wrist heart rate (hr_flags)."""
     bounds = (zones.get("run") or {}).get("bounds")
     if not bounds:
         return []
     weeks: dict[str, list[tuple[float, int]]] = defaultdict(list)
     for a in standalone_runs(activities):
-        if "treadmill" in (a.get("name") or "").lower():
+        if "treadmill" in (a.get("name") or "").lower() or (exclude and a["id"] in exclude):
             continue
         r = z2_speed(streams_fn(a["id"]) or {}, bounds)
         if r:
@@ -108,13 +118,26 @@ def vo2max(activities: list[dict]) -> list[dict]:
     return [{"date": d, "value": v} for d, v in sorted(by_day.items())]
 
 
+RECOVERY_KEYS = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv")
+
+
+def _recovery_values(w: dict) -> dict:
+    """The recovery values of one day; HRV is the average of last night (wellness key hrv_last_night)."""
+    w = w or {}
+    out = {k: w.get(k) for k in RECOVERY_KEYS}
+    if out["hrv"] is None:
+        out["hrv"] = w.get("hrv_last_night")
+    return out
+
+
 def recovery_weekly(wellness: dict) -> list[dict]:
-    keys = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv")
+    keys = RECOVERY_KEYS
     weeks: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     for day, w in wellness.items():
+        values = _recovery_values(w)
         for k in keys:
-            if w.get(k) is not None:
-                weeks[week_of(day)][k].append(w[k])
+            if values[k] is not None:
+                weeks[week_of(day)][k].append(values[k])
     out = []
     for wk in sorted(weeks):
         row = {"week": wk}
@@ -128,28 +151,54 @@ def recovery_weekly(wellness: dict) -> list[dict]:
 def recovery_daily(wellness: dict) -> list[dict]:
     """One row per day with any recovery value, oldest first: the dense series behind the weekly averages, so the
     Trends charts can show short periods and a 7- or 28-day moving average."""
-    keys = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv")
     out = []
     for day in sorted(wellness):
-        w = wellness[day] or {}
-        row = {k: (round(w[k], 2) if isinstance(w.get(k), float) else w.get(k)) for k in keys}
+        w = _recovery_values(wellness[day])
+        row = {k: (round(w[k], 2) if isinstance(w.get(k), float) else w.get(k)) for k in RECOVERY_KEYS}
         if any(v is not None for v in row.values()):
             out.append({"date": day[:10], **row})
     return out
 
 
 def records(activities: list[dict]) -> dict:
-    """Progression of the fastest split per distance (Garmin's fastestSplit_*): every time a new best was set."""
-    out = {}
+    """Progression per record distance: every time a new best was set. Candidates are Garmin's fastest split in
+    every run (fastestSplit_*) and runs that were races: a race the watch measured just short (up to 2%) has no
+    split over the whole distance, so its moving time counts for that distance (source "race")."""
+    race_ids = {i for r in races(activities) if r["sport"] == "run" for i in r["activity_ids"]}
     runs = sorted((a for a in activities if a["sport"] == "run"), key=lambda a: a["start_local"])
+    out = {}
     for key, field in RECORD_SPLITS.items():
+        km = RECORD_KM[key]
         best, rows = None, []
         for a in runs:
-            secs = _raw(a).get(field)
-            if secs and (best is None or secs < best):
+            options = []
+            if _raw(a).get(field):
+                options.append((_raw(a)[field], "split"))
+            dist = a.get("distance_km") or 0
+            if a["id"] in race_ids and a.get("moving_time_s") and km * RACE_SHORT <= dist < km:
+                options.append((a["moving_time_s"], "race"))
+            if not options:
+                continue
+            secs, source = min(options)
+            if best is None or secs < best:
                 best = secs
-                rows.append({"date": a["start_local"][:10], "seconds": round(secs), "activity_id": a["id"]})
+                row = {"date": a["start_local"][:10], "seconds": round(secs), "activity_id": a["id"], "source": source}
+                if source == "race":
+                    row["distance_km"] = dist
+                rows.append(row)
         out[key] = rows
+    return out
+
+
+def recent_records(recs: dict, today: date, days: int = RECENT_RECORD_DAYS) -> list[dict]:
+    """Records improved in the last `days` days (a first effort over a distance is no improvement)."""
+    since = (today - timedelta(days=days - 1)).isoformat()
+    out = []
+    for key in RECORD_SPLITS:
+        rows = recs.get(key) or []
+        if len(rows) >= 2 and rows[-1]["date"] >= since:
+            last = rows[-1]
+            out.append({"key": key, "date": last["date"], "seconds": last["seconds"], "previous_seconds": rows[-2]["seconds"], "activity_id": last["activity_id"], "source": last["source"]})
     return out
 
 
@@ -189,7 +238,7 @@ def races(activities: list[dict]) -> list[dict]:
                 out.append(
                     {
                         "date": day,
-                        "name": a.get("name") if named else f"Wedstrijd of test ({a.get('name') or 'run'})",
+                        "name": a.get("name") or "",  # the page words a heart-rate find as "race or test (name)"
                         "detected": "naam" if named else "hartslag",
                         "sport": a["sport"],
                         "seconds": a.get("moving_time_s"),
@@ -220,6 +269,16 @@ def efforts(activities: list[dict], since: str) -> list[dict]:
     return out
 
 
+def _predict(pool: list[dict], km: float) -> dict | None:
+    usable = [e for e in pool if e["km"] >= min(km, 5.0) * 0.99] or pool
+    if not usable:
+        return None
+    longest = max(e["km"] for e in usable if e["km"] <= km * 1.01) if any(e["km"] <= km * 1.01 for e in usable) else min(e["km"] for e in usable)
+    base = min((e for e in usable if abs(e["km"] - longest) < 0.3), key=lambda e: riegel(e["seconds"], e["km"], km))
+    secs = riegel(base["seconds"], base["km"], km)
+    return {"seconds": round(secs), "pace_s_per_km": round(secs / km), "from": base}
+
+
 def predictions(activities: list[dict], today: date, days: int = 180) -> dict:
     """Race time per distance with Riegel (T2 = T1 x (D2/D1)^1.06), from the effort over the longest distance
     in the last `days` days (longer efforts predict a marathon far better than a fast kilometre). Riegel is
@@ -227,64 +286,221 @@ def predictions(activities: list[dict], today: date, days: int = 180) -> dict:
     pool = efforts(activities, (today - timedelta(days=days)).isoformat())
     out = {}
     for key, km in PREDICT_KM.items():
-        usable = [e for e in pool if e["km"] >= min(km, 5.0) * 0.99] or pool
-        if not usable:
-            continue
-        longest = max(e["km"] for e in usable if e["km"] <= km * 1.01) if any(e["km"] <= km * 1.01 for e in usable) else min(e["km"] for e in usable)
-        base = min((e for e in usable if abs(e["km"] - longest) < 0.3), key=lambda e: riegel(e["seconds"], e["km"], km))
-        secs = riegel(base["seconds"], base["km"], km)
-        out[key] = {"seconds": round(secs), "pace_s_per_km": round(secs / km), "from": base}
+        p = _predict(pool, km)
+        if p:
+            out[key] = p
     return out
 
 
-def insights(form: list[dict], weekly: list[dict], activities: list[dict], today: date) -> list[dict]:
-    """Short, data-backed remarks about load and intensity. Each: level (goed|let_op|info), title, text."""
+# --- the user's own goal ---------------------------------------------------------------------------------------------
+
+_HALF = re.compile(r"halve\s*marathon|half\s*marathon|\bhm\b", re.I)
+_FULL = re.compile(r"marathon", re.I)
+_KM = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:km|k)\b", re.I)
+_HMS = re.compile(r"\b(\d{1,2}):(\d{2}):(\d{2})\b")
+_CLOCK = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+_HOURS = re.compile(r"\b(\d)\s*(?:u|uur|h)\s*(\d{1,2})?\b", re.I)
+_MINUTES = re.compile(r"\b(\d{1,3})\s*(?:min|minuten|minutes)\b", re.I)
+_ISO = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+_DMY = re.compile(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b")
+PLAUSIBLE_PACE = (150, 720)  # s/km: a goal time outside this is a misread
+
+
+def _no_dates(text: str) -> str:
+    return _ISO.sub(" ", _DMY.sub(" ", text))
+
+
+def _goal_km(text: str) -> float | None:
+    if _HALF.search(text):
+        return 21.0975
+    if _FULL.search(text):
+        return 42.195
+    m = _KM.search(_no_dates(text))
+    return float(m.group(1).replace(",", ".")) if m else None
+
+
+def _goal_seconds(text: str, km: float) -> int | None:
+    def plausible(secs: int) -> bool:
+        return PLAUSIBLE_PACE[0] <= secs / km <= PLAUSIBLE_PACE[1]
+
+    if m := _HMS.search(text):
+        secs = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+        return secs if plausible(secs) else None
+    if m := _CLOCK.search(text):
+        a, b = int(m.group(1)), int(m.group(2))
+        for secs in (a * 3600 + b * 60, a * 60 + b):  # h:mm for a marathon, m:ss for a 5 km
+            if plausible(secs):
+                return secs
+        return None
+    if m := _HOURS.search(text):
+        secs = int(m.group(1)) * 3600 + int(m.group(2) or 0) * 60
+        return secs if plausible(secs) else None
+    if m := _MINUTES.search(text):
+        secs = int(m.group(1)) * 60
+        return secs if plausible(secs) else None
+    return None
+
+
+def _goal_date(text: str) -> str | None:
+    try:
+        if m := _ISO.search(text):
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat()
+        if m := _DMY.search(text):
+            return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
+    except ValueError:
+        return None
+    return None
+
+
+def goal_from_plan(plan: dict | None, today: date) -> dict | None:
+    """Running goal from the active plan's free fields `race` ("Stadsloop 10 km, 2026-10-18") and `goal`
+    ("onder 45:00"): distance (km), target time (seconds or None) and race date (or None). None without a
+    distance, or once the race date has passed: then nothing on the page assumes a goal."""
+    if not plan:
+        return None
+    race, goal = (plan.get("race") or "").strip(), (plan.get("goal") or "").strip()
+    km = _goal_km(race) or _goal_km(goal)
+    if not km:
+        return None
+    day = _goal_date(race) or _goal_date(goal)
+    if day and day < today.isoformat():
+        return None
+    secs = _goal_seconds(_no_dates(goal), km) or _goal_seconds(_no_dates(race), km)
+    return {"km": km, "seconds": secs, "date": day, "text": " · ".join(t for t in (goal, race) if t)}
+
+
+def long_run_target(goal_km: float) -> int | None:
+    return next((target for km, target in LONG_RUN_TARGET if goal_km >= km), None)
+
+
+# --- longest run per week ------------------------------------------------------------------------------------------
+
+
+def longest_runs(activities: list[dict]) -> list[dict]:
+    """Per week with runs: the longest run session (parts with <= 30 min between them merged), oldest first."""
+    ids = {a["start_local"]: a["id"] for a in activities if a["sport"] == "run"}
+    weeks: dict[str, dict] = {}
+    for s in run_sessions(activities):
+        wk = week_of(s["start_local"])
+        if wk not in weeks or s["distance_km"] > weeks[wk]["km"]:
+            weeks[wk] = {"week": wk, "date": s["start_local"][:10], "km": round(s["distance_km"], 2), "seconds": s["moving_time_s"], "parts": s["parts"], "activity_id": ids[s["start_local"]]}
+    return [weeks[k] for k in sorted(weeks)]
+
+
+# --- wrist HR quality ------------------------------------------------------------------------------------------------
+
+
+def hr_flags(activities: list[dict], streams_fn: StreamsFn) -> dict[str, list[str]]:
+    """Runs whose wrist heart rate looks implausible (tools/hrquality.py): id -> reason codes. The pace-HR relation
+    comes from the user's own outdoor runs."""
+    stats = {}
+    for a in activities:
+        if a["sport"] == "run":
+            st = hrquality.run_stats(streams_fn(a["id"]) or {})
+            if st:
+                stats[a["id"]] = st
+    by_id = {a["id"]: a for a in activities}
+    outdoor = {i: st for i, st in stats.items() if "treadmill" not in (by_id[i].get("name") or "").lower()}
+    relation = hrquality.fit_relation(list(outdoor.values()))
+    out = {}
+    for i, st in stats.items():
+        if i not in outdoor:  # treadmill speed is a guess: only the stream checks
+            st = {**st, "start_hr": None}
+        reasons = hrquality.assess(st, relation)
+        if reasons:
+            out[i] = reasons
+    return out
+
+
+def _run_km(activities: list[dict], start: date, end: date) -> float:
+    """Running km from `start` up to (not including) `end`."""
+    lo, hi = start.isoformat(), end.isoformat()
+    return sum(a.get("distance_km") or 0 for a in activities if a["sport"] == "run" and lo <= a["start_local"][:10] < hi)
+
+
+def insights(form: list[dict], weekly: list[dict], activities: list[dict], today: date, goal: dict | None = None, recent: list[dict] | None = None) -> list[dict]:
+    """Short, data-backed remarks about load and intensity: {level: goed|let_op|info, code, params}. The page words
+    each code (web/lib/texts.ts); numbers stay numbers. Goal-based remarks only when the user has a goal."""
     out = []
+
+    def add(level: str, code: str, **params):
+        out.append({"level": level, "code": code, "params": params})
+
+    for r in recent or []:
+        add("goed", "record_set", key=r["key"], seconds=r["seconds"], previous_seconds=r["previous_seconds"], date=r["date"], activity_id=r["activity_id"])
     if len(form) >= 8:
         now, week_ago = form[-1], form[-8]
         ramp = now["ctl"] - week_ago["ctl"]
         acwr = now["atl"] / now["ctl"] if now["ctl"] else None
         if acwr and acwr > 1.5:
-            out.append({"level": "let_op", "title": "Belasting loopt snel op", "text": f"Vermoeidheid (ATL {now['atl']:.0f}) is {acwr:.1f}x je fitheid (CTL {now['ctl']:.0f}). Boven 1,5 stijgt het blessurerisico; plan een rustiger dag."})
+            add("let_op", "acwr_high", atl=round(now["atl"]), ctl=round(now["ctl"]), ratio=round(acwr, 1))
         elif ramp > 6:
-            out.append({"level": "let_op", "title": "Snelle opbouw", "text": f"Fitheid +{ramp:.1f} in 7 dagen. Meer dan ~5-7 per week houdt je lichaam lastig bij."})
+            add("let_op", "ramp_fast", ramp=round(ramp, 1))
         elif now["tsb"] > 15:
-            out.append({"level": "info", "title": "Fris", "text": f"Vorm +{now['tsb']:.0f}: goed moment voor een wedstrijd of een zware sessie."})
-    four = [a for a in activities if a["sport"] == "run" and a["start_local"][:10] > (today - timedelta(days=28)).isoformat()]
+            add("info", "fresh", tsb=round(now["tsb"]))
+    since = (today - timedelta(days=28)).isoformat()
+    four = [a for a in activities if a["sport"] == "run" and a["start_local"][:10] > since]
     secs = {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in four) for z in ("Z1", "Z2", "Z3", "Z4", "Z5")}
     total = sum(secs.values())
     if total > 3600:
-        easy = (secs["Z1"] + secs["Z2"]) / total * 100
-        grey = secs["Z3"] / total * 100
-        level = "goed" if easy >= 75 else "let_op"
-        out.append({"level": level, "title": f"{easy:.0f}% rustig (Z1-Z2) de laatste 4 weken", "text": f"Z3 {grey:.0f}%, Z4-Z5 {100 - easy - grey:.0f}%. Voor marathonopbouw is ~80% rustig de gangbare richtlijn." + ("" if easy >= 75 else " Wedstrijden tellen mee; zonder wedstrijd hoort het grootste deel in Z1-Z2 te liggen.")})
-    if four:
-        longest = max(four, key=lambda a: a.get("distance_km") or 0)
-        km = longest.get("distance_km") or 0
-        out.append({"level": "goed" if km >= 28 else "info", "title": f"Langste run laatste 4 weken: {km:.1f} km", "text": "Marathonvoorbereiding: bouw de lange duurloop op naar 30-32 km, 3-5 weken voor de wedstrijd." if km < 28 else "Lange duurloop op marathonniveau."})
-    if len(weekly) >= 5:
-        last = [sum(v["km"] for s, v in w["sports"].items() if s == "run") for w in weekly[-5:-1]]
-        cur = sum(v["km"] for s, v in weekly[-1]["sports"].items() if s == "run")
-        avg = sum(last) / 4
-        if avg:
-            out.append({"level": "info", "title": f"Loopvolume {avg:.0f} km/week (gem. 4 weken)", "text": f"Deze week tot nu {cur:.0f} km."})
+        easy = round((secs["Z1"] + secs["Z2"]) / total * 100)
+        grey = round(secs["Z3"] / total * 100)
+        add("goed" if easy >= 75 else "let_op", "easy_share", easy_pct=easy, grey_pct=grey, hard_pct=100 - easy - grey)
+    sessions = [s for s in run_sessions(activities) if s["start_local"][:10] > since]
+    if sessions:
+        km = round(max(s["distance_km"] for s in sessions), 1)
+        target = long_run_target(goal["km"]) if goal else None
+        if target:
+            add("goed" if km >= target else "info", "long_run_goal", km=km, target_km=target, goal_km=goal["km"])
+        else:
+            add("info", "longest_run", km=km)
+    if goal and goal.get("seconds"):
+        p = _predict(efforts(activities, (today - timedelta(days=180)).isoformat()), goal["km"])
+        if p:
+            add("info", "goal_prediction", goal_km=goal["km"], goal_seconds=goal["seconds"], predicted_seconds=p["seconds"], from_km=p["from"]["km"], from_date=p["from"]["date"])
+    # running volume: the four whole weeks before this week (Europe/Amsterdam, `today`), and this week so far
+    monday = date.fromisoformat(week_of(today.isoformat()))
+    avg = _run_km(activities, monday - timedelta(weeks=4), monday) / 4
+    if avg:
+        add("info", "run_volume", avg_km=round(avg, 1), week_km=round(_run_km(activities, monday, today + timedelta(days=1)), 1), week_start=monday.isoformat())
     return out
 
 
-def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn: StreamsFn, today: date, rhr_fallback: float | None = None) -> dict:
+def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn: StreamsFn, today: date, rhr_fallback: float | None = None, plan: dict | None = None) -> dict:
+    """Everything the Trends page shows. `plan`: the active plan, for the user's own goal (goal_from_plan)."""
     form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=today)
+    weekly = weekly_volume(activities)
+    flags = hr_flags(activities, streams_fn)
+    recs = records(activities)
+    recent = recent_records(recs, today)
+    goal = goal_from_plan(plan, today)
+    by_id = {a["id"]: a for a in activities}
     return {
         "today": today.isoformat(),
         "form": form,
-        "weekly": weekly_volume(activities),
-        "z2_pace": z2_pace(activities, streams_fn, zones),
+        "weekly": weekly,
+        "z2_pace": z2_pace(activities, streams_fn, zones, exclude=set(flags)),
         "vo2max": vo2max(activities),
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
-        "records": records(activities),
+        "records": recs,
+        "recent_records": recent,
         "races": races(activities),
         "predictions": predictions(activities, today),
-        # the thresholds behind races and predictions, so the page explains them with the real numbers
-        "rules": {"race_min_km": RACE_MIN_KM, "race_hard_pct": round(RACE_HARD_SHARE * 100), "predict_days": 180, "riegel": RIEGEL},
-        "insights": insights(form, weekly_volume(activities), activities, today),
+        "longest_runs": longest_runs(activities),
+        "hr_flags": sorted(
+            ({"id": i, "date": by_id[i]["start_local"][:10], "name": by_id[i].get("name") or "", "reasons": r} for i, r in flags.items()),
+            key=lambda f: f["date"],
+        ),
+        "goal": goal,
+        # the thresholds behind races, records and predictions, so the page explains them with the real numbers
+        "rules": {
+            "race_min_km": RACE_MIN_KM,
+            "race_hard_pct": round(RACE_HARD_SHARE * 100),
+            "predict_days": 180,
+            "riegel": RIEGEL,
+            "race_short_pct": round((1 - RACE_SHORT) * 100),
+            "recent_record_days": RECENT_RECORD_DAYS,
+        },
+        "insights": insights(form, weekly, activities, today, goal, recent),
     }

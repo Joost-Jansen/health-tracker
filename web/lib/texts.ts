@@ -329,6 +329,9 @@ export const T = {
       fatigue: "Vermoeidheid",
       form: "Vorm",
       peak: (v: number, day: string) => `Piek fitheid in periode ${v} op ${day}`,
+      /** De vormreeks stopt bij een sync van eergisteren of ouder. */
+      stopped: (day: string) =>
+        `Fitheid, vermoeidheid en vorm lopen tot ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,
     },
 
     volume: {

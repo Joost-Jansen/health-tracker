@@ -428,6 +428,9 @@ export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recove
   recovery_daily?: RecoveryDay[];
   recent_records?: RecentRecord[];
   goal?: TrendsGoal | null;
+  /** Laatste dag van de vormreeks; na een sync van eergisteren of ouder de laatst gesyncte dag (`stopped_at_sync`). */
+  form_until?: string | null;
+  stopped_at_sync?: boolean;
   longest_runs?: LongestRun[];
   hr_flags?: HrFlag[];
   rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number; race_short_pct?: number; recent_record_days?: number };

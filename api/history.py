@@ -32,7 +32,9 @@ def _raw(a: dict) -> dict:
     return ((a.get("sources") or {}).get("garmin") or {}).get("raw") or {}
 
 
-def list_activities(activities: list[dict], sport: str | None = None, start: str | None = None, end: str | None = None) -> list[dict]:
+def list_activities(activities: list[dict], sport: str | None = None, start: str | None = None, end: str | None = None, hr_flags: dict[str, list[str]] | None = None) -> list[dict]:
+    """Summaries, newest first. `hr_flags` (api/trends.py hr_flags): runs with an implausible wrist heart rate get
+    their reason codes as `hr_flags`."""
     out = []
     for a in activities:
         day = a["start_local"][:10]
@@ -42,6 +44,8 @@ def list_activities(activities: list[dict], sport: str | None = None, start: str
             continue
         s = summary(a)
         s["has_gps"] = bool(a.get("has_gps", _raw(a).get("hasPolyline")))
+        if hr_flags and a["id"] in hr_flags:
+            s["hr_flags"] = hr_flags[a["id"]]
         out.append(s)
     out.sort(key=lambda s: s["start_local"], reverse=True)
     return out

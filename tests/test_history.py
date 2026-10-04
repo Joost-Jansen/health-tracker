@@ -68,3 +68,10 @@ def test_heatmap_limits_points_and_skips_tracks_without_gps():
     acts = [run("a", "2026-09-01T08:00:00"), run("b", "2026-09-02T08:00:00")]
     out = heatmap(acts, lambda aid: streams_for() if aid == "a" else {}, limit=30)
     assert len(out["tracks"]) == 1 and len(out["tracks"][0]) == 30
+
+
+def test_list_marks_runs_with_implausible_wrist_hr():
+    acts = [run("a", "2026-09-01T08:00:00"), run("b", "2026-09-02T08:00:00")]
+    out = {a["id"]: a for a in list_activities(acts, hr_flags={"b": ["low_start"]})}
+    assert out["b"]["hr_flags"] == ["low_start"] and "hr_flags" not in out["a"]
+    assert "hr_flags" not in list_activities(acts)[0]

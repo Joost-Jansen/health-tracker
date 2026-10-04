@@ -13,7 +13,9 @@ import Card from "@/components/Card";
 import { Button, EmptyState, Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
 import { T } from "@/lib/texts";
-import { type RouteOption, type RouteSport, type RouteSummary, fmtKm } from "@/lib/training";
+import { type RouteCandidates as Candidates, type RouteOption, type RouteSport, type RouteSummary, type RouteWithVariants, fmtKm } from "@/lib/training";
+import LengthVariants from "@/components/routes/LengthVariants";
+import RouteCandidates from "@/components/routes/RouteCandidates";
 import { SPORT_TABS, WORDS, asSport, fmtEffort, fmtTypical, kmhFromPace, listHref, routeHref as href } from "./sport";
 
 const RoutesMap = dynamic(() => import("@/components/map/RoutesMap"), { ssr: false });
@@ -125,7 +127,8 @@ function Trend({ r }: { r: RouteSummary }) {
 }
 
 function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport) => void }) {
-  const q = useQuery({ queryKey: ["routes", sport], queryFn: () => api.get<RouteSummary[]>(`/api/routes?sport=${sport}`) });
+  const q = useQuery({ queryKey: ["routes", sport], queryFn: () => api.get<RouteWithVariants[]>(`/api/routes?sport=${sport}`) });
+  const cands = useQuery({ queryKey: ["route-candidates", sport], queryFn: () => api.get<Candidates>(`/api/routes/candidates?sport=${sport}`) });
   const words = WORDS[sport];
   const routes = q.data ?? [];
 
@@ -149,6 +152,7 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
           <Suggest key={sport} sport={sport} routes={routes} />
         )}
       </Card>
+      <RouteCandidates key={sport} sport={sport} candidates={cands.data?.candidates ?? []} done={words.done} />
       {routes.length > 0 && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -169,6 +173,7 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
                     <div className="min-w-0 text-[12.5px]">
                       <div className="truncate text-[14px] font-semibold">{r.name ?? r.id}</div>
                       <div className="tabular-nums text-ink-muted">{fmtKm(r.distance_km)} · {r.is_loop ? "rondje" : "route"}{r.elevation_gain_m ? ` · ${Math.round(r.elevation_gain_m)} hm` : ""}</div>
+                      <LengthVariants variants={r.distance_variants} className="block text-ink-muted" />
                       <div className="mt-1.5 tabular-nums">{r.runs}× {words.done}, laatst {fmtDay(r.last_run)}</div>
                       <div className="tabular-nums text-ink-muted">typisch {fmtTypical(r)} · {r.median_hr ?? "–"} bpm</div>
                       {r.best && <div className="tabular-nums">beste {fmtEffort(sport, r.best.pace_s_per_km)} ({fmtDay(r.best.date)})</div>}
@@ -184,6 +189,7 @@ function Routes({ sport, onSport }: { sport: RouteSport; onSport: (s: RouteSport
           </p>
         </>
       )}
+      <p className="text-[11.5px] text-ink-muted">{T.routes.auto(cands.data?.last_sync)}</p>
     </div>
   );
 }

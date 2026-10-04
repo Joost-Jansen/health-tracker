@@ -65,6 +65,25 @@ export const T = {
       : `Een rondje is herkend als je minstens ${minCount} keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren.`,
   routeTrend: "Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor.",
 
+  /** Rondjes (T20): automatisch herkennen, varianten en de vraag of twee rondjes hetzelfde zijn. */
+  routes: {
+    auto: (lastSync?: string | null) =>
+      `Rondjes worden na elke sync automatisch herkend${lastSync && lastSync !== "nog nooit" ? ` (laatste sync: ${lastSync})` : ""}.`,
+    reviewIntro:
+      "Deze lijken op elkaar, maar niet genoeg om ze zelf samen te voegen. Zelfde rondje? Dan tellen ze voortaan samen, als varianten van één rondje. Je antwoord wordt onthouden.",
+    reason: {
+      same: "Lijkt hetzelfde rondje.",
+      other_start: "Zelfde rondje, ander startpunt.",
+      extra_loop: "Zelfde rondje, de langste met een extra lus of omweg.",
+      partly_other_way: "Grotendeels hetzelfde rondje, deels een andere weg.",
+    } as Record<string, string>,
+    pending: (n: number, sport: string) =>
+      `${n === 1 ? "Eén paar" : `${n} paren`} ${sport === "ride" ? "fietsrondjes" : "rondjes"} ${n === 1 ? "lijkt" : "lijken"} op elkaar. Kijk even of het hetzelfde rondje is.`,
+    nextSync: "Onthouden. Het rondje wordt bij de volgende sync bijgewerkt.",
+    variants: (kms: string[]) => `${kms.length} varianten: ${list(kms)} km`,
+    variantsHelp: "Hetzelfde rondje in verschillende lengtes, bijvoorbeeld met een extra lus, een omweg of een andere start.",
+  },
+
   /** Schema (T24): uitleg bij de vergelijking van gepland en gedaan. */
   plan: {
     zoneFit: (pct: number, zone: string) => {

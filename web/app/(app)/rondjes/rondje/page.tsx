@@ -13,7 +13,8 @@ import { Button } from "@/components/ds";
 import TrendChart from "@/components/charts/TrendChart";
 import { api } from "@/lib/api";
 import { T } from "@/lib/texts";
-import { type RouteDetail, fmtClock, fmtKm, ZONE_COLOUR, ZONES } from "@/lib/training";
+import { type RouteDetail, type RouteLengthVariant, fmtClock, fmtKm, ZONE_COLOUR, ZONES } from "@/lib/training";
+import LengthVariants from "@/components/routes/LengthVariants";
 import { WORDS, asSport, fmtEffort, kmhFromPace, listHref } from "../sport";
 
 const RoutesMap = dynamic(() => import("@/components/map/RoutesMap"), { ssr: false });
@@ -49,7 +50,7 @@ function Rename({ route }: { route: RouteDetail }) {
 }
 
 function Detail({ id }: { id: string }) {
-  const q = useQuery({ queryKey: ["route", id], queryFn: () => api.get<RouteDetail>(`/api/routes/${encodeURIComponent(id)}`) });
+  const q = useQuery({ queryKey: ["route", id], queryFn: () => api.get<RouteDetail & { distance_variants?: RouteLengthVariant[] }>(`/api/routes/${encodeURIComponent(id)}`) });
   if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
   if (!q.data) return <p className="text-sm text-ink-muted">Rondje niet gevonden.</p>;
   const r = q.data;
@@ -69,6 +70,7 @@ function Detail({ id }: { id: string }) {
             <p className="text-[12.5px] tabular-nums text-ink-muted">
               {fmtKm(r.distance_km)} · {r.is_loop ? "rondje" : "route"}{r.elevation_gain_m ? ` · ${Math.round(r.elevation_gain_m)} hoogtemeters` : ""} · {r.runs}× {WORDS[sport].done} sinds {r.first_run ? fmtDay(r.first_run) : "–"}
             </p>
+            <LengthVariants variants={r.distance_variants} className="block text-[12.5px] text-ink-muted" />
           </div>
           <Rename route={r} />
         </div>

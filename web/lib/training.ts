@@ -304,3 +304,42 @@ export type AdminUser = {
 };
 export type Invite = { code: string; created_by: number; created_at: string; expires_at: string | null; used_by: number | null; used_at: string | null };
 export type RegistrationMode = "closed" | "invite" | "open";
+
+// ── Rondjes: lengtevarianten en "is dit hetzelfde rondje?" (T20) ─────────────
+
+/** Een lengtevariant binnen een rondje (zelfde rondje met een extra lus, omweg of aanloop). */
+export type RouteLengthVariant = { distance_km: number; runs: number; activity_ids: string[]; last_run: string };
+
+/** GET /api/routes en /api/routes/{id} geven ook `distance_variants`, kortste eerst. */
+export type RouteWithVariants = RouteSummary & { distance_variants?: RouteLengthVariant[] };
+
+export type RouteCandidateSide = {
+  id: string;
+  kind: "route" | "activity";
+  name?: string | null;
+  distance_km?: number;
+  runs?: number;
+  last_run?: string;
+  /** Alleen bij een losse activiteit. */
+  date?: string;
+  track: [number, number][];
+};
+
+export type RouteReasonCode = "same" | "other_start" | "extra_loop" | "partly_other_way";
+
+/** Een open vraag: a is altijd een rondje, b een rondje of een losse activiteit. */
+export type RouteCandidate = {
+  sport: RouteSport;
+  outcome: "same" | "candidate";
+  confidence: number;
+  reason_code?: RouteReasonCode | null;
+  reason: string;
+  a: RouteCandidateSide;
+  b: RouteCandidateSide;
+};
+
+/** GET /api/routes/candidates?sport= */
+export type RouteCandidates = { candidates: RouteCandidate[]; last_sync: string | null };
+
+/** POST /api/routes/candidates {a, b, same} */
+export type RouteCandidateResult = { applied: boolean; applied_on_next_sync: boolean; route: RouteWithVariants | null; remaining: number };

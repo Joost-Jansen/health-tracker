@@ -1,15 +1,16 @@
 // "3 varianten: 38, 42 en 47 km": de lengtevarianten van één rondje. Niets bij één variant.
 
-import { T } from "@/lib/texts";
+import { useFormat, useT } from "@/lib/i18n";
 import type { RouteLengthVariant } from "@/lib/training";
 
-const km = (v: number) => (v >= 20 ? String(Math.round(v)) : v.toFixed(1).replace(".", ","));
-
 export default function LengthVariants({ variants, className = "" }: { variants?: RouteLengthVariant[]; className?: string }) {
+  const t = useT();
+  const f = useFormat();
   if (!variants || variants.length < 2) return null;
+  const km = (v: number) => (v >= 20 ? f.num(v) : f.num(v, 1));
   return (
-    <span className={`tabular-nums ${className}`} title={`${T.routes.variantsHelp} ${variants.map((v) => `${km(v.distance_km)} km: ${v.runs}×`).join(", ")}`}>
-      {T.routes.variants(variants.map((v) => km(v.distance_km)))}
+    <span className={`tabular-nums ${className}`} title={`${t.texts.routes.variantsHelp} ${variants.map((v) => `${km(v.distance_km)} km: ${v.runs}×`).join(", ")}`}>
+      {t.texts.routes.variants(variants.map((v) => km(v.distance_km)))}
     </span>
   );
 }

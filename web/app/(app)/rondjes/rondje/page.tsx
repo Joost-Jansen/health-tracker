@@ -12,20 +12,20 @@ import Card from "@/components/Card";
 import { Button } from "@/components/ds";
 import TrendChart from "@/components/charts/TrendChart";
 import { api } from "@/lib/api";
-import { T } from "@/lib/texts";
-import { type RouteDetail, type RouteLengthVariant, fmtClock, fmtKm, ZONE_COLOUR, ZONES } from "@/lib/training";
+import { errorText, routeName, useFormat, useT } from "@/lib/i18n";
+import { type RouteDetail, type RouteLengthVariant, ZONE_COLOUR, ZONES } from "@/lib/training";
 import LengthVariants from "@/components/routes/LengthVariants";
-import { WORDS, asSport, fmtEffort, kmhFromPace, listHref } from "../sport";
+import { asSport, fmtEffort, kmhFromPace, listHref } from "../sport";
 
 const RoutesMap = dynamic(() => import("@/components/map/RoutesMap"), { ssr: false });
-const fmtDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "2-digit" });
 
 function Rename({ route }: { route: RouteDetail }) {
+  const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(route.name ?? "");
   const [error, setError] = useState<string | null>(null);
-  if (!open) return <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>Hernoemen</Button>;
+  if (!open) return <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>{t.routes.rename}</Button>;
   return (
     <form
       className="flex flex-wrap items-center gap-2"
@@ -37,22 +37,25 @@ function Rename({ route }: { route: RouteDetail }) {
           qc.invalidateQueries({ queryKey: ["route", route.id] });
           qc.invalidateQueries({ queryKey: ["routes"] });
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Mislukt");
+          setError(errorText(err, t, t.common.failed));
         }
       }}
     >
-      <input className="ds-input h-8 w-56 text-[13px]" value={name} onChange={(e) => setName(e.target.value)} autoFocus aria-label="Naam" />
-      <Button size="sm" variant="primary" type="submit">Opslaan</Button>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Annuleren</Button>
+      <input className="ds-input h-8 w-56 text-[13px]" value={name} onChange={(e) => setName(e.target.value)} autoFocus aria-label={t.routes.name} />
+      <Button size="sm" variant="primary" type="submit">{t.common.save}</Button>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>{t.common.cancel}</Button>
       {error && <span className="text-[12px] text-loss">{error}</span>}
     </form>
   );
 }
 
 function Detail({ id }: { id: string }) {
+  const t = useT();
+  const f = useFormat();
+  const fmtDay = (d: string) => f.dayShortYear(d);
   const q = useQuery({ queryKey: ["route", id], queryFn: () => api.get<RouteDetail & { distance_variants?: RouteLengthVariant[] }>(`/api/routes/${encodeURIComponent(id)}`) });
-  if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
-  if (!q.data) return <p className="text-sm text-ink-muted">Rondje niet gevonden.</p>;
+  if (q.isLoading) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">{t.routes.notFound}</p>;
   const r = q.data;
   const sport = asSport(r.sport);
   const ride = sport === "ride";
@@ -62,13 +65,13 @@ function Detail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href={listHref(sport)} className="text-[12.5px] text-ink-muted hover:underline">← Rondjes</Link>
+      <Link href={listHref(sport)} className="text-[12.5px] text-ink-muted hover:underline">{t.routes.back}</Link>
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-[27px] font-light leading-tight">{r.name ?? r.id}</h1>
+            <h1 className="font-display text-[27px] font-light leading-tight">{routeName(r.name, r.id, t, f)}</h1>
             <p className="text-[12.5px] tabular-nums text-ink-muted">
-              {fmtKm(r.distance_km)} · {r.is_loop ? "rondje" : "route"}{r.elevation_gain_m ? ` · ${Math.round(r.elevation_gain_m)} hoogtemeters` : ""} · {r.runs}× {WORDS[sport].done} sinds {r.first_run ? fmtDay(r.first_run) : "–"}
+              {f.km(r.distance_km)} · {r.is_loop ? t.routes.loop : t.routes.line}{r.elevation_gain_m ? ` · ${t.routes.elevationLong(Math.round(r.elevation_gain_m))}` : ""} · {t.routes.summary(r.runs, t.routes.words[sport].done, r.first_run ? fmtDay(r.first_run) : "–")}
             </p>
             <LengthVariants variants={r.distance_variants} className="block text-[12.5px] text-ink-muted" />
           </div>
@@ -76,39 +79,39 @@ function Detail({ id }: { id: string }) {
         </div>
       </Card>
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <Card title="Kaart">
+        <Card title={t.routes.map}>
           <RoutesMap
             height={400}
             lines={[
               ...(r.variants ?? []).map((v) => ({ id: v.id, label: v.date, points: v.track, variant: true })),
-              { id: r.id, label: "Meest typische keer", points: r.track },
+              { id: r.id, label: t.routes.mostTypical, points: r.track },
             ]}
           />
           <p className="mt-2 text-[11.5px] text-ink-muted">
-            Dikke lijn: de meest typische keer (lijkt het meest op alle andere). Dun en licht: de {r.variants?.length ?? 0} andere keren, zodat je ziet waar je afweek of eerder of later begon.
+            {t.routes.mapNote(r.variants?.length ?? 0)}
           </p>
         </Card>
         <div className="flex flex-col gap-4">
           {ride ? (
-            <Card title="Snelheid op dit rondje">
-              <TrendChart label="Snelheid" points={runs.map((h) => ({ d: h.date, v: kmhFromPace(h.pace_s_per_km)! }))} format={(v) => v.toFixed(1).replace(".", ",")} unit=" km/u" height={150} />
+            <Card title={t.routes.speedTitle}>
+              <TrendChart label={t.routes.speed} points={runs.map((h) => ({ d: h.date, v: kmhFromPace(h.pace_s_per_km)! }))} format={(v) => f.num(v, 1)} unit={` ${f.kmhUnit}`} height={150} />
             </Card>
           ) : (
-            <Card title="Tempo op dit rondje">
-              <TrendChart label="Tempo" points={runs.map((h) => ({ d: h.date, v: h.pace_s_per_km! }))} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter height={150} />
+            <Card title={t.routes.paceTitle}>
+              <TrendChart label={t.routes.pace} points={runs.map((h) => ({ d: h.date, v: h.pace_s_per_km! }))} format={(v) => f.clock(v)} unit="/km" lowerIsBetter height={150} />
             </Card>
           )}
-          <Card title="Efficiëntie: meter per hartslag">
-            <TrendChart label="Efficiëntie" points={effRuns.map((h) => ({ d: h.date, v: h.m_per_beat! }))} format={(v) => v.toFixed(2).replace(".", ",")} unit=" m" height={120} colour="var(--chart-6)" />
-            <p className="mt-2 text-[11.5px] text-ink-muted">{T.efficiency(ride ? "ride" : "run")} Gemiddelde hartslag: {hrRuns.length ? Math.round(hrRuns.reduce((s, h) => s + h.avg_hr!, 0) / hrRuns.length) : "–"} bpm.</p>
+          <Card title={t.routes.efficiencyTitle}>
+            <TrendChart label={t.routes.efficiency} points={effRuns.map((h) => ({ d: h.date, v: h.m_per_beat! }))} format={(v) => f.num(v, 2)} unit=" m" height={120} colour="var(--chart-6)" />
+            <p className="mt-2 text-[11.5px] text-ink-muted">{t.texts.efficiency(ride ? "ride" : "run")} {t.routes.avgHr(hrRuns.length ? String(Math.round(hrRuns.reduce((s, h) => s + h.avg_hr!, 0) / hrRuns.length)) : "–")}</p>
           </Card>
         </div>
       </div>
-      <Card title="Alle keren">
+      <Card title={t.routes.all}>
         <table className="w-full text-[12.5px] tabular-nums">
           <thead>
             <tr className="text-left text-[11.5px] text-ink-muted">
-              <th className="pb-2 font-normal">Datum</th><th className="pb-2 font-normal">Tijd</th><th className="pb-2 font-normal">{ride ? "Snelheid" : "Tempo"}</th><th className="pb-2 font-normal">HR</th><th className="pb-2 font-normal">m/slag</th><th className="hidden w-1/4 pb-2 font-normal sm:table-cell">Zones</th>
+              <th className="pb-2 font-normal">{t.routes.date}</th><th className="pb-2 font-normal">{t.routes.time}</th><th className="pb-2 font-normal">{ride ? t.routes.speed : t.routes.pace}</th><th className="pb-2 font-normal">{t.routes.hr}</th><th className="pb-2 font-normal">{t.routes.perBeat}</th><th className="hidden w-1/4 pb-2 font-normal sm:table-cell">{t.routes.zones}</th>
             </tr>
           </thead>
           <tbody>
@@ -118,10 +121,10 @@ function Detail({ id }: { id: string }) {
               return (
                 <tr key={h.id} className="border-t border-border">
                   <td className="py-1.5"><Link href={`/historie/activiteit/?id=${encodeURIComponent(h.id)}`} className="hover:underline">{fmtDay(h.date)}</Link></td>
-                  <td className="py-1.5">{fmtClock(h.moving_time_s)}</td>
-                  <td className={`py-1.5 ${r.best?.activity_id === h.id ? "font-semibold" : ""}`}>{fmtEffort(sport, h.pace_s_per_km)}</td>
+                  <td className="py-1.5">{f.clock(h.moving_time_s)}</td>
+                  <td className={`py-1.5 ${r.best?.activity_id === h.id ? "font-semibold" : ""}`}>{fmtEffort(f, sport, h.pace_s_per_km)}</td>
                   <td className="py-1.5">{h.avg_hr ?? "–"}</td>
-                  <td className="py-1.5">{h.m_per_beat ? h.m_per_beat.toFixed(2).replace(".", ",") : "–"}</td>
+                  <td className="py-1.5">{h.m_per_beat ? f.num(h.m_per_beat, 2) : "–"}</td>
                   <td className="hidden py-1.5 sm:table-cell">
                     {total > 0 && (
                       <span className="flex h-1.5 overflow-hidden rounded-full">
@@ -140,13 +143,15 @@ function Detail({ id }: { id: string }) {
 }
 
 function WithId() {
+  const t = useT();
   const id = useSearchParams().get("id");
-  return id ? <Detail id={id} /> : <p className="text-sm text-ink-muted">Geen rondje gekozen.</p>;
+  return id ? <Detail id={id} /> : <p className="text-sm text-ink-muted">{t.routes.noneChosen}</p>;
 }
 
 export default function RondjePage() {
+  const t = useT();
   return (
-    <Suspense fallback={<p className="text-sm text-ink-muted">Laden…</p>}>
+    <Suspense fallback={<p className="text-sm text-ink-muted">{t.common.loading}</p>}>
       <WithId />
     </Suspense>
   );

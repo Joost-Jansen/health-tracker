@@ -360,7 +360,12 @@ export default function TimeChart({
     const pad = hi > lo ? (hi - lo) * 0.08 : Math.max(Math.abs(hi) * 0.05, 1);
     if (!(anyBar && lo === 0)) lo -= pad;
     hi += pad;
-    const ticks = (clock ? clockTicks : niceTicks)(lo, hi, height < 170 ? 3 : 4);
+    // Minder ticks als twee labels na het opmaken gelijk worden (55 en 55,5 met een opmaak zonder decimalen
+    // stonden er als "55, 56, 56").
+    let max = height < 170 ? 3 : 4;
+    let ticks = (clock ? clockTicks : niceTicks)(lo, hi, max);
+    while (max > 2 && new Set(ticks.map(format)).size < ticks.length) ticks = (clock ? clockTicks : niceTicks)(lo, hi, --max);
+    if (new Set(ticks.map(format)).size < ticks.length) ticks = ticks.filter((t, i) => i === 0 || format(t) !== format(ticks[i - 1]));
     return { lo, hi, ticks, empty: false };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, stack, view, baseline, height, barDays, clock]);

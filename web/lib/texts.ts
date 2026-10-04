@@ -206,7 +206,7 @@ export const T = {
     /** Aftellen naar de eerstvolgende wedstrijd van het schema. */
     race: {
       today: "Vandaag",
-      days: (n: number) => (n === 1 ? "dag" : "dagen"),
+      days: (n: number): string => (n === 1 ? "dag" : "dagen"),
       until: (name: string | null) => `tot ${name ?? "de wedstrijd"}`,
       todayIs: (name: string | null) => `is het zover: ${name ?? "de wedstrijd"}`,
     },

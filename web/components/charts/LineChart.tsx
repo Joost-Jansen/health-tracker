@@ -25,6 +25,7 @@
 // van elke lijn mogelijk maakt.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { niceTicks } from "@/lib/chartScale";
 import { fmtDayMonth } from "@/lib/format";
 import { trueMinus } from "@/lib/typography";
 
@@ -119,7 +120,9 @@ export default function LineChart({
   const x = (i: number) => (i / (dates.length - 1)) * plotW;
   const y = (v: number) => PAD.top + (1 - (v - lo) / span) * plotH;
 
-  const ticks = Array.from({ length: gridLines }, (_, i) => lo + (span * (i + 1)) / (gridLines + 1));
+  // Ronde waarden (0, 25, 50 …) in plaats van gelijke delen van het bereik, die als 21 en −9 op de as kwamen.
+  const nice = niceTicks(lo, hi, gridLines);
+  const ticks = nice.length ? nice : Array.from({ length: gridLines }, (_, i) => lo + (span * (i + 1)) / (gridLines + 1));
 
   function locate(clientX: number) {
     const rect = box.current?.getBoundingClientRect();

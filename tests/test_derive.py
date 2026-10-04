@@ -115,3 +115,31 @@ def test_derive_without_recurring_rides_has_no_ride_routes():
     db.upsert_activity(e, ride("2026-09-21", 1))
     assert derive(e)["routes"] == {"run": 0, "ride": 0}
     assert db.load_routes(e) == []
+
+
+def lead_in_run(day, seed):
+    from tests.helpers import path
+
+    r = run(day, 50 + seed)
+    r["start_utc"], r["start_local"] = f"{day}T17:00:00Z", f"{day}T19:00:00"
+    r["distance_km"] = 5.6
+    r["streams"]["latlng"] = path([(-800, 0), (0, 0), (1000, 0), (1000, 1000), (0, 1000), (0, 0), (-800, 0)])
+    return r
+
+
+def test_derive_stores_candidates_and_applies_decisions():
+    e = setup()
+    for i, day in enumerate(["2026-09-20", "2026-09-24", "2026-09-28"]):
+        db.upsert_activity(e, run(day, i))
+        db.upsert_activity(e, lead_in_run(day, i))
+    result = derive(e)
+    assert result["routes"]["run"] == 2 and result["candidates"] == 1
+    pending = db.get_setting(e, "route_candidates")["candidates"]
+    assert [(c["a"]["id"], c["b"]["id"]) for c in pending] == [("r1", "r2")]
+
+    db.set_setting(e, "route_decisions", {"merge": [["r1", "r2"]], "separate": []})
+    result = derive(e)
+    assert result["routes"]["run"] == 1 and result["candidates"] == 0
+    route = db.load_routes(e)[0]
+    assert route["id"] == "r1" and route["runs"] == 6 and len(route["distance_variants"]) == 2
+    assert db.get_setting(e, "route_candidates") == {"candidates": []}

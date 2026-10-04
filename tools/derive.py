@@ -16,7 +16,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools import db
-from tools.routes import build_routes
+from tools.routes import detect
 
 ROUTE_SPORTS = ("run", "ride")
 from tools.zones import zone_seconds
@@ -50,14 +50,18 @@ def derive(scope: db.Scope) -> dict:
 
     # save_routes replaces the whole table, so rebuild every sport and save them together;
     # build_routes only matches existing routes of its own sport (ids r.. for runs, f.. for rides)
+    # route_decisions: the user's answers to candidate pairs ({merge, separate}); route_candidates: open questions
     existing = db.load_routes(scope)
-    routes, counts = [], {}
+    decisions = db.get_setting(scope, "route_decisions") or {}
+    routes, counts, candidates = [], {}, []
     for sport in ROUTE_SPORTS:
-        built = build_routes(tracks[sport], existing, sport=sport)
+        built, asks = detect(tracks[sport], existing, sport=sport, decisions=decisions)
         counts[sport] = len(built)
         routes += built
+        candidates += asks
     db.save_routes(scope, routes)
-    return {"zones_updated": changed, "routes": counts}
+    db.set_setting(scope, "route_candidates", {"candidates": candidates})
+    return {"zones_updated": changed, "routes": counts, "candidates": len(candidates)}
 
 
 if __name__ == "__main__":

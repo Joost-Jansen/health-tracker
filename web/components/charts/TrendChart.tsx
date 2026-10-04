@@ -9,7 +9,7 @@
 // toont hij de hele reeks en zoomt hij alleen lokaal (Rondjes).
 
 import ChartHeadline from "@/components/charts/ChartHeadline";
-import TimeChart, { type MaOption } from "@/components/charts/TimeChart";
+import TimeChart, { type ChartMarker, type MaOption } from "@/components/charts/TimeChart";
 import { dayNumber, fmtDate, linearTrend, type DateWindow, type DayPoint } from "@/lib/timeline";
 
 export type TrendPoint = DayPoint;
@@ -32,6 +32,7 @@ export default function TrendChart({
   maDefault = 0,
   storageKey,
   clock = false,
+  markers,
 }: {
   label: string;
   points: TrendPoint[];
@@ -50,6 +51,8 @@ export default function TrendChart({
   storageKey?: string;
   /** Waarden zijn seconden: as op ronde klokwaarden. */
   clock?: boolean;
+  /** Verticale markeringen (ruitjes), bijvoorbeeld runs die niet meetellen. */
+  markers?: ChartMarker[];
 }) {
   if (points.length < 2) return <p className="py-6 text-center text-sm text-ink-muted">{empty}</p>;
 
@@ -95,6 +98,7 @@ export default function TrendChart({
         storageKey={storageKey}
         legend={false}
         clock={clock}
+        markers={markers}
         series={[{ key: "v", label, colour, points, ma: true, trend: true, peak: lowerIsBetter ? "min" : "max", width: 2 }]}
       />
     </div>

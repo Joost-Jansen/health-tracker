@@ -22,14 +22,30 @@ export const T = {
 
   zoneEstimate: (sport: string) => `Zones voor ${sportLabel(sport).toLowerCase()} zijn een schatting (Instellingen, Zones en profiel).`,
 
+  /** Onder de status als kop ("Fris", "In balans" …), dus zonder die naam te herhalen. */
   formStatus: {
-    fris: "Fris: er is ruimte voor een zware training of een wedstrijd.",
-    "in balans": "In balans: belasting en herstel houden elkaar in evenwicht.",
-    vermoeid: "Vermoeid: je bouwt op; plan binnenkort een rustiger dag.",
-    "zeer vermoeid": "Zeer vermoeid: de belasting is hoog tegenover wat je gewend bent; neem rust.",
+    fris: "Er is ruimte voor een zware training of een wedstrijd.",
+    "in balans": "Belasting en herstel houden elkaar in evenwicht.",
+    vermoeid: "Je bouwt op; plan binnenkort een rustiger dag.",
+    "zeer vermoeid": "De belasting is hoog tegenover wat je gewend bent; neem rust.",
   } as Record<string, string>,
 
-  formMethod: "Belasting per training = TRIMP uit gemiddelde hartslag, rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil.",
+  formMethod: "Belasting per training = TRIMP uit gemiddelde hartslag, rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
+
+  /** Waarom fitheid min vermoeidheid van vandaag niet precies de vorm is. */
+  formTsb: "Vorm = fitheid min vermoeidheid van gisteren: de stand aan het begin van vandaag.",
+
+  formChartNote: "Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.",
+
+  /** De data is ouder dan een dag: wat de site sindsdien niet weet. */
+  syncStale: (days: number) =>
+    `De laatste sync is ${days} dagen oud. Trainingen en herstel van daarna ontbreken nog; fitheid, vermoeidheid en vorm tellen die dagen als rustdagen.`,
+
+  /** Onder Volume deze week: de lopende week is nog niet af. */
+  volumeWeek: (through: string) => `Deze week tot en met ${through}; het gemiddelde is over de vier hele weken ervoor.`,
+
+  /** Een wedstrijd over (ongeveer) een recordafstand die sneller was dan de snelste split: het horloge mat de afstand net te kort. */
+  recordRace: "Snelste wedstrijd over deze afstand. Het horloge mat net minder, daardoor staat hij niet bij de splits.",
 
   z2Pace: "Gemiddeld tempo van alle seconden in Z2 per week, alleen losse buitenruns (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag wijst op een betere aerobe basis.",
 

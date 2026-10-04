@@ -34,7 +34,7 @@ const VERDICT: Record<Readiness["verdict"], { label: string; colour: string }> =
 };
 const FORM_LINES = [
   { label: "Fitheid", colour: "var(--chart-1)", dash: false },
-  { label: "Moeheid", colour: "var(--chart-3)", dash: false },
+  { label: "Vermoeidheid", colour: "var(--chart-3)", dash: false },
   { label: "Vorm", colour: "var(--chart-4)", dash: true },
 ];
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
@@ -100,6 +100,12 @@ function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string
 }
 
 const SPORT_ORDER = ["run", "ride", "swim"];
+
+const dayNo = (iso: string) => Date.parse(iso.slice(0, 10) + "T00:00:00Z") / 86_400_000;
+const isoOf = (n: number) => new Date(n * 86_400_000).toISOString().slice(0, 10);
+/** "In balans" en niet "In Balans" (CSS capitalize zet elke woordletter groot). */
+const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtHours = (h: number) => `${h.toFixed(1).replace(".", ",")} u`;
 const bySportOrder = (a: string, b: string) =>
   (SPORT_ORDER.indexOf(a) + 1 || 99) - (SPORT_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b);
 
@@ -133,14 +139,30 @@ export default function DashboardPage() {
   const zp = zq.data;
   const zones = zp ? zp.zones : d.zones[period];
   const zonesCurrent = zp ? zp.is_current : true;
+  const bounds = zp?.bounds ?? d.zone_bounds;
   const zoneSports = Object.keys(zones).filter((s) => s !== "all").sort(bySportOrder);
   const multiSport = zoneSports.length > 1;
   const volSports = Array.from(new Set([...Object.keys(d.volume.week), ...Object.keys(d.volume.avg4w)])).sort(bySportOrder);
   const form = d.form;
+  const syncDay = /^\d{4}-\d{2}-\d{2}/.test(d.last_sync ?? "") ? d.last_sync.slice(0, 10) : null;
+  const syncAge = syncDay ? dayNo(d.today) - dayNo(syncDay) : 0;
+  const lastSync = syncDay ? `${fmtDate(syncDay)}${d.last_sync.length > 10 ? `, ${d.last_sync.slice(11, 16)}` : ""}` : d.last_sync || "nog niet";
+  // De lopende week (ma t/m vandaag) tegenover het gemiddelde van de vier hele weken ervoor.
+  const weekThrough = new Date(d.today + "T12:00:00").toLocaleDateString("nl-NL", { weekday: "long" });
+  // Herstel: alle zeven dagen, ook die zonder meting, zodat een gat zichtbaar is in plaats van weg te vallen.
+  const recoveryByDay = new Map(d.recovery.days.map((w) => [w.date, w]));
+  const recoveryDays = Array.from({ length: 7 }, (_, i) => isoOf(dayNo(d.today) - i));
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[12.5px] text-ink-muted">Laatste sync: {d.last_sync} (Europe/Amsterdam)</p>
+      {syncAge >= 2 ? (
+        <p role="status" className="flex items-start gap-2 rounded border border-border bg-surface px-3 py-2 text-[12.5px] leading-relaxed">
+          <span aria-hidden="true" className="mt-[6px] inline-block h-2 w-2 flex-none rounded-full bg-warn" />
+          <span><span className="font-medium">Laatste sync: {lastSync}.</span> <span className="text-ink-muted">{T.syncStale(syncAge)}</span></span>
+        </p>
+      ) : (
+        <p className="text-[12.5px] text-ink-muted">Laatste sync: {lastSync}</p>
+      )}
 
       <OnboardingCard />
 
@@ -154,15 +176,15 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-[240px_1fr]">
             <div className="flex flex-col gap-3">
               <div>
-                <div className="font-display text-[27px] font-light capitalize">{form.status}</div>
+                <div className="font-display text-[27px] font-light">{sentence(form.status)}</div>
                 <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
               </div>
-              <dl className="grid grid-cols-3 gap-2 text-[12px] tabular-nums">
+              <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
                 <div><dt className="text-ink-muted">Fitheid</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
-                <div><dt className="text-ink-muted">Moeheid</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
+                <div><dt className="text-ink-muted">Vermoeidheid</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
                 <div><dt className="text-ink-muted">Vorm</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}</dd></div>
               </dl>
-              <p className="text-[11.5px] text-ink-muted">Piek fitheid {Math.round(form.ctl_peak)} op {fmtDate(form.ctl_peak_date)}.</p>
+              <p className="text-[11.5px] leading-relaxed text-ink-muted">{T.formTsb} Piek fitheid {Math.round(form.ctl_peak)} op {fmtDate(form.ctl_peak_date)}.</p>
             </div>
             <div>
             <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
@@ -181,7 +203,7 @@ export default function DashboardPage() {
               baseline={0}
               series={[
                 { label: "Fitheid", colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
-                { label: "Moeheid", colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
+                { label: "Vermoeidheid", colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
                 { label: "Vorm", colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
               ]}
             />
@@ -201,10 +223,18 @@ export default function DashboardPage() {
             <p className="text-[13px] text-ink-muted">{zonesCurrent ? `Nog geen training met hartslag ${period === "week" ? "deze week" : "deze maand"}.` : "Geen training met hartslag in deze periode."}</p>
           ) : (
             <div className="flex flex-col gap-5">
-              <ZoneBar sport="all" share={zones.all} />
-              {multiSport && <div className="border-t border-border" />}
-              {multiSport && zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={d.zone_bounds[s]} />)}
-              {!multiSport && <p className="-mt-2 text-[11.5px] text-ink-muted">Alleen {sportLabel(zoneSports[0]).toLowerCase()} in deze periode.</p>}
+              {multiSport ? (
+                <>
+                  <ZoneBar sport="all" share={zones.all} />
+                  <div className="border-t border-border" />
+                  {zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={bounds[s]} />)}
+                </>
+              ) : (
+                <>
+                  <ZoneBar sport={zoneSports[0]} share={zones[zoneSports[0]]} bounds={bounds[zoneSports[0]]} />
+                  <p className="-mt-2 text-[11.5px] text-ink-muted">Alleen {sportLabel(zoneSports[0]).toLowerCase()} in deze periode.</p>
+                </>
+              )}
             </div>
           )}
           <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
@@ -216,7 +246,7 @@ export default function DashboardPage() {
               <thead>
                 <tr className="text-left text-[11.5px] text-ink-muted">
                   <th className="pb-2 font-normal">Sport</th>
-                  <th className="pb-2 font-normal">Deze week</th>
+                  <th className="pb-2 font-normal">Tot nu</th>
                   <th className="pb-2 font-normal">Gem. 4 weken</th>
                 </tr>
               </thead>
@@ -234,6 +264,7 @@ export default function DashboardPage() {
                 })}
               </tbody>
             </table>
+            <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>
           </Card>
           <Card title="Herstel, laatste 7 dagen" className="flex-1">
             {d.recovery.days.length === 0 ? (
@@ -244,23 +275,27 @@ export default function DashboardPage() {
                   <tr className="text-left text-[11.5px] text-ink-muted">
                     <th className="pb-2 font-normal">Dag</th>
                     <th className="pb-2 font-normal">Slaap</th>
-                    <th className="pb-2 font-normal">Rust-HR</th>
+                    <th className="pb-2 font-normal">Rusthartslag</th>
                     <th className="pb-2 font-normal">Body Battery</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {d.recovery.days.slice().reverse().map((w) => (
-                    <tr key={w.date} className="border-t border-border">
-                      <td className="py-1.5">{fmtDate(w.date)}</td>
-                      <td className="py-1.5">{w.sleep_h ? `${String(w.sleep_h).replace(".", ",")} u` : "–"}</td>
-                      <td className="py-1.5">{w.resting_hr ?? "–"}</td>
-                      <td className="py-1.5">{w.body_battery_high ?? "–"}</td>
-                    </tr>
-                  ))}
+                  {recoveryDays.map((day) => {
+                    const w = recoveryByDay.get(day);
+                    const sleep = Number(w?.sleep_h);
+                    return (
+                      <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
+                        <td className="py-1.5">{fmtDate(day)}</td>
+                        <td className="py-1.5">{sleep > 0 ? fmtHours(sleep) : "–"}</td>
+                        <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
+                        <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
-            {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">Rust-HR normaal (60 dagen): {d.recovery.baseline_rhr} bpm.</p>}
+            {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">Je normale rusthartslag (mediaan 60 dagen): {Math.round(d.recovery.baseline_rhr)} bpm.</p>}
           </Card>
         </div>
       </div>

@@ -3,5 +3,5 @@
 import DocEditor from "@/components/log/DocEditor";
 
 export default function ProfielPage() {
-  return <DocEditor docKey="profile" title="Profiel" />;
+  return <DocEditor docKey="profile" />;
 }

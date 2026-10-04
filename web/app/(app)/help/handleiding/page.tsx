@@ -2,21 +2,13 @@
 
 // Help, Handleiding : aan de slag, je gegevens binnenhalen, zones, hoe de
 // cijfers werken, waar je wat vindt. Dezelfde stappen en teksten als in de rondleiding (components/onboarding/steps.tsx);
-// uitleg over gezondheid en prestaties uit lib/texts.ts.
+// uitleg over gezondheid en prestaties uit lib/texts.ts (t.texts).
 
 import Card from "@/components/Card";
 import { A, stepExplain } from "@/components/onboarding/steps";
+import { useT } from "@/lib/i18n";
+import { bold, rich } from "@/lib/i18n/rich";
 import { PAGES, useOnboarding, type StepId } from "@/lib/onboarding";
-import { T } from "@/lib/texts";
-
-const CONTENTS: [string, string][] = [
-  ["beginnen", "Aan de slag"],
-  ["gegevens", "Je gegevens binnenhalen"],
-  ["zones", "Hartslagzones"],
-  ["cijfers", "Hoe de cijfers werken"],
-  ["waar", "Waar je wat vindt"],
-  ["schema", "Doelen en schema"],
-];
 
 function Text({ children }: { children: React.ReactNode }) {
   return <div className="flex max-w-[46rem] flex-col gap-3 text-[13.5px] leading-relaxed">{children}</div>;
@@ -35,71 +27,73 @@ function Part({ id, title, children }: { id: string; title: string; children: Re
 }
 
 export default function Handleiding() {
+  const t = useT();
+  const m = t.help.manual;
+  const T = t.texts;
   const o = useOnboarding().data ?? null;
-  const ex = (id: StepId) => stepExplain(id, o);
+  const ex = (id: StepId) => stepExplain(id, o, t);
   const doneNote = (id: StepId, text: string) => o?.steps[id] ? <span className="text-ink-muted"> {text}</span> : null;
+  const title = (id: string) => m.contents.find(([k]) => k === id)?.[1] ?? id;
+  const link = (href: string) => (c: string) => <A href={href}>{c}</A>;
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title="Zo werkt health-tracker">
+      <Card title={m.title}>
         <Text>
-          <p>
-            De site haalt je trainingen (met GPS en hartslag per seconde) en je herstel (slaap, rusthartslag, Body Battery) van
-            Garmin, en rekent alles door met je eigen hartslagzones: tijd per zone, belasting, vorm, rondjes en records.
-          </p>
-          <nav aria-label="Inhoud" className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {CONTENTS.map(([id, title]) => <a key={id} href={`#${id}`} className="underline underline-offset-4">{title}</a>)}
+          <p>{m.intro}</p>
+          <nav aria-label={m.contentsAria} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            {m.contents.map(([id, name]) => <a key={id} href={`#${id}`} className="underline underline-offset-4">{name}</a>)}
           </nav>
         </Text>
       </Card>
 
-      <Part id="beginnen" title="Aan de slag">
+      <Part id="beginnen" title={title("beginnen")}>
         <ol className="list-decimal pl-5">
-          <li><b>Garmin koppelen</b> bij <A href="/instellingen/koppelingen/">Instellingen, Koppelingen</A>.{doneNote("garmin", "Gedaan.")}</li>
-          <li><b>De eerste sync</b> afwachten: die begint vanzelf.{doneNote("sync", `Gedaan: ${o?.status.activities.count ?? 0} trainingen.`)}</li>
-          <li><b>Hartslagzones</b> instellen bij <A href="/instellingen/zones/">Instellingen, Zones en profiel</A>.{doneNote("zones", "Gedaan.")}</li>
+          <li>{rich(m.stepGarmin, { b: bold, link: link("/instellingen/koppelingen/") })}{doneNote("garmin", m.doneNote)}</li>
+          <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
+          <li>{rich(m.stepZones, { b: bold, link: link("/instellingen/zones/") })}{doneNote("zones", m.doneNote)}</li>
         </ol>
-        <p className="text-xs text-ink-muted">Je voortgang per stap staat onder <A href="/help/">Aan de slag</A>.</p>
+        <p className="text-xs text-ink-muted">{rich(m.progressAt, { link: link("/help/") })}</p>
       </Part>
 
-      <Part id="gegevens" title="Je gegevens binnenhalen">
+      <Part id="gegevens" title={title("gegevens")}>
         <p>{ex("garmin").intro}</p>
         <Bullets items={ex("garmin").bullets} />
         <p>{ex("sync").intro}</p>
         <Bullets items={ex("sync").bullets} />
       </Part>
 
-      <Part id="zones" title="Hartslagzones">
+      <Part id="zones" title={title("zones")}>
         <p>{ex("zones").intro}</p>
         <Bullets items={ex("zones").bullets} />
         <p>{T.onboarding.profileWhy}</p>
         <p className="text-xs text-ink-muted">{T.onboarding.wristHr}</p>
       </Part>
 
-      <Part id="cijfers" title="Hoe de cijfers werken">
-        <p><b>Klaar voor vandaag?</b> {T.readinessBasis}</p>
-        <p><b>Vorm.</b> {T.formMethod}</p>
-        <p><b>Tempo bij Z2.</b> {T.z2Pace}</p>
-        <p><b>Records.</b> {T.records}</p>
+      <Part id="cijfers" title={title("cijfers")}>
+        <p><b>{m.readiness}</b> {T.readinessBasis}</p>
+        <p><b>{m.form}</b> {T.formMethod}</p>
+        <p><b>{m.z2}</b> {T.z2Pace}</p>
+        <p><b>{m.records}</b> {T.records}</p>
         <p className="text-xs text-ink-muted">{T.noMedicalAdvice}</p>
       </Part>
 
-      <Part id="waar" title="Waar je wat vindt">
+      <Part id="waar" title={title("waar")}>
         <ul className="list-disc pl-5">
-          {PAGES.map((p) => <li key={p.id}><A href={p.href}>{p.label}</A>: {p.text}.</li>)}
-          <li><A href="/plan/">Schema</A>: je trainingsschema, met wat je gedaan of gemist hebt.</li>
-          <li><A href="/log/">Logboek</A>: log, analyses (ook van Claude), doelen en profiel.</li>
-          <li><A href="/instellingen/">Instellingen</A>: account, Garmin, zones en profiel, agents.</li>
+          {PAGES.map((p) => <li key={p.id}><A href={p.href}>{t.onboarding.pages[p.id].label}</A>: {t.onboarding.pages[p.id].text}.</li>)}
+          <li><A href="/plan/">{t.nav.items.plan}</A>: {m.plan}</li>
+          <li><A href="/log/">{t.nav.items.logboek}</A>: {m.log}</li>
+          <li><A href="/instellingen/">{t.nav.items.instellingen}</A>: {m.settings}</li>
         </ul>
-        <p className="text-xs text-ink-muted">Onder veel blokken staat in kleine letters hoe het berekend is.</p>
+        <p className="text-xs text-ink-muted">{m.smallPrint}</p>
       </Part>
 
-      <Part id="schema" title="Doelen en schema">
+      <Part id="schema" title={title("schema")}>
         <p>{ex("goals").intro}</p>
         <Bullets items={ex("goals").bullets} />
         <p>{ex("plan").intro}</p>
         <Bullets items={ex("plan").bullets} />
-        <p>Claude kan beide voor je bijhouden: zie <A href="/help/claude/">Claude als coach</A>.</p>
+        <p>{rich(m.claudeToo, { link: link("/help/claude/") })}</p>
       </Part>
     </div>
   );

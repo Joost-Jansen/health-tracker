@@ -10,21 +10,20 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PAGES, useOnboarding, useSetOnboarding, type Onboarding, type Page } from "@/lib/onboarding";
+import { useT, type Messages } from "@/lib/i18n";
 
 const SCREENS = ["/trends/", "/rondjes/", "/historie/", "/plan/"];
 
-function text(o: Onboarding): { text: string; href: string; link: string } {
+function text(o: Onboarding, t: Messages): { text: string; href: string; link: string } {
   const st = o.status;
-  if (!st.garmin.connected) {
-    return { text: "Nog geen trainingen: koppel je Garmin-account, dan vult deze pagina zich vanzelf.", href: "/instellingen/koppelingen/", link: "Garmin koppelen" };
-  }
-  if (st.sync.running) {
-    return { text: "De eerste sync loopt: de site haalt je trainingen van het afgelopen jaar op. Dat duurt een paar minuten.", href: "/help/handleiding/#gegevens", link: "Zo werkt het" };
-  }
-  return { text: "Garmin is gekoppeld, maar er zijn nog geen trainingen binnen.", href: "/instellingen/koppelingen/", link: "Naar Koppelingen" };
+  const b = t.onboarding.banner;
+  if (!st.garmin.connected) return { text: b.notConnected, href: "/instellingen/koppelingen/", link: b.connect };
+  if (st.sync.running) return { text: b.syncing, href: "/help/handleiding/#gegevens", link: b.how };
+  return { text: b.waiting, href: "/instellingen/koppelingen/", link: b.toConnections };
 }
 
 export default function StartBanner({ enabled }: { enabled: boolean }) {
+  const t = useT();
   const pathname = usePathname();
   const q = useOnboarding(enabled);
   const set = useSetOnboarding();
@@ -33,16 +32,16 @@ export default function StartBanner({ enabled }: { enabled: boolean }) {
   const path = pathname.endsWith("/") ? pathname : `${pathname}/`;
   if (!SCREENS.some((s) => path.startsWith(s))) return null;
   if (o.status.activities.count > 0 || o.hidden.includes("data")) return null;
-  const t = text(o);
+  const msg = text(o, t);
 
   return (
     <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-3 text-sm" style={{ background: "var(--surface-inset)" }}>
       <span>
-        {t.text}{" "}
-        <Link href={t.href} className="font-semibold underline underline-offset-4">{t.link}</Link>
+        {msg.text}{" "}
+        <Link href={msg.href} className="font-semibold underline underline-offset-4">{msg.link}</Link>
       </span>
       <button type="button" className="text-xs text-ink-muted underline underline-offset-4" onClick={() => set.mutate({ hide: "data" })}>
-        Verbergen
+        {t.common.hide}
       </button>
     </div>
   );

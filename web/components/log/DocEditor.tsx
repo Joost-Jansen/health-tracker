@@ -9,10 +9,14 @@ import Card from "@/components/Card";
 import { Button } from "@/components/ds";
 import Markdown from "@/components/log/Markdown";
 import { api, ApiError } from "@/lib/api";
+import { errorText, useFormat, useT } from "@/lib/i18n";
 
 type Doc = { key: string; body: string; updated_at: string | null; updated_by: string | null };
 
-export default function DocEditor({ docKey, title }: { docKey: "profile" | "goals"; title: string }) {
+export default function DocEditor({ docKey }: { docKey: "profile" | "goals" }) {
+  const t = useT();
+  const f = useFormat();
+  const title = t.log.docs[docKey];
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["doc", docKey],
@@ -25,20 +29,18 @@ export default function DocEditor({ docKey, title }: { docKey: "profile" | "goal
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
-  if (!q.data) return <p className="text-sm text-ink-muted">Kon {title.toLowerCase()} niet laden.</p>;
+  if (q.isLoading) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">{t.log.docLoadFailed(title)}</p>;
   const doc = q.data;
-  const stamp = doc.updated_at
-    ? `Bijgewerkt ${new Date(doc.updated_at).toLocaleString("nl-NL", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} door ${doc.updated_by}`
-    : "";
+  const stamp = doc.updated_at ? t.log.updated(f.dateTime(doc.updated_at), doc.updated_by ?? "") : "";
 
   if (draft !== null) {
     return (
       <Card
-        title={`${title} bewerken`}
+        title={t.log.editTitle(title)}
         action={
           <span className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>Annuleren</Button>
+            <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>{t.common.cancel}</Button>
             <Button
               size="sm"
               variant="primary"
@@ -48,11 +50,11 @@ export default function DocEditor({ docKey, title }: { docKey: "profile" | "goal
                   setDraft(null);
                   qc.invalidateQueries({ queryKey: ["doc", docKey] });
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : "Opslaan mislukt");
+                  setError(errorText(e, t, t.common.saveFailed));
                 }
               }}
             >
-              Opslaan
+              {t.common.save}
             </Button>
           </span>
         }
@@ -69,8 +71,8 @@ export default function DocEditor({ docKey, title }: { docKey: "profile" | "goal
   }
 
   return (
-    <Card action={<span className="flex items-center gap-3"><span className="text-[11.5px] text-ink-muted">{stamp}</span><Button size="sm" onClick={() => setDraft(doc.body)}>Bewerken</Button></span>}>
-      {doc.body ? <Markdown text={doc.body} /> : <p className="text-[13px] text-ink-muted">Nog leeg.</p>}
+    <Card action={<span className="flex items-center gap-3"><span className="text-[11.5px] text-ink-muted">{stamp}</span><Button size="sm" onClick={() => setDraft(doc.body)}>{t.common.edit}</Button></span>}>
+      {doc.body ? <Markdown text={doc.body} /> : <p className="text-[13px] text-ink-muted">{t.log.empty_doc}</p>}
     </Card>
   );
 }

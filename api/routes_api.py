@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from api.history import _pick
 from tools import db
 from tools.recommend import recommend
+from tools.routes import apply_merge, distance_variants, member_from_activity
 
 PREVIEW_POINTS = 150
 TRACK_POINTS = 800
@@ -98,6 +99,8 @@ def route_summary(route: dict, activities: list[dict], streams_fn: Callable, poi
         "recent_efficiency": round(median(eff[-5:]), 3) if eff[:-5] else None,
         "earlier_efficiency": round(median(eff[:-5]), 3) if eff[:-5] else None,
         "medoid_id": route.get("medoid_id"),
+        # length variants (one circuit ridden with a detour, shortcut or lead-in); computed for routes stored before
+        "distance_variants": route.get("distance_variants") or distance_variants([member_from_activity(a) for a in runs if a.get("distance_km")], route.get("sport", "run")),
         "track": _track(route, runs, streams_fn, points),
         "variants": _variants(route, runs, streams_fn, variant_points),
     }
@@ -126,6 +129,51 @@ def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km
         parts = [by_id[p] for p in rec["parts"]]
         out.append({**rec, "names": [p.get("name") or p["id"] for p in parts], "tracks": {p["id"]: _track(p, _runs(p, activities), streams_fn, 300) for p in parts}})
     return out
+
+
+# --- candidate pairs: tools/derive.py stores them in setting route_candidates, answers go to route_decisions ---
+
+
+def _pending(scope) -> list[dict]:
+    return list((db.get_setting(scope, "route_candidates") or {}).get("candidates") or [])
+
+
+def _answered(scope) -> set:
+    d = db.get_setting(scope, "route_decisions") or {}
+    return {frozenset(p) for key in ("merge", "separate") for p in d.get(key) or [] if len(p) == 2}
+
+
+def candidates_view(pending: list[dict], answered: set, routes: list[dict], activities: list[dict], streams_fn: Callable, sport: str | None = None) -> list[dict]:
+    """Open pairs with current names and a preview track per side; pairs whose route or activity is gone, that
+    were answered, or whose activity is on a route by now are left out."""
+    by_route = {r["id"]: r for r in routes}
+    by_act = {a["id"]: a for a in activities}
+    on_route = {x for r in routes for x in r.get("activity_ids") or []}
+    out = []
+    for c in pending:
+        if (sport and c.get("sport") != sport) or frozenset((c["a"]["id"], c["b"]["id"])) in answered:
+            continue
+        sides = []
+        for side in (c["a"], c["b"]):
+            if side.get("kind") == "activity":
+                a = by_act.get(side["id"])
+                if a is None or side["id"] in on_route:
+                    break
+                sides.append({"id": a["id"], "kind": "activity", "name": a.get("name"), "distance_km": a.get("distance_km"), "runs": 1, "date": a["start_local"][:10], "track": _activity_track(a["id"], streams_fn, PREVIEW_POINTS)})
+            else:
+                r = by_route.get(side["id"])
+                if r is None:
+                    break
+                sides.append({**{k: r.get(k) for k in ("id", "name", "distance_km", "runs", "last_run")}, "kind": "route", "track": _track(r, _runs(r, activities), streams_fn, PREVIEW_POINTS)})
+        else:
+            out.append({**{k: c.get(k) for k in ("sport", "outcome", "confidence", "reason")}, "a": sides[0], "b": sides[1]})
+    return out
+
+
+class CandidateAnswer(BaseModel):
+    a: str
+    b: str
+    same: bool
 
 
 class RouteRename(BaseModel):
@@ -158,6 +206,46 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         u=Depends(current_user),
     ):
         return {"km": km, "options": suggest(u.store.routes, u.store.activities, u.store.streams, km, today(), tolerance, start, sport=sport)}
+
+    @r.get("/api/routes/candidates")
+    def list_candidates(sport: str | None = None, u=Depends(current_user)):
+        """Open "same loop?" questions, plus the last sync (routes are recognised after every sync)."""
+        pending = candidates_view(_pending(u.scope), _answered(u.scope), u.store.routes, u.store.activities, u.store.streams, sport)
+        return {"candidates": pending, "last_sync": u.store.last_sync}
+
+    @r.post("/api/routes/candidates")
+    def answer_candidate(body: CandidateAnswer, u=Depends(current_user)):
+        """Record the answer (derive applies it on every run) and apply a merge right away when the data allows."""
+        pair = frozenset((body.a, body.b))
+        pending = _pending(u.scope)
+        if len(pair) != 2 or not any(frozenset((c["a"]["id"], c["b"]["id"])) == pair for c in pending):
+            raise HTTPException(status_code=404, detail="geen open vraag voor dit paar")
+        decisions = db.get_setting(u.scope, "route_decisions") or {}
+        key, other = ("merge", "separate") if body.same else ("separate", "merge")
+        decisions = {
+            key: [p for p in decisions.get(key) or [] if frozenset(p) != pair] + [[body.a, body.b]],
+            other: [p for p in decisions.get(other) or [] if frozenset(p) != pair],
+        }
+        db.set_setting(u.scope, "route_decisions", {"merge": decisions["merge"], "separate": decisions["separate"]})
+
+        route, applied, gone = None, True, set()
+        if body.same:
+            items = u.store.routes
+            members = {}
+            for a in u.store.activities:
+                members[a["id"]] = members[a["start_local"]] = member_from_activity(a)
+            merged = apply_merge(items, body.a, body.b, members)
+            if merged is None:
+                applied = False
+            else:
+                db.save_routes(u.scope, merged)
+                kept = next(x for x in merged if x["id"] in pair)
+                gone = pair - {kept["id"]}
+                route = route_summary(kept, u.store.activities, u.store.streams)
+        # questions about the answered pair, or about what was merged away, are dropped; the next sync asks anew
+        left = [c for c in pending if frozenset((c["a"]["id"], c["b"]["id"])) != pair and not ({c["a"]["id"], c["b"]["id"]} & gone)]
+        db.set_setting(u.scope, "route_candidates", {"candidates": left})
+        return {"applied": applied, "applied_on_next_sync": not applied, "route": route, "remaining": len(left)}
 
     @r.get("/api/routes/{route_id}")
     def get_route(route_id: str, u=Depends(current_user)):

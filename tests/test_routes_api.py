@@ -114,3 +114,100 @@ def test_medoid_is_the_main_track_and_others_are_variants():
 
 def v_len(s):
     return len(s["variants"][0]["track"])
+
+
+# --- candidate pairs: "is this the same loop?" ----------------------------------------------------------
+
+CAND_ROUTES = [
+    {**ROUTES[0], "sport": "run", "name": "4.0 km rondje (r1)", "activity_ids": ["a", "b"], "medoid_id": "a"},
+    {"id": "r3", "sport": "run", "name": "Met de brug", "distance_km": 5.0, "is_loop": True, "runs": 1, "first_run": "2026-09-20", "last_run": "2026-09-20", "start": list(HOME), "end": list(HOME), "median_pace": "5:20", "median_hr": 140, "activity_ids": ["g"], "medoid_id": "g"},
+]
+CAND_ACTS = ACTS + [
+    {"id": "g", "start_local": "2026-09-20T08:00:00", "sport": "run", "distance_km": 5.0, "moving_time_s": 1600, "avg_hr": 140},
+    {"id": "h", "start_local": "2026-09-25T08:00:00", "sport": "run", "name": "Avondloop", "distance_km": 4.6, "moving_time_s": 1500, "avg_hr": 141},
+]
+PENDING = {
+    "candidates": [
+        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg (1,0 km verschil)"},
+        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"}, "sport": "run", "outcome": "candidate", "confidence": 0.6, "reason": "zelfde rondje, ander startpunt"},
+    ]
+}
+
+
+def _cand_streams(aid):
+    return {"latlng": square_loop()}
+
+
+@pytest.fixture
+def cand_client(monkeypatch):
+    from api import routes_api
+
+    settings = {"route_candidates": PENDING}
+    saved = {}
+    monkeypatch.setattr(routes_api.db, "get_setting", lambda scope, key: settings.get(key))
+    monkeypatch.setattr(routes_api.db, "set_setting", lambda scope, key, value: settings.update({key: value}))
+    monkeypatch.setattr(routes_api.db, "save_routes", lambda scope, items: saved.update(items=items))
+    app = FastAPI()
+    app.include_router(make_router(lambda: date(2026, 9, 30), fake_user_dep(FakeStore(activities=CAND_ACTS, routes=CAND_ROUTES + [RIDE], streams=_cand_streams))))
+    c = TestClient(app)
+    c.settings, c.saved = settings, saved
+    return c
+
+
+def test_candidates_come_with_tracks_and_current_names(cand_client):
+    out = cand_client.get("/api/routes/candidates").json()
+    assert out["last_sync"] == "2026-10-01 06:00"
+    pairs = out["candidates"]
+    assert [(p["a"]["id"], p["b"]["id"]) for p in pairs] == [("r1", "r3"), ("r1", "h")]
+    assert pairs[0]["b"]["name"] == "Met de brug" and pairs[0]["a"]["last_run"] == "2026-09-10"
+    assert pairs[1]["b"]["name"] == "Avondloop" and pairs[1]["b"]["date"] == "2026-09-25"
+    assert len(pairs[0]["a"]["track"]) == 150 and len(pairs[1]["b"]["track"]) == 150
+    assert cand_client.get("/api/routes/candidates?sport=ride").json()["candidates"] == []
+
+
+def test_candidate_for_a_route_that_is_gone_is_left_out(cand_client):
+    cand_client.settings["route_candidates"] = {"candidates": [dict(PENDING["candidates"][0], b={"id": "r9", "kind": "route"})]}
+    assert cand_client.get("/api/routes/candidates").json()["candidates"] == []
+
+
+def test_merge_answer_is_recorded_and_applied_right_away(cand_client):
+    out = cand_client.post("/api/routes/candidates", json={"a": "r3", "b": "r1", "same": True}).json()
+    assert out["applied"] is True and out["applied_on_next_sync"] is False and out["route"]["id"] == "r1"
+    assert cand_client.settings["route_decisions"] == {"merge": [["r3", "r1"]], "separate": []}
+    saved = {r["id"]: r for r in cand_client.saved["items"]}
+    assert set(saved) == {"r1", "f1"}
+    assert saved["r1"]["runs"] == 3 and saved["r1"]["name"] == "Met de brug" and [g["id"] for g in saved["r1"]["groups"]] == ["r1", "r3"]
+    assert [(c["a"]["id"], c["b"]["id"]) for c in cand_client.settings["route_candidates"]["candidates"]] == [("r1", "h")]
+
+
+def test_merge_of_a_single_activity(cand_client):
+    out = cand_client.post("/api/routes/candidates", json={"a": "r1", "b": "h", "same": True}).json()
+    assert out["applied"] is True
+    r1 = next(r for r in cand_client.saved["items"] if r["id"] == "r1")
+    assert r1["runs"] == 3 and "h" in r1["activity_ids"]
+
+
+def test_separate_answer_is_recorded(cand_client):
+    out = cand_client.post("/api/routes/candidates", json={"a": "r1", "b": "r3", "same": False}).json()
+    assert out == {"applied": True, "applied_on_next_sync": False, "route": None, "remaining": 1}
+    assert cand_client.settings["route_decisions"] == {"merge": [], "separate": [["r1", "r3"]]}
+    assert "items" not in cand_client.saved
+
+
+def test_answer_for_an_unknown_pair_is_404(cand_client):
+    assert cand_client.post("/api/routes/candidates", json={"a": "r1", "b": "f1", "same": True}).status_code == 404
+
+
+def test_merge_that_cannot_be_applied_now_waits_for_the_next_sync(cand_client):
+    # the activity is gone from the list (e.g. cache): the decision is kept for derive
+    cand_client.settings["route_candidates"] = {"candidates": [dict(PENDING["candidates"][1], b={"id": "zz", "kind": "activity"})]}
+    out = cand_client.post("/api/routes/candidates", json={"a": "r1", "b": "zz", "same": True}).json()
+    assert out["applied"] is False and out["applied_on_next_sync"] is True
+    assert cand_client.settings["route_decisions"]["merge"] == [["r1", "zz"]]
+
+
+def test_summary_has_length_variants():
+    route = {**ROUTES[0], "distance_variants": [{"distance_km": 4.0, "runs": 2, "activity_ids": ["a", "b"], "last_run": "2026-09-10"}]}
+    assert route_summary(route, ACTS, streams)["distance_variants"][0]["runs"] == 2
+    # routes stored before length variants existed get them computed from their runs
+    assert route_summary(ROUTES[0], ACTS, streams)["distance_variants"] == [{"distance_km": 4.0, "runs": 2, "activity_ids": ["a", "b"], "last_run": "2026-09-10"}]

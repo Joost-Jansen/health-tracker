@@ -6,7 +6,7 @@
 // Eén tijdvenster voor de hele pagina (TimeFilterBar, plakt onder de bovenbalk; staat in de adresbalk).
 // Elke grafiek deelt die tijdas; schuiven of zoomen in één grafiek verzet het venster voor alle.
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
@@ -18,7 +18,7 @@ import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
 import { T } from "@/lib/texts";
-import { fmtDate, windowDays } from "@/lib/timeline";
+import { fmtDate } from "@/lib/timeline";
 import { type Trends, fmtClock, fmtKm, sportLabel } from "@/lib/training";
 
 // De dagelijkse herstelreeks (api/trends.py recovery_daily). Lokaal getypeerd zodat lib/training.ts
@@ -53,7 +53,7 @@ export default function TrendsPage() {
   const shared = { window: win, domain: { from: first, to: last }, onWindow: range.change, onReset: range.reset };
 
   const volume = useMemo(() => {
-    if (!t) return { series: [] as ChartSeries[], avg: 0 };
+    if (!t) return { series: [] as ChartSeries[], avg: 0, weeks: 0 };
     const main = ["run", "ride", "swim"];
     const val = (v: { km: number; seconds: number }) => (metric === "hours" ? v.seconds / 3600 : v.km);
     const series: ChartSeries[] = main.map((s) => ({
@@ -74,10 +74,16 @@ export default function TrendsPage() {
         points: t.weekly.map((w) => ({ d: w.week, v: Object.entries(w.sports).filter(([s]) => !main.includes(s)).reduce((sum, [, v]) => sum + val(v), 0) })),
       });
     }
-    // Gemiddelde per week over de weken die (grotendeels) in het venster vallen.
-    const weeks = t.weekly.filter((w) => w.week >= from && w.week <= win.to);
+    // Gemiddelde per week over de hele weken in het venster: de lopende week telt niet mee (die is nog niet af
+    // en zou het gemiddelde omlaag trekken), en het aantal weken is wat er echt is, niet de vensterbreedte / 7.
+    const monday = (() => {
+      const d = new Date(t.today + "T12:00:00");
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    const weeks = t.weekly.filter((w) => w.week >= from && w.week <= win.to && w.week < monday);
     const total = weeks.reduce((sum, w) => sum + Object.entries(w.sports).filter(([s]) => metric === "hours" || main.includes(s)).reduce((x, [, v]) => x + val(v), 0), 0);
-    return { series, avg: weeks.length ? total / weeks.length : 0 };
+    return { series, avg: weeks.length ? total / weeks.length : 0, weeks: weeks.length };
   }, [t, from, win.to, metric]);
 
   if (q.isLoading) return <p className="text-sm text-ink-muted">Laden…</p>;
@@ -105,6 +111,18 @@ export default function TrendsPage() {
   const recordSeries: ChartSeries[] = (Object.keys(RECORD_LABEL) as (keyof Trends["records"])[])
     .filter((k) => (t.records[k] ?? []).length > 0)
     .map((k) => ({ key: k, label: RECORD_LABEL[k], colour: RECORD_COLOUR[k], kind: "step", points: t.records[k].map((r) => ({ d: r.date, v: r.seconds / RECORD_KM[k] })) }));
+
+  // Een wedstrijd waarvan het horloge de afstand net te kort mat (tot 2%) heeft geen split over de hele afstand,
+  // dus Garmins records missen hem. Dan tonen we hem onder de split, als hij sneller was.
+  const raceRecord = (km: number) =>
+    t.races
+      .filter((r) => r.sport === "run" && r.distance_km < km && r.distance_km >= km * 0.98 && r.seconds > 0)
+      .reduce<Trends["races"][number] | null>((b, r) => (!b || r.seconds < b.seconds ? r : b), null);
+  const anyRaceRecord = (Object.keys(RECORD_LABEL) as (keyof Trends["records"])[]).some((k) => {
+    const r = raceRecord(RECORD_KM[k]);
+    const best = (t.records[k] ?? []).slice(-1)[0];
+    return r && (!best || r.seconds < best.seconds);
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,6 +156,11 @@ export default function TrendsPage() {
                       <span className="text-[11.5px] text-ink-muted">{{ "5k": "5 km", "10k": "10 km", "21k": "Halve marathon", "42k": "Marathon" }[k]}</span>
                       <span className="font-display text-[21px] leading-tight tabular-nums">{p ? fmtClock(p.seconds) : "–"}</span>
                       {p && <span className="text-[11px] tabular-nums text-ink-muted">{fmtClock(p.pace_s_per_km)}/km</span>}
+                      {p && (
+                        <Link className="text-[11px] tabular-nums text-ink-muted underline-offset-2 hover:underline" href={href(p.from.activity_id)} title={`${fmtKm(p.from.km)} in ${fmtClock(p.from.seconds)} op ${fmtDay(p.from.date)}`}>
+                          uit {fmtKm(p.from.km)}
+                        </Link>
+                      )}
                     </div>
                   );
                 })}
@@ -156,7 +179,7 @@ export default function TrendsPage() {
         </Card>
       </div>
 
-      <Card title="Vorm: fitheid, vermoeidheid en frisheid">
+      <Card title="Fitheid, vermoeidheid en vorm">
         {now && (
           <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
             <span>Fitheid nu <b className="text-ink">{Math.round(now.ctl)}</b></span>
@@ -180,12 +203,16 @@ export default function TrendsPage() {
             { key: "tsb", label: "Vorm", colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
           ]}
         />
-        <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.</p>
+        <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} {T.formChartNote}</p>
       </Card>
 
       <Card title="Volume per week" action={<Tabs variant="segmented" items={[{ id: "hours", label: "Uren" }, { id: "km", label: "Km" }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel="Eenheid" />}>
         <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">
-          Gemiddeld <b className="text-ink">{fmtVol(volume.avg)}</b> per week over {Math.max(1, Math.round(windowDays(win) / 7))} weken
+          {volume.weeks > 0 ? (
+            <>Gemiddeld <b className="text-ink">{fmtVol(volume.avg)}</b> per week over {volume.weeks} hele {volume.weeks === 1 ? "week" : "weken"} (de lopende week telt niet mee)</>
+          ) : (
+            "Nog geen hele week in deze periode."
+          )}
         </p>
         <TimeChart
           {...shared}
@@ -240,29 +267,41 @@ export default function TrendsPage() {
               <tr className="text-left text-[11.5px] text-ink-muted">
                 <th className="pb-2 font-normal">Afstand</th>
                 <th className="pb-2 font-normal">Tijd</th>
-                <th className="pb-2 font-normal">Tempo</th>
+                <th className="hidden pb-2 font-normal sm:table-cell">Tempo</th>
                 <th className="pb-2 font-normal">Datum</th>
-                <th className="pb-2 font-normal">Verbeterd</th>
+                <th className="pb-2 font-normal" title="Hoe vaak het record daarna nog sneller werd">Verbeterd</th>
               </tr>
             </thead>
             <tbody>
               {(Object.keys(RECORD_LABEL) as (keyof Trends["records"])[]).map((k) => {
                 const rows = t.records[k] ?? [];
                 const best = rows[rows.length - 1];
-                const km = { "1k": 1, "5k": 5, "10k": 10, "21k": 21.0975 }[k];
+                const km = RECORD_KM[k];
+                const race = raceRecord(km);
+                const raceFaster = race && (!best || race.seconds < best.seconds);
                 return (
-                  <tr key={k} className="border-t border-border">
-                    <td className="py-2">{RECORD_LABEL[k]}</td>
-                    <td className="py-2 font-medium">{best ? fmtClock(best.seconds) : "–"}</td>
-                    <td className="py-2 text-ink-muted">{best ? `${fmtClock(best.seconds / km)}/km` : "–"}</td>
-                    <td className="py-2">{best ? <Link className="underline underline-offset-2" href={href(best.activity_id)}>{fmtDay(best.date)}</Link> : "–"}</td>
-                    <td className="py-2 text-ink-muted" title={rows.map((r) => `${r.date}: ${fmtClock(r.seconds)}`).join("\n")}>{rows.length}×</td>
-                  </tr>
+                  <Fragment key={k}>
+                    <tr className="border-t border-border">
+                      <td className="py-2">{RECORD_LABEL[k]}</td>
+                      <td className="py-2 font-medium">{best ? fmtClock(best.seconds) : "–"}</td>
+                      <td className="hidden py-2 text-ink-muted sm:table-cell">{best ? `${fmtClock(best.seconds / km)}/km` : "–"}</td>
+                      <td className="py-2">{best ? <Link className="underline underline-offset-2" href={href(best.activity_id)}>{fmtDay(best.date)}</Link> : "–"}</td>
+                      <td className="py-2 text-ink-muted" title={rows.map((r) => `${r.date}: ${fmtClock(r.seconds)}`).join("\n")}>{rows.length ? `${rows.length - 1}×` : "–"}</td>
+                    </tr>
+                    {raceFaster && (
+                      <tr>
+                        <td colSpan={5} className="pb-2 text-[12px] text-ink-muted">
+                          Wedstrijd: <b className="text-ink">{fmtClock(race.seconds)}</b> over {fmtKm(race.distance_km)} gemeten,{" "}
+                          <Link className="underline underline-offset-2" href={href(race.activity_ids[race.activity_ids.length - 1])}>{fmtDay(race.date)}</Link>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
-          <p className="mt-2 text-[11.5px] text-ink-muted">{T.records} Houd de muis op "verbeterd" voor de hele reeks.</p>
+          <p className="mt-2 text-[11.5px] text-ink-muted">{T.records}{anyRaceRecord ? ` ${T.recordRace}` : ""}</p>
           {recordSeries.length > 0 && (
             <div className="mt-4">
               <h3 className="mb-1 text-[12.5px] font-medium">Verloop van de records (tempo per km)</h3>

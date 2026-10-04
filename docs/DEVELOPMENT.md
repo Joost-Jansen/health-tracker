@@ -98,7 +98,7 @@ Existing:
 | POST | `/api/login` | body `{username,password}`; sets httpOnly cookie `training_session` |
 | POST | `/api/logout` | clears cookie |
 | GET | `/api/me` | `{username}` |
-| GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` |
+| GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key, value, level, note: {code, params}}]}` (codes, no sentences). |
 | GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |

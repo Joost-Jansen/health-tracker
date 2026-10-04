@@ -17,8 +17,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 
+from api.errors import ApiError
 from api.settings_api import suggested_max
 from tools import db
 
@@ -118,24 +119,24 @@ def write(u, **fields) -> None:
     new = {k: now[k] for k in ("choice", "done", "step", "hidden", "visited")}
     if "choice" in fields:
         if fields["choice"] not in (*CHOICES, None):
-            raise ValueError(f"kies uit: {', '.join(CHOICES)}")
+            raise ApiError(400, "invalid_choice", options=list(CHOICES))
         new["choice"] = fields["choice"]
     if "done" in fields:
         if not isinstance(fields["done"], bool):
-            raise ValueError("done is true of false")
+            raise ApiError(400, "invalid_done")
         new["done"] = fields["done"]
     if "step" in fields:
         v = fields["step"]
         if not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 50:
-            raise ValueError("een stap is een getal vanaf 0")
+            raise ApiError(400, "invalid_step")
         new["step"] = v
     if "hide" in fields:
         if fields["hide"] not in BANNERS:
-            raise ValueError(f"onbekende banner; kies uit: {', '.join(BANNERS)}")
+            raise ApiError(400, "unknown_banner", options=list(BANNERS))
         new["hidden"] = sorted({*new["hidden"], fields["hide"]})
     if "visit" in fields:
         if fields["visit"] not in PAGES:
-            raise ValueError(f"onbekende pagina; kies uit: {', '.join(PAGES)}")
+            raise ApiError(400, "unknown_page", options=list(PAGES))
         new["visited"] = [*new["visited"], fields["visit"]] if fields["visit"] not in new["visited"] else new["visited"]
     db.set_setting(u.scope, KEY, new)
 
@@ -154,11 +155,8 @@ def make_router(current_user: Callable, runner=None) -> APIRouter:
     def put_onboarding(fields: dict = Body(..., description="only what changes: choice, done, step, hide, visit"), u=Depends(current_user)):
         unknown = set(fields) - FIELDS
         if unknown:
-            raise HTTPException(status_code=400, detail=f"onbekend veld: {', '.join(sorted(unknown))}")
-        try:
-            write(u, **fields)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise ApiError(400, "unknown_field", fields=sorted(unknown))
+        write(u, **fields)
         return read(u, running(u))
 
     return r

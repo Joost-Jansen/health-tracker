@@ -11,9 +11,10 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from api.errors import ApiError
 from tools import db
 from tools.derive import derive
 
@@ -76,15 +77,15 @@ def make_router(current_user: Callable) -> APIRouter:
     def put_zones(body: ZonesIn, u=Depends(current_user)):
         p = body.percent
         if len(p) != 4 or not all(40 <= x <= 100 for x in p) or p != sorted(p) or len(set(p)) != 4:
-            raise HTTPException(status_code=422, detail="vier oplopende percentages tussen 40 en 100")
+            raise ApiError(422, "zone_percentages")
         zones = {}
         for sport, z in body.sports.items():
             if sport not in SPORTS:
-                raise HTTPException(status_code=422, detail=f"onbekende sport {sport}")
+                raise ApiError(422, "unknown_sport", sport=sport)
             if z.max_hr is None:
                 continue
             if not 100 <= z.max_hr <= 230:
-                raise HTTPException(status_code=422, detail="max hartslag tussen 100 en 230")
+                raise ApiError(422, "max_hr_range", min=100, max=230)
             zones[sport] = {"max_hr": z.max_hr, "bounds": bounds_for(z.max_hr, p), "estimate": z.estimate}
         db.set_setting(u.scope, "zones", zones)
         db.set_setting(u.scope, "zones_model", {"percent": p})
@@ -103,7 +104,7 @@ def make_router(current_user: Callable) -> APIRouter:
         for k, v in facts.items():
             lo, hi = limits[k]
             if not lo <= v <= hi:
-                raise HTTPException(status_code=422, detail=f"{k} tussen {lo} en {hi}")
+                raise ApiError(422, "profile_range", field=k, min=lo, max=hi)
         db.set_setting(u.scope, "profile_facts", facts)
         return facts
 

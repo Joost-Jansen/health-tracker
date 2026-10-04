@@ -72,7 +72,7 @@ def test_login_sets_httponly_cookie_and_unlocks_data(client):
     r = login(client)
     assert r.status_code == 200
     assert "httponly" in r.headers["set-cookie"].lower()
-    assert client.get("/api/me").json() == {"id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie"}
+    assert client.get("/api/me").json() == {"id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie", "locale": None}
     d = client.get("/api/dashboard").json()
     assert d["last_sync"] == "2026-09-30 06:02"
     assert d["recent"][0]["name"] == "Ochtendloop"

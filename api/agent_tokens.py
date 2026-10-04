@@ -9,9 +9,10 @@ import hashlib
 import secrets
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from api.errors import ApiError
 from tools import db
 
 MAX_TOKENS = 20
@@ -23,7 +24,7 @@ def _hash(token: str) -> str:
 
 def create_token(scope: db.Scope, name: str) -> tuple[str, dict]:
     if len(db.list_agent_tokens(scope)) >= MAX_TOKENS:
-        raise ValueError(f"maximaal {MAX_TOKENS} tokens; trek er eerst een in")
+        raise ApiError(422, "too_many_tokens", max=MAX_TOKENS)
     token = "tr_" + secrets.token_urlsafe(32)
     token_id = secrets.token_hex(4)
     db.add_agent_token(scope, token_id, name, _hash(token))
@@ -40,7 +41,7 @@ def make_router(current_user: Callable) -> APIRouter:
 
     def person(u=Depends(current_user)):
         if u.via == "agent":
-            raise HTTPException(status_code=403, detail="alleen ingelogd op de site beheer je agent-tokens")
+            raise ApiError(403, "tokens_site_only")
         return u
 
     @r.get("")
@@ -51,17 +52,14 @@ def make_router(current_user: Callable) -> APIRouter:
     def new_token(body: NewToken, u=Depends(person)):
         name = body.name.strip()
         if not name or len(name) > 60:
-            raise HTTPException(status_code=422, detail="naam van 1 tot 60 tekens")
-        try:
-            token, entry = create_token(u.scope, name)
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=str(e))
+            raise ApiError(422, "token_name_length", min=1, max=60)
+        token, entry = create_token(u.scope, name)
         return {**entry, "token": token}
 
     @r.delete("/{token_id}")
     def delete_token(token_id: str, u=Depends(person)):
         if not db.delete_agent_token(u.scope, token_id):
-            raise HTTPException(status_code=404, detail="token niet gevonden")
+            raise ApiError(404, "token_not_found")
         return {"ok": True}
 
     return r

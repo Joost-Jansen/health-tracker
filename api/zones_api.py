@@ -9,9 +9,10 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Callable, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from api.dashboard import _day, _share, _zone_share
+from api.errors import ApiError
 from tools.zones import NAMES
 
 Period = Literal["week", "month"]
@@ -114,7 +115,7 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
     @r.get("/api/zones/history")
     def zones_history(period: Period = "week", count: int = Query(12, ge=1), sport: str = "all", u=Depends(current_user)):
         if count > MAX_COUNT[period]:
-            raise HTTPException(status_code=422, detail=f"maximaal {MAX_COUNT[period]} perioden")
+            raise ApiError(422, "max_periods", max=MAX_COUNT[period])
         return zone_history(u.store.activities, period, count, sport, today())
 
     return r

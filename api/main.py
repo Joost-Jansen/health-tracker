@@ -14,10 +14,11 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 
-from api import agent_tokens, connections, mcp, onboarding, routes_api, settings_api, users, zones_api
+from api import agent_tokens, connections, errors, mcp, onboarding, routes_api, settings_api, users, zones_api
+from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
 from api.dashboard import build_dashboard, next_race, plan_week, sync_day, today_tsb
@@ -71,6 +72,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     stores = users.Stores(engine)
     current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
+    errors.install(app)
     app.state.engine, app.state.stores = engine, stores
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
     app.state.sync = runner
@@ -119,7 +121,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         s = u.store
         out = activity_detail(activity_id, s.activities, s.streams, s.zones, s.routes)
         if out is None:
-            raise HTTPException(status_code=404, detail="activiteit niet gevonden")
+            raise ApiError(404, "activity_not_found")
         return out
 
     @app.get("/api/heatmap")

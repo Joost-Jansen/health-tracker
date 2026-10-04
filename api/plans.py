@@ -13,8 +13,10 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from api.errors import ApiError
 from tools import db
 from tools.recommend import recommend
 from tools.zones import NAMES
@@ -126,23 +128,42 @@ def _rows(text: str) -> list[list[str]]:
     return [r for r in csv.reader(io.StringIO("\n".join(lines)), delimiter=delim)]
 
 
+WARNINGS = {
+    "no_table": "Geen tabel gevonden.",
+    "no_date_column": "Geen kolom met de datum gevonden. Kolommen: {columns}",
+    "row_skipped_date": "Rij {row} overgeslagen: datum '{value}' niet herkend.",
+}
+
+
+def warning_text(w: dict) -> str:
+    """The Dutch text of a coded warning (what agents and the MCP tools read)."""
+    params = {k: ", ".join(v) if isinstance(v, list) else v for k, v in w["params"].items()}
+    return WARNINGS[w["code"]].format(**params)
+
+
 def parse_table(text: str, year: int | None = None) -> tuple[list[dict], list[str]]:
     """Sessions from a CSV (comma, semicolon or tab) or markdown table with a header row. Returns the sessions
     and a list of warnings (rows skipped and why). Dutch and English headers, dates as 2026-10-06, 6-10-2026,
     6/10 or 6 okt."""
+    items, warnings = parse_table_coded(text, year)
+    return items, [warning_text(w) for w in warnings]
+
+
+def parse_table_coded(text: str, year: int | None = None) -> tuple[list[dict], list[dict]]:
+    """As `parse_table`, with each warning as `{code, params}` (codes in WARNINGS) so the site can translate it."""
     year = year or date.today().year
     rows = _rows(text)
     if not rows:
-        return [], ["Geen tabel gevonden."]
+        return [], [{"code": "no_table", "params": {}}]
     keys = [_header_key(h) for h in rows[0]]
     if "date" not in keys:
-        return [], [f"Geen kolom met de datum gevonden. Kolommen: {', '.join(rows[0])}"]
+        return [], [{"code": "no_date_column", "params": {"columns": list(rows[0])}}]
     out, warnings = [], []
     for n, row in enumerate(rows[1:], start=2):
         cell = {k: (row[i] if i < len(row) else "") for i, k in enumerate(keys) if k}
         day = parse_date(cell.get("date", ""), year)
         if not day:
-            warnings.append(f"Rij {n} overgeslagen: datum '{cell.get('date', '')}' niet herkend.")
+            warnings.append({"code": "row_skipped_date", "params": {"row": n, "value": cell.get("date", "")}})
             continue
         kind = cell.get("kind", "").strip()
         sport = parse_sport(cell.get("sport", ""), kind)
@@ -314,7 +335,7 @@ def _check_session(s: dict) -> dict:
     try:
         date.fromisoformat(s["date"])
     except ValueError:
-        raise HTTPException(status_code=422, detail=f"ongeldige datum: {s['date']}")
+        raise ApiError(422, "invalid_date", date=s["date"])
     s["sport"] = parse_sport(s["sport"]) if s["sport"] not in SPORTS else s["sport"]
     s["target_zone"] = parse_zone(s["target_zone"]) if s.get("target_zone") else None
     return s
@@ -330,7 +351,7 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
     def must(u, plan_id: int) -> dict:
         plan = db.get_plan(u.scope, plan_id)
         if not plan:
-            raise HTTPException(status_code=404, detail="schema niet gevonden")
+            raise ApiError(404, "plan_not_found")
         return plan
 
     @r.get("/api/plans")
@@ -354,19 +375,20 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
 
     @r.post("/api/plans/import")
     def import_plan(body: ImportIn, u=Depends(current_user)):
-        items, warnings = parse_table(body.text, today().year)
+        items, coded = parse_table_coded(body.text, today().year)
+        warnings = {"warnings": [warning_text(w) for w in coded], "warning_codes": coded}
         if body.preview or not items:
-            return {"sessions": items, "warnings": warnings, "saved": False}
+            return {"sessions": items, **warnings, "saved": False}
         pid = db.create_plan(u.scope, body.title or f"Schema vanaf {items[0]['date']}", u.author, body.goal, body.race)
         db.add_sessions(u.scope, pid, items)
-        return {"sessions": items, "warnings": warnings, "saved": True, "plan": full(u, db.get_plan(u.scope, pid))}
+        return {"sessions": items, **warnings, "saved": True, "plan": full(u, db.get_plan(u.scope, pid))}
 
     @r.patch("/api/plans/{plan_id}")
     def patch(plan_id: int, body: PlanPatch, u=Depends(current_user)):
         must(u, plan_id)
         values = body.model_dump(exclude_none=True)
         if "status" in values and values["status"] not in STATUSES:
-            raise HTTPException(status_code=422, detail=f"status moet een van {', '.join(STATUSES)} zijn")
+            raise ApiError(422, "invalid_plan_status", options=list(STATUSES))
         db.update_plan(u.scope, plan_id, **values)
         return full(u, must(u, plan_id))
 
@@ -382,7 +404,7 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         must(u, plan_id)
         items, warnings = parse_table(body.text, today().year)
         if not items:
-            raise HTTPException(status_code=422, detail="; ".join(warnings) or "geen sessies gevonden")
+            raise ApiError(422, "no_sessions", detail="; ".join(warnings) or None)
         if not body.preview:
             db.replace_sessions(u.scope, plan_id, items)
         return {"sessions": items, "warnings": warnings, "saved": not body.preview, "plan": full(u, must(u, plan_id))}

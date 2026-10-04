@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from api.dashboard import build_dashboard
+from api.errors import ApiError
 from tools import db
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -37,13 +38,13 @@ def content_router(current_user) -> APIRouter:
     def get_doc(key: str, u=Depends(current_user)):
         doc = db.get_document(u.scope, key) if key in DOC_KEYS else None
         if not doc:
-            raise HTTPException(404, "document bestaat niet")
+            raise ApiError(404, "document_not_found")
         return doc
 
     @r.put("/docs/{key}")
     def put_doc(key: str, doc: DocBody, u=Depends(current_user)):
         if key not in DOC_KEYS:
-            raise HTTPException(404, "onbekend document")
+            raise ApiError(404, "unknown_document")
         db.put_document(u.scope, key, doc.body, author=u.author)
         return db.get_document(u.scope, key)
 

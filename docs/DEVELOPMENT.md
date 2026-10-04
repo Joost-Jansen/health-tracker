@@ -72,9 +72,9 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | Method | Path | What |
 |---|---|---|
 | GET | `/api/auth/config` | `{registration: closed\|invite\|open, first_user}` (public) |
-| POST | `/api/register` | `{username, password, display_name?, invite?}`; first user on an empty install becomes admin |
-| GET | `/api/me` | `{id, username, display_name, is_admin, via}` |
-| PATCH | `/api/account` | `{display_name}` |
+| POST | `/api/register` | `{username, password, display_name?, invite?, locale?: nl\|en}`; first user on an empty install becomes admin |
+| GET | `/api/me` | `{id, username, display_name, is_admin, via, locale: nl\|en\|null}`; `null` = never chosen, the site follows the browser |
+| PATCH | `/api/account` | `{display_name?, locale?: nl\|en}` (site login only); returns the user with `locale` |
 | POST | `/api/account/password` | `{current, new}` |
 | GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
 | GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
@@ -104,7 +104,7 @@ Existing:
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
-| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active` (`{persistent, plan}`), `/api/plans/{id}`, `/api/plans/{id}/sessions`, POST `/api/plans/import` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan`; a session whose `route_id` is one of the user's loops gets `route: {id, name, distance_km}` instead of `route_suggestion` |
+| GET/POST/PATCH/PUT | `/api/plans`, `/api/plans/active` (`{persistent, plan}`), `/api/plans/{id}`, `/api/plans/{id}/sessions`, POST `/api/plans/import` | plans with matched sessions, see `api/plans.py` and `web/lib/training.ts` `Plan`; a session whose `route_id` is one of the user's loops gets `route: {id, name, distance_km}` instead of `route_suggestion`; import returns `warnings` (Dutch text) and `warning_codes: [{code, params}]` |
 | GET | `/api/zones?period=week\|month&offset=0` | `{period, offset, start, end, label, is_current, zones: {all?, <sport>: {seconds, total_s, pct}}, bounds}`; offset 0 = current period |
 | GET | `/api/zones/history?period=week\|month&count=12&sport=all` | `{period, sport, sports, items: [{start, end, label, seconds, total_s, pct}]}` oldest to newest, last = current; count ≤ 104 weeks / 36 months |
 | GET | `/api/context` | bundle for AI assistants (profile, goals, zones, active plan, dashboard, routes, recent log/analyses) |
@@ -132,3 +132,10 @@ password and delete the token under Settings, Agents if it leaks.
 Tested with the official `mcp` Python SDK client (initialize, tools/list, tools/call) and in `tests/test_mcp.py`.
 
 If a contract changes, update this table in the same commit.
+
+### Errors
+
+Errors raised with `api.errors.ApiError` answer `{detail, code, params}`: `detail` is the Dutch text (agents, scripts,
+MCP), `code` + `params` is what the site translates (`errors` in `web/lib/i18n/nl.ts` and `en.ts`). New user-facing
+errors use a code: add it to `MESSAGES` in `api/errors.py` and to both web catalogs. FastAPI's own validation errors
+(422 with a list) have no code.

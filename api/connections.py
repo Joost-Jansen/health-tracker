@@ -12,9 +12,10 @@ import time
 from datetime import date
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from api.errors import MESSAGES, ApiError
 from tools import db
 from tools.secretbox import WrongKey, decrypt, encrypt
 
@@ -23,7 +24,11 @@ FIRST_SYNC_DAYS = 365
 
 
 class GarminLoginError(Exception):
-    pass
+    """`code` is one of garmin_rejected, garmin_rate_limited, garmin_failed (api/errors.py); any other text is shown as is."""
+
+    def __init__(self, code: str):
+        super().__init__(MESSAGES.get(code, code))
+        self.code = code if code in MESSAGES else "garmin_failed"
 
 
 class GarminAuth:
@@ -51,12 +56,13 @@ class GarminAuth:
 
 
 def _explain(err: Exception) -> str:
+    """The error code for a failed Garmin login."""
     text = f"{type(err).__name__}: {err}".lower()
     if "401" in text or "authentication" in text or "credentials" in text or "password" in text:
-        return "Garmin weigert de inlog: controleer e-mail en wachtwoord (of de MFA-code)."
+        return "garmin_rejected"
     if "429" in text or "too many" in text:
-        return "Garmin laat even geen nieuwe inlog toe (te veel pogingen). Probeer het over een kwartier opnieuw."
-    return "Inloggen bij Garmin lukte niet. Probeer het later opnieuw."
+        return "garmin_rate_limited"
+    return "garmin_failed"
 
 
 class GarminCredentials(BaseModel):
@@ -98,12 +104,12 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
 
     def person(u=Depends(current_user)):
         if u.via != "cookie":
-            raise HTTPException(status_code=403, detail="koppelingen beheer je ingelogd op de site")
+            raise ApiError(403, "connections_site_only")
         return u
 
     def save(u, tokens: str) -> None:
         if not key:
-            raise HTTPException(status_code=500, detail="de server heeft geen sleutel om de koppeling veilig op te slaan (TOKEN_ENCRYPTION_KEY)")
+            raise ApiError(500, "no_encryption_key")
         db.set_setting(u.scope, "garmin_tokens", encrypt(tokens, key))
         db.set_setting(u.scope, "garmin_meta", {"connected_at": time.strftime("%Y-%m-%d %H:%M")})
         first = not (db.get_setting(u.scope, "sync_state") or {}).get("garmin")
@@ -116,11 +122,11 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
     @r.post("/garmin")
     def connect(body: GarminCredentials, u=Depends(person)):
         if not body.email.strip() or not body.password:
-            raise HTTPException(status_code=422, detail="vul e-mail en wachtwoord in")
+            raise ApiError(422, "missing_garmin_credentials")
         try:
             kind, value = auth.start(body.email.strip(), body.password)
         except GarminLoginError as err:
-            raise HTTPException(status_code=400, detail=str(err))
+            raise ApiError(400, err.code, detail=str(err))
         if kind == "mfa":
             with guard:
                 pending[u.id] = (time.monotonic(), value)
@@ -133,11 +139,11 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
         with guard:
             item = pending.pop(u.id, None)
         if not item or time.monotonic() - item[0] > MFA_TTL_S:
-            raise HTTPException(status_code=410, detail="de MFA-stap is verlopen; log opnieuw in bij Garmin")
+            raise ApiError(410, "mfa_expired")
         try:
             tokens = auth.finish(item[1], body.code.strip())
         except GarminLoginError as err:
-            raise HTTPException(status_code=400, detail=str(err))
+            raise ApiError(400, err.code, detail=str(err))
         save(u, tokens)
         return {"status": "connected"}
 
@@ -150,7 +156,7 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
     @r.post("/sync")
     def sync_now(u=Depends(current_user)):
         if not db.get_setting(u.scope, "garmin_tokens"):
-            raise HTTPException(status_code=409, detail="koppel eerst Garmin")
+            raise ApiError(409, "garmin_not_connected")
         started = runner.start_user(u.id)
         return {"started": started, **status(u.scope, key, True)}
 

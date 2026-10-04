@@ -11,9 +11,10 @@ from datetime import date
 from statistics import median
 from typing import Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from api.errors import ApiError
 from api.history import _pick
 from tools import db
 from tools.recommend import recommend
@@ -123,7 +124,7 @@ def suggest(routes: list[dict], activities: list[dict], streams_fn: Callable, km
         return []
     by_id = {r["id"]: r for r in usable}
     if start and start not in by_id:
-        raise HTTPException(status_code=404, detail="onbekend rondje")
+        raise ApiError(404, "unknown_route")
     out = []
     for rec in recommend(usable, km, today, tolerance, start=start, limit=limit, sport=sport):
         parts = [by_id[p] for p in rec["parts"]]
@@ -188,7 +189,7 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         for route in u.store.routes:
             if route["id"] == route_id:
                 return route
-        raise HTTPException(status_code=404, detail="rondje niet gevonden")
+        raise ApiError(404, "route_not_found")
 
     @r.get("/api/routes")
     def list_routes(sport: str | None = None, u=Depends(current_user)):
@@ -219,7 +220,7 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
         pair = frozenset((body.a, body.b))
         pending = _pending(u.scope)
         if len(pair) != 2 or not any(frozenset((c["a"]["id"], c["b"]["id"])) == pair for c in pending):
-            raise HTTPException(status_code=404, detail="geen open vraag voor dit paar")
+            raise ApiError(404, "no_open_question")
         decisions = db.get_setting(u.scope, "route_decisions") or {}
         key, other = ("merge", "separate") if body.same else ("separate", "merge")
         decisions = {
@@ -255,13 +256,13 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
     def rename(route_id: str, body: RouteRename, u=Depends(current_user)):
         name = body.name.strip()
         if not name or len(name) > 80:
-            raise HTTPException(status_code=422, detail="naam van 1 tot 80 tekens")
+            raise ApiError(422, "route_name_length", min=1, max=80)
         items = u.store.routes
         for x in items:
             if x["id"] == route_id:
                 x["name"] = name
                 db.save_routes(u.scope, items)
                 return route_detail(x, u.store.activities, u.store.streams)
-        raise HTTPException(status_code=404, detail="rondje niet gevonden")
+        raise ApiError(404, "route_not_found")
 
     return r

@@ -15,16 +15,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
 from api import auth
 from api.data import DataStore
+from api.errors import ApiError
 from tools import db
 
 REGISTRATION_MODES = ("closed", "invite", "open")
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,39}$")
 MIN_PASSWORD = 10
+LOCALES = ("nl", "en")  # site language per user (setting `locale`); unset = the browser's language
 
 
 @dataclass
@@ -71,7 +73,12 @@ def hash_password(password: str) -> str:
 
 def check_new_password(password: str) -> None:
     if len(password) < MIN_PASSWORD:
-        raise HTTPException(status_code=422, detail=f"wachtwoord van minimaal {MIN_PASSWORD} tekens")
+        raise ApiError(422, "password_too_short", min=MIN_PASSWORD)
+
+
+def check_locale(locale: str | None) -> None:
+    if locale is not None and locale not in LOCALES:
+        raise ApiError(422, "invalid_locale", options=list(LOCALES))
 
 
 def bootstrap(engine, username: str, password_hash: str) -> int | None:
@@ -106,7 +113,7 @@ def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = 
         if header.lower().startswith("bearer "):
             u = token_user(header[7:].strip())
             if not u:
-                raise HTTPException(status_code=401, detail="ongeldig agent-token")
+                raise ApiError(401, "invalid_agent_token")
             return u
         sub = auth.token_user(request.cookies.get(auth.COOKIE), jwt_secret)
         uid = None
@@ -117,7 +124,7 @@ def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = 
             uid = found["id"] if found else None
         u = load(uid, "cookie")
         if not u:
-            raise HTTPException(status_code=401, detail="niet ingelogd")
+            raise ApiError(401, "not_logged_in")
         return u
 
     return current_user, token_user
@@ -136,6 +143,7 @@ class Registration(BaseModel):
     password: str
     display_name: str | None = None
     invite: str | None = None
+    locale: str | None = None
 
 
 class PasswordChange(BaseModel):
@@ -145,6 +153,7 @@ class PasswordChange(BaseModel):
 
 class AccountPatch(BaseModel):
     display_name: str | None = None
+    locale: str | None = None
 
 
 class AdminUserPatch(BaseModel):
@@ -173,12 +182,12 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
 
     def admin(u: User = Depends(current_user)) -> User:
         if u.via != "cookie" or not u.is_admin:
-            raise HTTPException(status_code=403, detail="alleen voor beheerders")
+            raise ApiError(403, "admins_only")
         return u
 
     def person(u: User = Depends(current_user)) -> User:
         if u.via != "cookie":
-            raise HTTPException(status_code=403, detail="alleen ingelogd op de site")
+            raise ApiError(403, "site_login_only")
         return u
 
     @r.get("/api/auth/config")
@@ -193,14 +202,14 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             throttles.clear()
         throttle = throttles.setdefault(name, auth.Throttle())
         if throttle.locked():
-            raise HTTPException(status_code=429, detail="te veel pogingen, probeer het over een kwartier opnieuw")
+            raise ApiError(429, "too_many_attempts")
         u = db.get_user_by_name(engine, name, with_hash=True)
         ok = auth.verify_password(creds.password, u["password_hash"] if u else "")
         if not u or not ok:
             throttle.fail()
-            raise HTTPException(status_code=401, detail="onjuiste gebruikersnaam of wachtwoord")
+            raise ApiError(401, "bad_credentials")
         if u["suspended"]:
-            raise HTTPException(status_code=403, detail="dit account is geblokkeerd; neem contact op met de beheerder")
+            raise ApiError(403, "account_suspended")
         throttle.succeed()
         db.update_user(engine, u["id"], last_login_at=datetime.now(timezone.utc))
         set_session(response, u["id"])
@@ -216,16 +225,19 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         mode = registration_mode()
         first = db.count_users(engine) == 0
         if mode == "closed":
-            raise HTTPException(status_code=403, detail="registreren staat uit")
+            raise ApiError(403, "registration_closed")
         if mode == "invite" and not (body.invite and db.invite_usable(engine, body.invite.strip())):
-            raise HTTPException(status_code=403, detail="ongeldige of gebruikte uitnodigingscode")
+            raise ApiError(403, "invalid_invite")
         name = body.username.strip().lower()
         if not USERNAME.match(name):
-            raise HTTPException(status_code=422, detail="gebruikersnaam: 3-40 tekens, letters, cijfers, punt, streepje of underscore")
+            raise ApiError(422, "invalid_username")
         if db.get_user_by_name(engine, name):
-            raise HTTPException(status_code=409, detail="die gebruikersnaam bestaat al")
+            raise ApiError(409, "username_taken")
         check_new_password(body.password)
+        check_locale(body.locale)
         uid = db.create_user(engine, name, hash_password(body.password), is_admin=first, display_name=(body.display_name or "").strip() or None)
+        if body.locale:
+            db.set_setting(db.Scope(engine, uid), "locale", body.locale)
         if mode == "invite":
             db.use_invite(engine, body.invite.strip(), uid)
         set_session(response, uid)
@@ -233,22 +245,25 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
 
     @r.get("/api/me")
     def me(u: User = Depends(current_user)):
-        return u.public()
+        return {**u.public(), "locale": db.get_setting(u.scope, "locale")}
 
     @r.patch("/api/account")
     def update_account(body: AccountPatch, u: User = Depends(person)):
+        check_locale(body.locale)
         if body.display_name is not None:
             name = body.display_name.strip()
             if len(name) > 80:
-                raise HTTPException(status_code=422, detail="naam van maximaal 80 tekens")
+                raise ApiError(422, "name_too_long", max=80)
             db.update_user(engine, u.id, display_name=name or None)
-        return db.get_user(engine, u.id)
+        if body.locale is not None:
+            db.set_setting(u.scope, "locale", body.locale)
+        return {**db.get_user(engine, u.id), "locale": db.get_setting(u.scope, "locale")}
 
     @r.post("/api/account/password")
     def change_password(body: PasswordChange, u: User = Depends(person)):
         row = db.get_user(engine, u.id, with_hash=True)
         if not auth.verify_password(body.current, row["password_hash"]):
-            raise HTTPException(status_code=403, detail="huidig wachtwoord klopt niet")
+            raise ApiError(403, "wrong_current_password")
         check_new_password(body.new)
         db.update_user(engine, u.id, password_hash=hash_password(body.new))
         return {"ok": True}
@@ -262,16 +277,16 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
     @r.patch("/api/admin/users/{user_id}")
     def admin_update(user_id: int, body: AdminUserPatch, a: User = Depends(admin)):
         if not db.get_user(engine, user_id):
-            raise HTTPException(status_code=404, detail="gebruiker niet gevonden")
+            raise ApiError(404, "user_not_found")
         if user_id == a.id and (body.is_admin is False or body.suspended):
-            raise HTTPException(status_code=422, detail="je kunt je eigen beheerrechten niet intrekken of jezelf blokkeren")
+            raise ApiError(422, "cannot_demote_self")
         db.update_user(engine, user_id, **body.model_dump(exclude_none=True))
         return db.get_user(engine, user_id)
 
     @r.post("/api/admin/users/{user_id}/reset-password")
     def admin_reset(user_id: int, a: User = Depends(admin)):
         if not db.get_user(engine, user_id):
-            raise HTTPException(status_code=404, detail="gebruiker niet gevonden")
+            raise ApiError(404, "user_not_found")
         temporary = secrets.token_urlsafe(9)
         db.update_user(engine, user_id, password_hash=hash_password(temporary))
         return {"password": temporary}
@@ -280,11 +295,11 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
     def admin_delete(user_id: int, confirm: str, a: User = Depends(admin)):
         target = db.get_user(engine, user_id)
         if not target:
-            raise HTTPException(status_code=404, detail="gebruiker niet gevonden")
+            raise ApiError(404, "user_not_found")
         if user_id == a.id:
-            raise HTTPException(status_code=422, detail="je kunt jezelf niet verwijderen")
+            raise ApiError(422, "cannot_delete_self")
         if confirm != target["username"]:
-            raise HTTPException(status_code=422, detail="typ de gebruikersnaam ter bevestiging")
+            raise ApiError(422, "confirm_username")
         db.delete_user(engine, user_id)
         stores.drop(user_id)
         return {"ok": True}
@@ -297,7 +312,7 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
     def admin_settings_update(body: AppSettingsPatch, a: User = Depends(admin)):
         if body.registration is not None:
             if body.registration not in REGISTRATION_MODES:
-                raise HTTPException(status_code=422, detail=f"registratie is een van {', '.join(REGISTRATION_MODES)}")
+                raise ApiError(422, "invalid_registration_mode", options=list(REGISTRATION_MODES))
             db.set_app_setting(engine, "registration", body.registration)
         return admin_settings(a)
 

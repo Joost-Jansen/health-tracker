@@ -25,8 +25,8 @@ def test_same_activity_id_lives_separately_per_user():
     assert "hr_zones_s" not in db.load_activities(b)[0]
     db.write_wellness(a, "2026-09-30", {"resting_hr": 48})
     db.set_setting(a, "zones", {"run": {}})
-    db.put_document(a, "goals", "A", "joost")
-    db.add_entry(a, "log", "t", "b", "joost")
+    db.put_document(a, "goals", "A", "alice")
+    db.add_entry(a, "log", "t", "b", "alice")
     db.save_routes(a, [{"id": "r1", "sport": "run"}])
     assert db.load_wellness(b) == {} and db.get_setting(b, "zones") is None and db.get_document(b, "goals") is None
     assert db.list_entries(b) == [] and db.load_routes(b) == []
@@ -35,7 +35,7 @@ def test_same_activity_id_lives_separately_per_user():
 def test_plans_are_private_per_user():
     e = fresh()
     a, b = db.Scope(e, 1), db.Scope(e, 2)
-    pa = db.create_plan(a, "A", "joost")
+    pa = db.create_plan(a, "A", "alice")
     pb = db.create_plan(b, "B", "anna")
     assert db.active_plan(a)["id"] == pa and db.active_plan(b)["id"] == pb  # creating B did not close A
     assert db.get_plan(b, pa) is None
@@ -85,7 +85,7 @@ def _v1_database(url):
         c.execute(insert(t["wellness"]).values(day="2026-09-30", data={"resting_hr": 48}))
         c.execute(insert(t["settings"]).values(key="zones", value={"run": {"bounds": [132, 147, 162, 176]}}))
         c.execute(insert(t["settings"]).values(key="agent_tokens", value=[{"id": "ab12", "name": "Claude", "hash": "e" * 64, "created_at": "2026-10-01T08:00:00+00:00"}]))
-        c.execute(insert(t["documents"]).values(key="goals", body="Marathon", updated_at=now, updated_by="joost"))
+        c.execute(insert(t["documents"]).values(key="goals", body="Marathon", updated_at=now, updated_by="alice"))
         c.execute(insert(t["entries"]).values(id=7, kind="log", day="2026-09-30", title="Log", body="b", author="agent", created_at=now))
         c.execute(insert(t["plans"]).values(id=3, title="Blok", status="actief", author="agent", created_at=now))
         c.execute(insert(t["plan_sessions"]).values(id=5, plan_id=3, date="2026-10-02", sport="run", distance_km=10.0))
@@ -107,8 +107,8 @@ def _check_migrated(e):
     assert plan["id"] == 3 and plan["sessions"][0]["distance_km"] == 10.0
     assert db.load_routes(s)[0]["name"] == "Park"
     # new rows after the migration get fresh ids (Postgres sequences moved past the copied ids)
-    assert db.add_entry(s, "log", "nieuw", "b", "joost") == 8
-    assert db.create_plan(s, "nieuw", "joost") == 4
+    assert db.add_entry(s, "log", "nieuw", "b", "alice") == 8
+    assert db.create_plan(s, "nieuw", "alice") == 4
     assert db.create_schema(e) is None  # second start: nothing to migrate
     assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION
 
@@ -131,7 +131,7 @@ def test_run_all_users_syncs_connected_users_only(monkeypatch):
     from tools import sync
 
     e = fresh()
-    admin = db.create_user(e, "joost", "h", is_admin=True)
+    admin = db.create_user(e, "alice", "h", is_admin=True)
     anna = db.create_user(e, "anna", "h")
     bob = db.create_user(e, "bob", "h")
     carl = db.create_user(e, "carl", "h")

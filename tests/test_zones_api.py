@@ -138,7 +138,7 @@ def test_month_history_across_year():
 
 
 def author(request: Request) -> str:
-    if request.headers.get("x-user") != "joost":
+    if request.headers.get("x-user") != "alice":
         raise HTTPException(status_code=401, detail="niet ingelogd")
     return fake_user_dep(FakeStore(activities=ACTS, zones=ZONES))()
 
@@ -147,7 +147,7 @@ def author(request: Request) -> str:
 def client():
     app = FastAPI()
     app.include_router(make_router(lambda: date(2026, 10, 3), author))
-    return TestClient(app, headers={"x-user": "joost"})
+    return TestClient(app, headers={"x-user": "alice"})
 
 
 def test_auth_required(client):
@@ -194,6 +194,6 @@ def test_wired_into_app(tmp_path):
     c = TestClient(create_app(engine=e, static_dir=tmp_path / "missing", settings=make_settings()))
     assert c.get("/api/zones").status_code == 401
     assert c.get("/api/zones/history").status_code == 401
-    c.post("/api/login", json={"username": "joost", "password": PASSWORD})
+    c.post("/api/login", json={"username": "alice", "password": PASSWORD})
     assert c.get("/api/zones").json()["zones"] == {}
     assert len(c.get("/api/zones/history?period=month&count=6").json()["items"]) == 6

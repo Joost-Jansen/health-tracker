@@ -62,17 +62,17 @@ def test_settings_roundtrip():
 
 def test_documents_keep_body_and_author():
     e = fresh()
-    db.put_document(e, "profile", "# Profiel", author="joost")
+    db.put_document(e, "profile", "# Profiel", author="alice")
     doc = db.get_document(e, "profile")
-    assert doc["body"] == "# Profiel" and doc["updated_by"] == "joost"
+    assert doc["body"] == "# Profiel" and doc["updated_by"] == "alice"
     assert db.get_document(e, "missing") is None
 
 
 def test_entries_newest_first_and_filtered_by_kind():
     e = fresh()
-    db.add_entry(e, kind="log", title="HM", body="1:43:31", author="agent", day="2026-09-27")
+    db.add_entry(e, kind="log", title="HM", body="1:50:00", author="agent", day="2026-09-27")
     db.add_entry(e, kind="analysis", title="Fitheid", body="...", author="agent", day="2026-09-30")
-    db.add_entry(e, kind="log", title="Rust", body="...", author="joost", day="2026-09-30")
+    db.add_entry(e, kind="log", title="Rust", body="...", author="alice", day="2026-09-30")
     logs = db.list_entries(e, kind="log")
     assert [x["title"] for x in logs] == ["Rust", "HM"]
     assert len(db.list_entries(e)) == 3

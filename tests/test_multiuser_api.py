@@ -92,7 +92,7 @@ def test_registration_rules(app):
     joost.patch("/api/admin/settings", json={"registration": "open"})
     assert register(app, username="a")[1].status_code == 422
     assert register(app, password="kort")[1].status_code == 422
-    assert register(app, username="Joost")[1].status_code == 409
+    assert register(app, username="Alice")[1].status_code == 409
     assert joost.patch("/api/admin/settings", json={"registration": "iedereen"}).status_code == 422
 
 
@@ -102,7 +102,7 @@ def test_admin_manages_users(app):
     anna, _ = register(app)
     anna_id = anna.get("/api/me").json()["id"]
     assert anna.get("/api/admin/users").status_code == 403
-    assert {u["username"] for u in joost.get("/api/admin/users").json()} == {"joost", "anna"}
+    assert {u["username"] for u in joost.get("/api/admin/users").json()} == {"alice", "anna"}
 
     # suspend: no more access, no login
     joost.patch(f"/api/admin/users/{anna_id}", json={"suspended": True})
@@ -121,7 +121,7 @@ def test_admin_manages_users(app):
     # delete needs the username typed
     assert joost.delete(f"/api/admin/users/{anna_id}?confirm=nee").status_code == 422
     assert joost.delete(f"/api/admin/users/{anna_id}?confirm=anna").json() == {"ok": True}
-    assert {u["username"] for u in joost.get("/api/admin/users").json()} == {"joost"}
+    assert {u["username"] for u in joost.get("/api/admin/users").json()} == {"alice"}
 
 
 def test_account_password_change(app):
@@ -135,9 +135,9 @@ def test_account_password_change(app):
 
 
 def test_cookie_from_before_multi_user_still_works(app):
-    old = auth.create_token("joost", "x" * 32, 30)  # single-user cookies carried the username
+    old = auth.create_token("alice", "x" * 32, 30)  # single-user cookies carried the username
     c = TestClient(app, cookies={auth.COOKIE: old})
-    assert c.get("/api/me").json()["username"] == "joost"
+    assert c.get("/api/me").json()["username"] == "alice"
 
 
 def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):

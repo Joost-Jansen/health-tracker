@@ -85,14 +85,14 @@ def test_tokens_made_on_the_site_work_for_api_and_mcp(client):
     assert client.post("/api/agent-tokens", json={"name": "x"}).status_code == 401
     bearer = {"Authorization": f"Bearer {TOKEN}"}
     assert client.post("/api/agent-tokens", headers=bearer, json={"name": "x"}).status_code == 403  # agents cannot mint
-    client.post("/api/login", json={"username": "joost", "password": "test-wachtwoord-123"})
+    client.post("/api/login", json={"username": "alice", "password": "test-wachtwoord-123"})
     made = client.post("/api/agent-tokens", json={"name": "Claude app"}).json()
     assert made["token"].startswith("tr_") and made["name"] == "Claude app"
     assert "hash" not in client.get("/api/agent-tokens").json()[0]
 
     fresh = TestClient(client.app)  # no cookie
     me = fresh.get("/api/me", headers={"Authorization": f"Bearer {made['token']}"}).json()
-    assert me["username"] == "joost" and me["via"] == "agent"
+    assert me["username"] == "alice" and me["via"] == "agent"
     assert rpc(fresh, "tools/list", auth=False, path=f"/api/mcp/{made['token']}").status_code == 200
 
     assert client.delete(f"/api/agent-tokens/{made['id']}").json() == {"ok": True}

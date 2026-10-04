@@ -37,7 +37,7 @@ def engine(tmp_path):
 
 def make_settings(**kw):
     return Settings(
-        user="joost",
+        user="alice",
         password_hash=bcrypt.hashpw(PASSWORD.encode(), bcrypt.gensalt(rounds=4)).decode(),
         jwt_secret="x" * 32,
         cookie_secure=False,
@@ -50,7 +50,7 @@ def client(engine, tmp_path):
     return TestClient(create_app(engine=engine, static_dir=tmp_path / "missing", settings=make_settings()))
 
 
-def login(client, password=PASSWORD, user="joost"):
+def login(client, password=PASSWORD, user="alice"):
     return client.post("/api/login", json={"username": user, "password": password})
 
 
@@ -72,7 +72,7 @@ def test_login_sets_httponly_cookie_and_unlocks_data(client):
     r = login(client)
     assert r.status_code == 200
     assert "httponly" in r.headers["set-cookie"].lower()
-    assert client.get("/api/me").json() == {"id": 1, "username": "joost", "display_name": None, "is_admin": True, "via": "cookie"}
+    assert client.get("/api/me").json() == {"id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie"}
     d = client.get("/api/dashboard").json()
     assert d["last_sync"] == "2026-09-30 06:02"
     assert d["recent"][0]["name"] == "Ochtendloop"

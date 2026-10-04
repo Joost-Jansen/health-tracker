@@ -102,7 +102,7 @@ def test_sync_now_runs_the_users_sync(make, engine):  # noqa: F811
 def test_daily_runner_picks_connected_users_not_synced_today(engine):  # noqa: F811
     from api.users import Stores
 
-    db.create_user(engine, "joost", "h", is_admin=True, user_id=1)
+    db.create_user(engine, "alice", "h", is_admin=True, user_id=1)
     anna = db.create_user(engine, "anna", "h")
     db.set_setting(db.Scope(engine, 1), "garmin_tokens", "x")
     db.set_setting(db.Scope(engine, anna), "garmin_tokens", "x")

@@ -72,7 +72,7 @@ class FakeStore:
         return self._streams(aid)
 
 
-def fake_user_dep(store, via="cookie", username="joost"):
+def fake_user_dep(store, via="cookie", username="alice"):
     """A current_user dependency returning a User around `store`."""
     from api.users import User
 

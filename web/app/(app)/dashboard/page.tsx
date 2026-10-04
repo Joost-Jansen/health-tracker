@@ -10,6 +10,7 @@ import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import PeriodNav from "@/components/zones/PeriodNav";
+import ReadinessCard from "@/components/dashboard/ReadinessCard";
 import LineChart from "@/components/charts/LineChart";
 import { SportBadge } from "@/components/plan/SportIcon";
 import { api } from "@/lib/api";
@@ -21,59 +22,15 @@ import {
   fmtIntensity,
   fmtKm,
   type PlanSession,
-  type Readiness,
   sportLabel,
   type ZonesForPeriod,
 } from "@/lib/training";
 
-const VERDICT: Record<Readiness["verdict"], { label: string; colour: string }> = {
-  klaar: { label: "Klaar voor training", colour: "var(--zone-2)" },
-  "rustig aan": { label: "Rustig aan", colour: "var(--zone-3)" },
-  herstel: { label: "Herstel eerst", colour: "var(--zone-5)" },
-  onbekend: { label: "Geen nachtdata", colour: "var(--zone-1)" },
-};
 const FORM_LINES = [
   { label: "Fitheid", colour: "var(--chart-1)", dash: false },
   { label: "Vermoeidheid", colour: "var(--chart-3)", dash: false },
   { label: "Vorm", colour: "var(--chart-4)", dash: true },
 ];
-const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
-
-function ReadinessCard({ r }: { r: Readiness }) {
-  const v = VERDICT[r.verdict];
-  // zonder nachtdata is er weinig te zeggen: compact, zodat de kaart niet groter oogt dan wat hij weet
-  const compact = !r.date;
-  return (
-    <Card title="Klaar voor vandaag?">
-      <div className="flex items-center gap-2.5">
-        <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: v.colour }} />
-        <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{v.label}</span>
-      </div>
-      <p className={`mt-1 leading-relaxed text-ink-muted ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{r.text}</p>
-      {compact ? (
-        <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] tabular-nums">
-          {r.signals.map((s) => (
-            <div key={s.key} className="flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />
-              <dt className="text-ink-muted">{s.label}</dt>
-              <dd>{s.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] tabular-nums">
-          {r.signals.map((s) => (
-            <div key={s.key}>
-              <dt className="flex items-center gap-1.5 text-ink-muted"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: LEVEL_COLOUR[s.level] }} />{s.label}</dt>
-              <dd><span className="text-[15px]">{s.value}</span> {s.note && <span className="text-[11px] text-ink-muted">{s.note}</span>}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      <p className={`text-[11px] text-ink-muted ${compact ? "mt-2.5" : "mt-3"}`}>{T.readinessBasis} {T.noMedicalAdvice}</p>
-    </Card>
-  );
-}
 
 function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string }) {
   return (
@@ -167,7 +124,7 @@ export default function DashboardPage() {
       <OnboardingCard />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title="Klaar voor vandaag?"><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
+        {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title={T.vandaag.readiness.title}><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
         <Upcoming sessions={d.upcoming} title={d.plan_title} />
       </div>
 

@@ -1,12 +1,17 @@
 from datetime import date, timedelta
 
-from api.readiness import readiness
+from api.readiness import as_text, readiness
 
 TODAY = date(2026, 9, 30)
+YESTERDAY = (TODAY - timedelta(days=1)).isoformat()
 
 
 def history(rhr=48, sleep=7.5, days=30):
     return {(TODAY - timedelta(days=i)).isoformat(): {"resting_hr": rhr, "sleep_h": sleep} for i in range(1, days + 1)}
+
+
+def signal(r, key):
+    return next(s for s in r["signals"] if s["key"] == key)
 
 
 def test_normal_night_is_ready():
@@ -32,10 +37,50 @@ def test_one_signal_means_easy():
 def test_stale_data_is_not_used_but_form_still_counts():
     w = {(TODAY - timedelta(days=5)).isoformat(): {"resting_hr": 60, "sleep_h": 4}}
     r = readiness(w, TODAY, tsb=-35)
-    assert r["date"] is None and r["verdict"] == "rustig aan" and "niet gedragen" in r["text"]
+    assert r["date"] is None and r["verdict"] == "rustig aan" and r["no_night"] is True
     assert readiness({}, TODAY) is None
 
 
 def test_without_night_data_the_verdict_is_unknown():
     r = readiness({TODAY.isoformat(): {"body_battery_high": 66}}, TODAY, tsb=-5)
-    assert r["verdict"] == "onbekend" and r["date"] is None
+    assert r["verdict"] == "onbekend" and r["date"] is None and r["no_night"] is True
+
+
+def test_no_sentences_only_codes_and_numbers():
+    w = history()
+    w[TODAY.isoformat()] = {"resting_hr": 51, "sleep_h": 6.8, "sleep_score": 74, "body_battery_high": 70}
+    r = readiness(w, TODAY, tsb=-12.4)
+    assert "text" not in r and r["no_night"] is False
+    assert all("label" not in s for s in r["signals"])
+    rhr = signal(r, "resting_hr")
+    assert rhr["value"] == 51 and rhr["note"] == {"code": "vs_baseline", "params": {"delta": 3, "baseline": 48}}
+    sleep = signal(r, "sleep_h")
+    assert sleep["value"] == 6.8 and sleep["note"] == {"code": "sleep", "params": {"score": 74, "baseline": 7.5}}
+    assert signal(r, "tsb")["value"] == -12.4
+
+
+def test_body_battery_from_today_says_today():
+    w = history()
+    w[TODAY.isoformat()] = {"resting_hr": 48, "sleep_h": 7.5, "body_battery_high": 80}
+    bb = signal(readiness(w, TODAY), "body_battery")
+    assert bb["value"] == 80 and bb["note"] == {"code": "highest", "params": {"date": TODAY.isoformat(), "days_ago": 0}}
+
+
+def test_body_battery_from_yesterday_does_not_say_today():
+    w = history()
+    w[YESTERDAY] = {"resting_hr": 48, "sleep_h": 7.5, "body_battery_high": 64}
+    r = readiness(w, TODAY)
+    assert r["date"] == YESTERDAY
+    assert signal(r, "body_battery")["note"] == {"code": "highest", "params": {"date": YESTERDAY, "days_ago": 1}}
+
+
+def test_form_note_says_yesterdays_fitness_minus_fatigue():
+    r = readiness({}, TODAY, tsb=3)
+    assert signal(r, "tsb")["note"] == {"code": "form_yesterday", "params": {}}
+
+
+def test_as_text_for_agents_lists_verdict_and_signals():
+    w = history()
+    w[TODAY.isoformat()] = {"resting_hr": 48, "sleep_h": 7.4, "body_battery_high": 80}
+    text = as_text(readiness(w, TODAY, tsb=-5))
+    assert text.startswith("klaar") and "rusthartslag 48 bpm" in text and "body battery 80" in text and "vorm -5" in text

@@ -2,7 +2,7 @@
 // wat over de gebruiker gaat (zones, max hartslag, welke sporten geschat zijn, waarop een voorspelling is gebaseerd)
 // komt als parameter uit diens eigen instellingen en data. Pagina's halen hun tekst hier, niet uit een eigen string.
 
-import { sportLabel } from "@/lib/training";
+import { fmtDate, sportLabel } from "@/lib/training";
 
 const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`);
 
@@ -129,5 +129,36 @@ export const T = {
     firstSync: (days: number) =>
       `De eerste keer haalt de site de trainingen en het herstel (slaap, rusthartslag, Body Battery) van de afgelopen ${days} dagen op. Daarna elke ochtend vanzelf wat er nieuw is.`,
     wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
+  },
+
+  /** Vandaag (dashboard). De API geeft codes en getallen; de zinnen staan hier. */
+  vandaag: {
+    readiness: {
+      title: "Klaar voor vandaag?",
+      verdict: { klaar: "Klaar voor training", "rustig aan": "Rustig aan", herstel: "Herstel eerst", onbekend: "Geen nachtdata" } as Record<string, string>,
+      advice: {
+        herstel: "Meerdere signalen van vermoeidheid. Maak er een rustdag of heel rustige training van.",
+        "rustig aan": "Eén of twee signalen wijken af. Train gerust, maar houd het rustig (Z1-Z2) of kort.",
+        klaar: "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld.",
+      } as Record<string, string>,
+      /** Zonder nachtdata en zonder afwijkende signalen: wat er wel is, is in orde. */
+      unknown: (labels: string[]) => `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
+      noNight: "Geen slaap of rusthartslag van afgelopen nacht (horloge niet gedragen of nog niet gesynct).",
+      label: { resting_hr: "Rusthartslag", sleep_h: "Slaap", body_battery: "Body Battery", tsb: "Vorm" } as Record<string, string>,
+      value(key: string, v: number): string {
+        if (key === "resting_hr") return `${v} bpm`;
+        if (key === "sleep_h") return `${v.toFixed(1).replace(".", ",")} u`;
+        if (key === "tsb") return `${v > 0 ? "+" : ""}${Math.round(v)}`;
+        return String(v);
+      },
+      note(code: string, p: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number }): string {
+        if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${p.delta ?? 0} t.o.v. normaal (${p.baseline})`;
+        if (code === "sleep")
+          return [p.score ? `score ${p.score}` : "", p.baseline ? `normaal ${p.baseline.toFixed(1).replace(".", ",")} u` : ""].filter(Boolean).join(", ");
+        if (code === "highest") return p.days_ago === 0 ? "hoogste vandaag" : p.days_ago === 1 ? "hoogste gisteren" : `hoogste op ${fmtDate(p.date ?? "")}`;
+        if (code === "form_yesterday") return "fitheid min vermoeidheid van gisteren";
+        return "";
+      },
+    },
   },
 };

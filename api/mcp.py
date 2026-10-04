@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 from api.dashboard import build_dashboard, summary
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
-from api.readiness import readiness
+from api.readiness import as_text as readiness_text, readiness
 from api.routes_api import suggest
 from api.trends import build_trends
 from tools import db
@@ -216,7 +216,7 @@ class Server:
             parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
             rd = readiness(s.wellness, today, f["tsb"] if f else None)
             if rd:
-                parts.append(f"\n## Klaar voor vandaag: {rd['verdict']}\n{rd['text']} " + "; ".join(f"{x['label']} {x['value']} ({x['note']})" for x in rd["signals"]))
+                parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:
                 parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {f['status']}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]

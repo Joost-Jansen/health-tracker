@@ -58,11 +58,18 @@ export type Dashboard = {
   readiness?: Readiness | null;
 };
 
+/** Codes en getallen; de tekst komt uit T.vandaag.readiness (api/readiness.py). */
+export type ReadinessNote = {
+  code: "vs_baseline" | "sleep" | "highest" | "form_yesterday";
+  params: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number };
+};
+
 export type Readiness = {
   verdict: "klaar" | "rustig aan" | "herstel" | "onbekend";
-  text: string;
   date: string | null;
-  signals: { key: string; label: string; value: string; note: string; level: "ok" | "attention" | "warn" }[];
+  /** Geen slaap of rusthartslag van afgelopen nacht. */
+  no_night: boolean;
+  signals: { key: "resting_hr" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
 };
 
 export function fmtDuration(seconds?: number): string {

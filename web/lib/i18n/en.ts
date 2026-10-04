@@ -809,7 +809,7 @@ export const en: Messages = {
     },
   },
 
-  texts: withFallback(T, textsEn),
+  texts: withFallback<typeof T>(T, textsEn),
 };
 
 function ordinal(n: number): string {

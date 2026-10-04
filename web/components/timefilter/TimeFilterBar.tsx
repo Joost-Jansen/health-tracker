@@ -5,14 +5,20 @@
 // paneel voor een eigen van-tot, schuif- en zoomknoppen en een overzicht van de
 // hele geschiedenis om het venster in te slepen.
 //
-// Met de muis klapt het paneel open zodra je over de balk gaat en dicht als je
-// hem verlaat; met aanraken of het toetsenbord met de knop.
+// Het paneel gaat alleen open met een klik of tik op "Aanpassen" (niet bij
+// eroverheen gaan, dan schoof het onverwacht over de grafieken) en dicht met
+// dezelfde knop, een klik ernaast of Escape.
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, Input, Tabs } from "@/components/ds";
 import RangeBrush from "@/components/timefilter/RangeBrush";
 import type { TimeRange } from "@/components/timefilter/useTimeRange";
 import { PERIODS, fmtWindow, moveWindow, windowDays, type DayPoint } from "@/lib/timeline";
+import { T } from "@/lib/texts";
+
+const TF = T.trends.timeFilter;
+const periodLabel = (p: string) => T.trends.periods[p] ?? p;
+const PERIOD_TABS = PERIODS.map((id) => ({ id, label: periodLabel(id) }));
 
 /** Hoogte van de vaste bovenbalk (`.ds-topbar` in app/ds.css: height 60px). De tijdbalk plakt eronder. */
 export const TOPBAR_HEIGHT = 60;
@@ -22,7 +28,7 @@ export default function TimeFilterBar({
   first,
   last,
   overview,
-  label = "Periode voor alle grafieken",
+  label = TF.group,
 }: {
   range: TimeRange;
   first: string;
@@ -36,7 +42,6 @@ export default function TimeFilterBar({
   const panelId = useId();
   const bar = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const pointer = useRef<string | null>(null);
   const { window: w, period, custom, choose, change, reset } = range;
   const valid = w.from <= w.to && w.from >= first && w.to <= last;
 
@@ -66,8 +71,17 @@ export default function TimeFilterBar({
     const closeOutside = (e: PointerEvent) => {
       if (e.target instanceof Node && !bar.current?.contains(e.target)) setOpen(false);
     };
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
     document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [open]);
 
   const days = windowDays(w);
@@ -75,8 +89,8 @@ export default function TimeFilterBar({
     <button
       type="button"
       onClick={reset}
-      title={`Terug naar ${range.preset}`}
-      aria-label={`Eigen periode ${fmtWindow(w)} weghalen, terug naar ${range.preset}`}
+      title={TF.backTo(periodLabel(range.preset))}
+      aria-label={TF.removeCustom(fmtWindow(w), periodLabel(range.preset))}
       className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs transition-colors hover:bg-surface"
     >
       <span className="truncate tabular-nums">{fmtWindow(w)}</span>
@@ -96,27 +110,14 @@ export default function TimeFilterBar({
         borderBottom: `1px solid ${stuck ? "var(--border-hairline)" : "transparent"}`,
         transition: "border-color 160ms ease",
       }}
-      onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") setOpen(true);
-      }}
-      onPointerLeave={(e) => {
-        if (e.pointerType === "mouse" && e.buttons === 0) setOpen(false);
-      }}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") pointer.current = null;
-        if (e.key === "Escape") {
-          setOpen(false);
-          button.current?.focus();
-        }
+        if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setOpen(false);
       }}
     >
       <div className="relative">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto py-2.5">
-            <Tabs items={PERIODS} value={period} onChange={choose} variant="quiet" ariaLabel={label} className="shrink-0 whitespace-nowrap" />
+            <Tabs items={PERIOD_TABS} value={period} onChange={choose} variant="quiet" ariaLabel={label} className="shrink-0 whitespace-nowrap" />
             <span className="mx-1 hidden h-5 shrink-0 border-l border-border sm:block" aria-hidden />
             <span className="hidden sm:contents">{current}</span>
           </div>
@@ -126,13 +127,10 @@ export default function TimeFilterBar({
             aria-controls={panelId}
             aria-expanded={open}
             data-open={open}
-            onPointerDown={(e) => {
-              pointer.current = e.pointerType;
-            }}
-            onClick={() => setOpen((v) => (pointer.current === "mouse" ? true : !v))}
+            onClick={() => setOpen((v) => !v)}
             className="shrink-0 rounded-md px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 data-[open=true]:bg-surface-2 data-[open=true]:text-ink"
           >
-            Aanpassen <span aria-hidden>{open ? "▴" : "▾"}</span>
+            {TF.adjust} <span aria-hidden>{open ? "▴" : "▾"}</span>
           </button>
         </div>
 
@@ -144,7 +142,7 @@ export default function TimeFilterBar({
           inert={!open}
           data-open={open}
           role="region"
-          aria-label="Periode aanpassen"
+          aria-label={TF.panel}
           className="absolute right-0 top-full w-full max-w-[720px] overflow-y-auto rounded-b-md p-4 transition-[opacity,transform,visibility] duration-150 ease-out motion-reduce:transition-none"
           style={{
             maxHeight: "min(70vh, 560px)",
@@ -158,14 +156,17 @@ export default function TimeFilterBar({
           }}
         >
           <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide">Periode</span>
-            <span className="text-xs tabular-nums text-ink-muted">
-              {days} {days === 1 ? "dag" : "dagen"}
+            <span className="text-xs font-semibold uppercase tracking-wide">{TF.period}</span>
+            <span className="flex items-center gap-3">
+              <span className="text-xs tabular-nums text-ink-muted">{TF.days(days)}</span>
+              <button type="button" onClick={() => setOpen(false)} aria-label={TF.close} title={TF.close} className="rounded px-1.5 text-sm leading-none text-ink-muted hover:bg-surface-2 hover:text-ink">
+                ×
+              </button>
             </span>
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <Input
-              label="Vanaf"
+              label={TF.from}
               type="date"
               value={w.from}
               min={first}
@@ -175,7 +176,7 @@ export default function TimeFilterBar({
               }}
             />
             <Input
-              label="Tot en met"
+              label={TF.to}
               type="date"
               value={w.to}
               min={w.from}
@@ -184,17 +185,17 @@ export default function TimeFilterBar({
                 if (e.target.value) change({ ...w, to: e.target.value });
               }}
             />
-            <div className="flex gap-1 pb-0.5" role="group" aria-label="Tijdlijn zoomen en verschuiven">
-              <Button size="sm" variant="ghost" aria-label="Vorige periode" title="Vorige periode" disabled={!valid || w.from <= first} onClick={() => change(moveWindow(w, first, last, 1, -1))}>
+            <div className="flex gap-1 pb-0.5" role="group" aria-label={TF.moveGroup}>
+              <Button size="sm" variant="ghost" aria-label={TF.previous} title={TF.previous} disabled={!valid || w.from <= first} onClick={() => change(moveWindow(w, first, last, 1, -1))}>
                 ←
               </Button>
-              <Button size="sm" variant="ghost" aria-label="Inzoomen" title="Inzoomen" disabled={!valid || days <= 7} onClick={() => change(moveWindow(w, first, last, 0.5))}>
+              <Button size="sm" variant="ghost" aria-label={TF.zoomIn} title={TF.zoomIn} disabled={!valid || days <= 7} onClick={() => change(moveWindow(w, first, last, 0.5))}>
                 +
               </Button>
-              <Button size="sm" variant="ghost" aria-label="Uitzoomen" title="Uitzoomen" disabled={!valid || (w.from === first && w.to === last)} onClick={() => change(moveWindow(w, first, last, 2))}>
+              <Button size="sm" variant="ghost" aria-label={TF.zoomOut} title={TF.zoomOut} disabled={!valid || (w.from === first && w.to === last)} onClick={() => change(moveWindow(w, first, last, 2))}>
                 −
               </Button>
-              <Button size="sm" variant="ghost" aria-label="Volgende periode" title="Volgende periode" disabled={!valid || w.to >= last} onClick={() => change(moveWindow(w, first, last, 1, 1))}>
+              <Button size="sm" variant="ghost" aria-label={TF.next} title={TF.next} disabled={!valid || w.to >= last} onClick={() => change(moveWindow(w, first, last, 1, 1))}>
                 →
               </Button>
             </div>
@@ -203,7 +204,7 @@ export default function TimeFilterBar({
             <RangeBrush first={first} last={last} window={w} onChange={change} points={overview} />
           </div>
           <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">
-            In elke grafiek: slepen verschuift, Ctrl/⌘ + scrollen of knijpen zoomt, dubbelklik zet de periode terug. Op een telefoon lees je af met één vinger en zoom je met twee.
+            {TF.help}
           </p>
         </div>
       </div>

@@ -222,12 +222,19 @@ def test_plan_week_planned_against_done_per_sport_and_session_counts():
     assert w["sports"]["run"] == {"planned_km": 38.0, "done_km": 10.2, "planned_s": 3600, "done_s": 3700, "sessions": 3, "done": 1}
     assert w["sports"]["ride"] == {"planned_km": 0.0, "done_km": 0.0, "planned_s": 5400, "done_s": 0, "sessions": 1, "done": 0}
     assert w["sports"]["swim"]["planned_km"] == 2.0 and w["sports"]["swim"]["planned_s"] == 2700
-    assert w["sessions"] == {"total": 5, "done": 1, "missed": 1, "upcoming": 3}
+    assert w["sessions"] == {"total": 5, "done": 1, "missed": 1, "upcoming": 3, "unsynced": 0}
 
 
 def test_plan_week_without_sessions_this_week_is_empty():
     w = plan_week(match_sessions([sess("2026-10-12", km=10)], [], TODAY), TODAY)
-    assert w["sports"] == {} and w["sessions"] == {"total": 0, "done": 0, "missed": 0, "upcoming": 0}
+    assert w["sports"] == {} and w["sessions"] == {"total": 0, "done": 0, "missed": 0, "upcoming": 0, "unsynced": 0}
+
+
+def test_plan_week_does_not_call_sessions_after_the_last_sync_missed():
+    sunday = date(2026, 10, 4)
+    w = plan_week(match_sessions(WEEK_PLAN, [act("2026-09-28", km=10.2, secs=3700)], sunday), sunday, synced=date(2026, 9, 29))
+    # 29 Sep (synced, nothing done) is missed; 30 Sep, 2 Oct and 4 Oct are not known yet
+    assert w["sessions"] == {"total": 5, "done": 1, "missed": 1, "upcoming": 1, "unsynced": 2}
 
 
 # --- race countdown -------------------------------------------------------------------------------

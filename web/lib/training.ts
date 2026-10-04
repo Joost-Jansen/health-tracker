@@ -385,7 +385,8 @@ export type PlanWeekSummary = {
   start: string;
   end: string;
   sports: Record<string, PlanWeekSport>;
-  sessions: { total: number; done: number; missed: number; upcoming: number };
+  /** `unsynced`: voorbij, maar na de laatste sync; nog niet bekend of hij gedaan is. */
+  sessions: { total: number; done: number; missed: number; upcoming: number; unsynced: number };
 };
 
 /** GET /api/dashboard `race`: de eerstvolgende wedstrijd uit het schema; `name` alleen bij de wedstrijd van het schema zelf. */

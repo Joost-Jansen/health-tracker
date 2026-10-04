@@ -117,10 +117,11 @@ def today_tsb(form: dict | None) -> float | None:
     return form["tsb"] if form and not form.get("stopped_at_sync") else None
 
 
-def plan_week(sessions: list[dict], today: date) -> dict:
+def plan_week(sessions: list[dict], today: date, synced: date | None = None) -> dict:
     """This week (Monday to Sunday) of a plan whose sessions went through api.plans.match_sessions: per sport the planned
     and done km and time (planned time only from sessions with a duration) and the number of sessions done, missed and
-    still to come (today's open session counts as to come). Rest days are left out."""
+    still to come (today's open session counts as to come). A past session after the last synced day (`synced`) is
+    `unsynced`, not missed: what happened that day is not known yet. Rest days are left out."""
     monday = today - timedelta(days=today.weekday())
     sunday = monday + timedelta(days=6)
     week = [s for s in sessions if s["sport"] != "rest" and monday.isoformat() <= s["date"] <= sunday.isoformat()]
@@ -136,8 +137,15 @@ def plan_week(sessions: list[dict], today: date) -> dict:
             row["done_s"] += (s.get("done") or {}).get("moving_time_s") or 0
     for row in sports.values():
         row["planned_km"], row["done_km"] = round(row["planned_km"], 1), round(row["done_km"], 1)
-    status = [s.get("status") for s in week]
-    counts = {"total": len(week), "done": status.count("gedaan"), "missed": status.count("gemist"), "upcoming": status.count("gepland") + status.count("vandaag")}
+    after_sync = synced.isoformat() if synced else "9999"
+    status = ["unsynced" if s.get("status") == "gemist" and s["date"] > after_sync else s.get("status") for s in week]
+    counts = {
+        "total": len(week),
+        "done": status.count("gedaan"),
+        "missed": status.count("gemist"),
+        "upcoming": status.count("gepland") + status.count("vandaag"),
+        "unsynced": status.count("unsynced"),
+    }
     return {"start": monday.isoformat(), "end": sunday.isoformat(), "sports": sports, "sessions": counts}
 
 

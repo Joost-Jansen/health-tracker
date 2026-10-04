@@ -189,6 +189,7 @@ export const T = {
       done: (done: number, total: number) => `${done} van ${total} ${total === 1 ? "sessie" : "sessies"} gedaan`,
       missed: (n: number) => `${n} gemist`,
       upcoming: (n: number) => `${n} te gaan`,
+      unsynced: (n: number) => `${n} nog niet gesynct`,
       ofPlanned: (done: string, planned: string) => `${done} van ${planned}`,
       method: "Gedaan telt alleen activiteiten die bij een sessie van het schema horen (zelfde sport, zelfde dag).",
     },

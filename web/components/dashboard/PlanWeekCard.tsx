@@ -70,6 +70,7 @@ export default function PlanWeekCard({ week, race, className = "" }: { week: Pla
             <span className="font-medium text-[var(--text-primary)]">{t.done(c.done, c.total)}</span>
             {c.missed > 0 && <span className="text-loss">{t.missed(c.missed)}</span>}
             {c.upcoming > 0 && <span>{t.upcoming(c.upcoming)}</span>}
+            {c.unsynced > 0 && <span>{t.unsynced(c.unsynced)}</span>}
           </p>
         </>
       )}

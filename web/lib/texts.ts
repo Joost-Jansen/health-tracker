@@ -383,8 +383,10 @@ export const T = {
       perWeek: "Per week",
       view: "Per dag of per week",
       load: "Belasting",
-      sleep: "Slaap",
-      rhr: "Rusthartslag",
+      sleepTitle: "Slaap (u)",
+      rhrTitle: "Rusthartslag (bpm)",
+      hours: " u",
+      bpm: " bpm",
       explainDay: "Elk punt is een dag: de belasting van die dag (TRIMP) tegen de slaap en rusthartslag van de nacht erna.",
       explainWeek: "Elk punt is een week: de opgetelde belasting (TRIMP) tegen je gemiddelde slaap en rusthartslag in die week.",
       neutral: "Een verband zegt niets over oorzaak: slaap en rusthartslag hangen ook af van werk, ziekte, alcohol en warmte.",
@@ -413,6 +415,7 @@ export const T = {
       before: (time: string) => `daarvoor ${time}`,
       progressNote: "Het lijntje loopt over de gekozen periode: elk bolletje is een verbetering, daartussen bleef het record staan.",
       name: RECORD_NAME,
+      label: { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "Halve marathon" } as Record<RecordKey, string>,
     },
 
     races: {

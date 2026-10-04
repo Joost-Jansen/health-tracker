@@ -2,7 +2,14 @@
 // wat over de gebruiker gaat (zones, max hartslag, welke sporten geschat zijn, waarop een voorspelling is gebaseerd)
 // komt als parameter uit diens eigen instellingen en data. Pagina's halen hun tekst hier, niet uit een eigen string.
 
-import { fmtDate, sportLabel } from "@/lib/training";
+import { fmtClock, fmtDate, sportLabel, type HrFlagReason, type InsightCode, type RecordKey } from "@/lib/training";
+
+/** Getal met decimale komma, zonder ",0" aan het eind. */
+const num = (n: number, digits = 1) => n.toFixed(digits).replace(".", ",").replace(/,0+$/, "");
+const fmtDayNl = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
+const RECORD_NAME: Record<RecordKey, string> = { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "halve marathon" };
+/** Een doelafstand in woorden: marathon, halve marathon of "15 km". */
+const goalName = (km: number) => (Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "halve marathon" : `${num(km)} km`);
 
 const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`);
 
@@ -223,5 +230,196 @@ export const T = {
     /** Vorm-kaart als de reeks stopt bij een sync van eergisteren of ouder. */
     formStopped: (day: string) =>
       `Stand op ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,
+  },
+
+  /** Trends-pagina: tijdbalk, sportfilter, inzichten (codes uit api/trends.py), grafieken en uitleg. */
+  trends: {
+    loading: "Laden…",
+    loadError: "Kon de trends niet laden.",
+
+    periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "Dit jaar", "1J": "1J", Alles: "Alles", Eigen: "Eigen" } as Record<string, string>,
+    timeFilter: {
+      group: "Periode voor alle grafieken",
+      adjust: "Aanpassen",
+      panel: "Periode aanpassen",
+      period: "Periode",
+      days: (n: number) => `${n} ${n === 1 ? "dag" : "dagen"}`,
+      from: "Vanaf",
+      to: "Tot en met",
+      moveGroup: "Tijdlijn zoomen en verschuiven",
+      previous: "Vorige periode",
+      next: "Volgende periode",
+      zoomIn: "Inzoomen",
+      zoomOut: "Uitzoomen",
+      backTo: (preset: string) => `Terug naar ${preset}`,
+      removeCustom: (window: string, preset: string) => `Eigen periode ${window} weghalen, terug naar ${preset}`,
+      help: "In elke grafiek: slepen verschuift, Ctrl/⌘ + scrollen of knijpen zoomt, dubbelklik zet de periode terug. Op een telefoon lees je af met één vinger en zoom je met twee.",
+      close: "Sluiten",
+    },
+
+    sport: { label: "Sport", all: "Alle sporten", runOnly: (what: string) => `${what} gaat alleen over hardlopen.` },
+
+    insights: {
+      title: "Inzichten",
+      none: "Niets bijzonders.",
+      empty: "Nog geen inzichten: daar zijn eerst een paar weken trainingen voor nodig.",
+      goal: (text: string) => `Doel uit je actieve schema: ${text}.`,
+      noGoal: "Zet een wedstrijd of doel met afstand in je schema, dan gaan de inzichten daarover.",
+    },
+
+    /** Titel en uitleg per inzichtcode. */
+    insight(i: InsightCode): { title: string; text: string } {
+      switch (i.code) {
+        case "record_set": {
+          const p = i.params;
+          return { title: `Nieuw record op ${RECORD_NAME[p.key]}: ${fmtClock(p.seconds)}`, text: `${fmtClock(p.previous_seconds - p.seconds)} sneller dan je vorige beste (${fmtClock(p.previous_seconds)}), op ${fmtDayNl(p.date)}.` };
+        }
+        case "acwr_high":
+          return { title: "Belasting loopt snel op", text: `Vermoeidheid (${i.params.atl}) is ${num(i.params.ratio)}× je fitheid (${i.params.ctl}). Boven 1,5 stijgt het blessurerisico; plan een rustiger dag.` };
+        case "ramp_fast":
+          return { title: "Snelle opbouw", text: `Fitheid +${num(i.params.ramp)} in 7 dagen. Meer dan ongeveer 5 tot 7 per week houdt je lichaam lastig bij.` };
+        case "fresh":
+          return { title: "Fris", text: `Vorm +${i.params.tsb}: goed moment voor een wedstrijd of een zware sessie.` };
+        case "easy_share": {
+          const p = i.params;
+          const low = i.level !== "goed";
+          return {
+            title: `${p.easy_pct}% rustig (Z1-Z2) de laatste 4 weken`,
+            text: `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. Voor duurtraining is ongeveer 80% rustig de gangbare richtlijn.` + (low ? " Wedstrijden tellen mee; zonder wedstrijd hoort het grootste deel in Z1-Z2 te liggen." : ""),
+          };
+        }
+        case "longest_run":
+          return { title: `Langste run laatste 4 weken: ${num(i.params.km)} km`, text: "Stukken met minder dan 30 minuten pauze tellen als één run." };
+        case "long_run_goal": {
+          const p = i.params;
+          return {
+            title: `Langste run laatste 4 weken: ${num(p.km)} km`,
+            text: p.km >= p.target_km
+              ? `Lange duurloop op het niveau van je doel (${goalName(p.goal_km)}).`
+              : `Voor een ${goalName(p.goal_km)} is een lange duurloop tot ongeveer ${p.target_km} km de gangbare opbouw, een paar weken voor de wedstrijd.`,
+          };
+        }
+        case "goal_prediction": {
+          const p = i.params;
+          const diff = p.predicted_seconds - p.goal_seconds;
+          const where = Math.abs(diff) < 30 ? "ligt op je doel" : `ligt ${fmtClock(Math.abs(diff))} ${diff < 0 ? "onder" : "boven"} je doel`;
+          return {
+            title: `Voorspelling ${goalName(p.goal_km)}: ${fmtClock(p.predicted_seconds)}`,
+            text: `Doel ${fmtClock(p.goal_seconds)}; de voorspelling ${where}. Gerekend uit ${num(p.from_km, 2)} km op ${fmtDayNl(p.from_date)}.`,
+          };
+        }
+        case "run_volume":
+          return { title: `Loopvolume ${num(i.params.avg_km, 0)} km/week (gem. 4 weken)`, text: `Deze week tot nu ${num(i.params.week_km)} km.` };
+      }
+    },
+
+    predictions: {
+      title: "Voorspelde wedstrijdtijden",
+      none: (days: number) => `Geen snelle inspanning in de laatste ${days} dagen om van uit te gaan.`,
+      label: { "5k": "5 km", "10k": "10 km", "21k": "Halve marathon", "42k": "Marathon" } as Record<string, string>,
+      from: (km: string) => `uit ${km}`,
+      fromTitle: (km: string, time: string, day: string) => `${km} in ${time} op ${day}`,
+      basedOn: "Gebaseerd op",
+    },
+
+    form: {
+      title: "Fitheid, vermoeidheid en vorm",
+      fitness: "Fitheid",
+      fitnessNow: "Fitheid nu",
+      fatigue: "Vermoeidheid",
+      form: "Vorm",
+      peak: (v: number, day: string) => `Piek fitheid in periode ${v} op ${day}`,
+    },
+
+    volume: {
+      title: "Volume per week",
+      hours: "Uren",
+      km: "Km",
+      unit: "Eenheid",
+      aria: "Volume per week per sport",
+      other: "Overig",
+      total: "Totaal",
+      avg: (value: string, weeks: number) => `Gemiddeld ${value} per week over ${weeks} hele ${weeks === 1 ? "week" : "weken"} (de lopende week telt niet mee)`,
+      noWholeWeek: "Nog geen hele week in deze periode.",
+    },
+
+    z2: {
+      title: "Tempo in Z2 (hardlopen)",
+      label: "Tempo in Z2",
+      excluded: (n: number) => `${n} ${n === 1 ? "run" : "runs"} in deze periode niet meegeteld: de polshartslag leek onbetrouwbaar (ruitjes in de grafiek).`,
+      marker: (reasons: string) => `Polshartslag onbetrouwbaar: ${reasons}`,
+    },
+
+    hrReason: {
+      low_start: "in de eerste km veel lager dan je tempo doet verwachten",
+      flat: "minutenlang precies gelijk",
+      dropout: "een minuut of langer weggevallen",
+    } as Record<HrFlagReason, string>,
+    hrMethod: "Vergeleken met je eigen verband tussen tempo en hartslag uit je andere runs. Zo'n run telt niet mee voor het tempo in Z2.",
+
+    vo2: { title: "VO2max (Garmin)", label: "VO2max" },
+
+    longest: {
+      title: "Langste run per week",
+      label: "Langste run",
+      note: "Per week de langste run; stukken met minder dan 30 minuten pauze tellen als één run.",
+    },
+
+    recovery: {
+      titleDay: "Herstel per dag",
+      titleWeek: "Herstel per week",
+      rhr: "Rusthartslag",
+      sleep: "Slaap",
+      bb: "Body Battery (hoogste van de dag)",
+      bbShort: "Body Battery",
+      stress: "Stress",
+      hrv: "HRV (nacht)",
+      hrvNote: "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen.",
+    },
+
+    sleepLoad: {
+      title: "Slaap en rusthartslag tegen belasting",
+      perDay: "Per dag",
+      perWeek: "Per week",
+      view: "Per dag of per week",
+      load: "Belasting",
+      sleep: "Slaap",
+      rhr: "Rusthartslag",
+      explainDay: "Elk punt is een dag: de belasting van die dag (TRIMP) tegen de slaap en rusthartslag van de nacht erna.",
+      explainWeek: "Elk punt is een week: de opgetelde belasting (TRIMP) tegen je gemiddelde slaap en rusthartslag in die week.",
+      neutral: "Een verband zegt niets over oorzaak: slaap en rusthartslag hangen ook af van werk, ziekte, alcohol en warmte.",
+      compare: (unit: "dag" | "week", heavySleep: string, lightSleep: string) =>
+        `Op de zwaarste helft van de ${unit === "dag" ? "dagen" : "weken"} sliep je gemiddeld ${heavySleep} u, op de lichtste helft ${lightSleep} u.`,
+      compareRhr: (heavy: string, light: string) => `Rusthartslag: ${heavy} tegen ${light} bpm.`,
+      tooFew: "Te weinig dagen met zowel slaap als training in deze periode.",
+      point: (label: string, load: string, value: string) => `${label}: belasting ${load}, ${value}`,
+    },
+
+    records: {
+      title: "Records",
+      colDistance: "Afstand",
+      colTime: "Tijd",
+      colPace: "Tempo",
+      colDate: "Datum",
+      colProgress: "Verloop in periode",
+      empty: "Nog geen records: die komen uit hardloopactiviteiten met snelste splits of wedstrijden.",
+      method: "Snelste stuk binnen een run (Garmins splits) of een hele wedstrijd; geen officiële wedstrijdtijd.",
+      raceRule: (pct: number) => `Een wedstrijd die het horloge tot ${pct}% te kort mat, telt mee voor die afstand.`,
+      fromRace: (km: string) => `wedstrijd, ${km} gemeten`,
+      pr: "PR",
+      prTitle: (days: number) => `Verbeterd in de laatste ${days} dagen`,
+      prNotice: (what: string, day: string) => `Nieuw record op ${what} (${day}).`,
+      improved: (n: number) => (n === 0 ? "geen verbetering in deze periode" : `${n}× verbeterd in deze periode`),
+      before: (time: string) => `daarvoor ${time}`,
+      progressNote: "Het lijntje loopt over de gekozen periode: elk bolletje is een verbetering, daartussen bleef het record staan.",
+      name: RECORD_NAME,
+    },
+
+    races: {
+      title: "Wedstrijden en tests",
+      none: "Nog geen wedstrijden herkend.",
+      triathlon: "Triathlon",
+      byHeartRate: (name: string) => `Wedstrijd of test (${name || "run"})`,
+    },
   },
 };

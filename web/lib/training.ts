@@ -394,3 +394,44 @@ export type NextRace = { date: string; days: number; name: string | null; distan
 
 /** Een item onder Laatste activiteiten: runs met minder dan 30 minuten pauze zijn één item met `parts`. */
 export type RecentItem = ActivitySummary & { parts?: number; activity_ids?: string[]; race?: boolean };
+
+// ── Trends, uitbreiding (insights als codes, records uit wedstrijden, doel, langste run, polshartslag) ──────────
+
+export type RecordKey = "1k" | "5k" | "10k" | "21k";
+/** Een record-rij: uit een split of uit een wedstrijd die het horloge net te kort mat (dan met distance_km). */
+export type RecordRowPlus = RecordRow & { source?: "split" | "race"; distance_km?: number };
+export type RecentRecord = { key: RecordKey; date: string; seconds: number; previous_seconds: number; activity_id: string; source: "split" | "race" };
+/** Het doel uit het actieve schema (api/trends.py goal_from_plan). */
+export type TrendsGoal = { km: number; seconds: number | null; date: string | null; text: string };
+export type LongestRun = { week: string; date: string; km: number; seconds: number; parts: number; activity_id: string };
+export type HrFlagReason = "low_start" | "flat" | "dropout";
+export type HrFlag = { id: string; date: string; name: string; reasons: HrFlagReason[] };
+
+/** Inzicht als code met getallen; de tekst komt uit lib/texts.ts (T.trends.insight). */
+export type InsightCode =
+  | { level: Insight["level"]; code: "record_set"; params: { key: RecordKey; seconds: number; previous_seconds: number; date: string; activity_id: string } }
+  | { level: Insight["level"]; code: "acwr_high"; params: { atl: number; ctl: number; ratio: number } }
+  | { level: Insight["level"]; code: "ramp_fast"; params: { ramp: number } }
+  | { level: Insight["level"]; code: "fresh"; params: { tsb: number } }
+  | { level: Insight["level"]; code: "easy_share"; params: { easy_pct: number; grey_pct: number; hard_pct: number } }
+  | { level: Insight["level"]; code: "longest_run"; params: { km: number } }
+  | { level: Insight["level"]; code: "long_run_goal"; params: { km: number; target_km: number; goal_km: number } }
+  | { level: Insight["level"]; code: "goal_prediction"; params: { goal_km: number; goal_seconds: number; predicted_seconds: number; from_km: number; from_date: string } }
+  | { level: Insight["level"]; code: "run_volume"; params: { avg_km: number; week_km: number; week_start: string } };
+
+export type RecoveryDay = { date: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null };
+
+/** GET /api/trends zoals de API hem nu geeft. */
+export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recovery_daily"> & {
+  insights: InsightCode[];
+  records: Record<RecordKey, RecordRowPlus[]>;
+  recovery_daily?: RecoveryDay[];
+  recent_records?: RecentRecord[];
+  goal?: TrendsGoal | null;
+  longest_runs?: LongestRun[];
+  hr_flags?: HrFlag[];
+  rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number; race_short_pct?: number; recent_record_days?: number };
+};
+
+/** ActivitySummary met de vlag voor onbetrouwbare polshartslag (GET /api/activities, als de API die meegeeft). */
+export type ActivitySummaryFlags = { hr_flags?: HrFlagReason[] };

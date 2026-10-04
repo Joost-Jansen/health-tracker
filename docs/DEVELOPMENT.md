@@ -114,7 +114,9 @@ More (types in `web/lib/training.ts`):
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/api/trends` (also `recovery_daily: {date, resting_hr, sleep_h, body_battery_high, stress_avg, hrv}[]`, one row per day, oldest first) | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` |
-| GET | `/api/routes?sport=run\|ride`, `/api/routes/suggest?km=&sport=&tolerance=&start=`, GET/PATCH `/api/routes/{id}` | routes (`r<n>` runs, `f<n>` rides; `median_pace` for runs, `median_speed_kmh` for rides) and suggestions of one sport (`km` ≤ 300) |
+| GET | `/api/routes?sport=run\|ride`, `/api/routes/suggest?km=&sport=&tolerance=&start=`, GET/PATCH `/api/routes/{id}` | routes (`r<n>` runs, `f<n>` rides; `median_pace` for runs, `median_speed_kmh` for rides) and suggestions of one sport (`km` ≤ 300); summaries include `distance_variants` |
+| GET | `/api/routes/candidates?sport=run\|ride` | `{candidates: [{sport, outcome: same\|candidate, confidence, reason_code, reason, a, b}], last_sync}`; each side `{id, kind: route\|activity, name, distance_km, runs, last_run?\|date?, track (≤ 150 points)}`; answered pairs are left out |
+| POST | `/api/routes/candidates` | body `{a, b, same}`; records the decision (setting `route_decisions`), applies a merge right away; returns `{applied, applied_on_next_sync, route, remaining}`; 404 if the pair is not open |
 
 ### MCP
 

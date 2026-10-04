@@ -323,3 +323,138 @@ def test_distance_variants_split_on_clear_gaps():
 def test_distance_variants_ignore_gps_noise():
     members = [{"activity_id": f"a{i}", "date": "2026-09-01", "distance_km": d} for i, d in enumerate([10.4, 10.6, 10.7, 10.9])]
     assert len(distance_variants(members, "run")) == 1
+
+
+# --- detect: candidates, decisions, groups ------------------------------------------------------------
+
+from tools.routes import apply_merge, detect, member_from_activity  # noqa: E402
+
+LEAD_IN = [(-800, 0)] + SQUARE + [(-800, 0)]  # same 4 km loop from a start 800 m away: 5.6 km
+EXTRA_LAP = [(0, 0), (1000, 0), (1500, 0), (1500, 500), (1000, 500), (1000, 1000), (0, 1000), (0, 0)]  # 5 km
+
+
+def _runs(prefix, waypoints, km, days, start=HOME):
+    return [run(f"{prefix}{d}", f"2026-08-{d:02d}", path(waypoints, start=start), km) for d in days]
+
+
+def _loops(days=(1, 3, 5)):
+    return _runs("sq", SQUARE, 4.0, days)
+
+
+def _lead_ins(days=(2, 4, 6)):
+    return _runs("li", LEAD_IN, 5.6, days)
+
+
+def test_detect_proposes_two_routes_of_one_circuit_as_candidate():
+    routes, cands = detect(_loops() + _lead_ins(), existing=[])
+    assert sorted(r["id"] for r in routes) == ["r1", "r2"]
+    assert len(cands) == 1
+    c = cands[0]
+    assert (c["a"]["id"], c["b"]["id"], c["b"]["kind"]) == ("r1", "r2", "route")
+    assert c["sport"] == "run" and c["reason"] == "zelfde rondje, ander startpunt" and 0.5 <= c["confidence"] < 0.8
+    assert c["a"]["runs"] == 3 and c["b"]["distance_km"] == 5.6 and c["a"]["name"] == "4.0 km rondje (r1)"
+
+
+def test_merge_decision_joins_routes_and_stays_merged():
+    routes, _ = detect(_loops() + _lead_ins(), existing=[])
+    merged, cands = detect(_loops() + _lead_ins(), existing=routes, decisions={"merge": [["r2", "r1"]]})
+    assert cands == [] and [r["id"] for r in merged] == ["r1"]
+    r = merged[0]
+    assert r["runs"] == 6 and [g["id"] for g in r["groups"]] == ["r1", "r2"]
+    assert [(v["distance_km"], v["runs"]) for v in r["distance_variants"]] == [(4.0, 3), (5.6, 3)]
+    # next sync: the decision is no longer needed, and a new ride of the variant joins on its own
+    again, cands = detect(_loops() + _lead_ins((2, 4, 6, 8)), existing=merged)
+    assert [x["id"] for x in again] == ["r1"] and again[0]["runs"] == 7 and cands == []
+
+
+def test_merge_keeps_older_id_and_a_name_the_user_gave():
+    routes, _ = detect(_loops() + _lead_ins(), existing=[])
+    for r in routes:
+        if r["id"] == "r2":
+            r["name"] = "Vanaf het station"
+    merged, _ = detect(_loops() + _lead_ins(), existing=routes, decisions={"merge": [["r1", "r2"]]})
+    assert merged[0]["id"] == "r1" and merged[0]["name"] == "Vanaf het station"
+
+
+def test_absorbed_id_is_not_reused():
+    routes, _ = detect(_loops() + _lead_ins(), existing=[])
+    merged, _ = detect(_loops() + _lead_ins(), existing=routes, decisions={"merge": [["r1", "r2"]]})
+    other = _runs("sw", [(0, 0), (-1000, 0), (-1000, -1000), (0, -1000), (0, 0)], 4.0, (10, 11, 12))
+    again, _ = detect(_loops() + _lead_ins() + other, existing=merged)
+    assert sorted(r["id"] for r in again) == ["r1", "r3"]
+
+
+def test_separate_decision_is_never_asked_again():
+    routes, _ = detect(_loops() + _lead_ins(), existing=[])
+    again, cands = detect(_loops() + _lead_ins(), existing=routes, decisions={"separate": [["r2", "r1"]]})
+    assert sorted(r["id"] for r in again) == ["r1", "r2"] and cands == []
+
+
+def test_single_activity_variant_is_a_candidate_and_can_join():
+    extra = _runs("ex", EXTRA_LAP, 5.0, (7,))
+    routes, cands = detect(_loops() + extra, existing=[])
+    assert [r["id"] for r in routes] == ["r1"] and routes[0]["runs"] == 3
+    assert len(cands) == 1 and cands[0]["b"] == {"id": "ex7", "kind": "activity", "name": None, "distance_km": 5.0, "runs": 1, "date": "2026-08-07"}
+    assert cands[0]["reason"].startswith("zelfde rondje met een extra lus")
+
+    merged, cands = detect(_loops() + extra, existing=routes, decisions={"merge": [["r1", "ex7"]]})
+    assert merged[0]["runs"] == 4 and cands == []
+    assert merged[0]["groups"][1] == {"id": "ex7", "kind": "activity", "activity_ids": ["ex7"]}
+    # the same variant again later: joins the route without asking
+    again, cands = detect(_loops() + extra + _runs("ex", EXTRA_LAP, 5.0, (20,)), existing=merged)
+    assert again[0]["runs"] == 5 and cands == []
+
+
+def test_single_activity_separate_is_not_asked_again():
+    extra = _runs("ex", EXTRA_LAP, 5.0, (7,))
+    routes, _ = detect(_loops() + extra, existing=[])
+    _, cands = detect(_loops() + extra, existing=routes, decisions={"separate": [["ex7", "r1"]]})
+    assert cands == []
+
+
+def test_existing_members_stay_on_their_route():
+    # a member added to a route earlier stays there, even when the matching rules would not take it in now
+    routes, _ = detect(_loops(), existing=[])
+    odd = _runs("ex", EXTRA_LAP, 5.0, (7,))
+    routes[0]["activity_ids"].append("ex7")
+    again, cands = detect(_loops() + odd, existing=routes)
+    assert again[0]["runs"] == 4 and cands == []
+
+
+def test_build_routes_is_detect_without_candidates():
+    assert build_routes(_loops() + _lead_ins(), existing=[]) == detect(_loops() + _lead_ins(), existing=[])[0]
+
+
+# --- apply_merge: the same merge right away, without tracks (API) ------------------------------------
+
+
+def _members(runs_):
+    return {r["activity_id"]: {k: v for k, v in r.items() if k != "latlng"} for r in runs_}
+
+
+def test_apply_merge_of_two_routes_matches_detect():
+    runs_ = _loops() + _lead_ins()
+    routes, _ = detect(runs_, existing=[])
+    now = apply_merge(routes, "r2", "r1", _members(runs_))
+    later, _ = detect(runs_, existing=routes, decisions={"merge": [["r1", "r2"]]})
+    assert [r["id"] for r in now] == ["r1"]
+    for key in ("runs", "distance_km", "first_run", "last_run", "median_pace", "activity_ids", "distance_variants", "name", "groups"):
+        assert now[0][key] == later[0][key], key
+
+
+def test_apply_merge_of_an_activity_adds_it_as_its_own_group():
+    runs_ = _loops() + _runs("ex", EXTRA_LAP, 5.0, (7,))
+    routes, _ = detect(runs_, existing=[])
+    now = apply_merge(routes, "r1", "ex7", _members(runs_))
+    assert now[0]["runs"] == 4 and now[0]["groups"][-1]["id"] == "ex7" and now[0]["last_run"] == "2026-08-07"
+
+
+def test_apply_merge_of_unknown_ids_returns_none():
+    routes, _ = detect(_loops(), existing=[])
+    assert apply_merge(routes, "r1", "nope", {}) is None
+    assert apply_merge(routes, "r8", "r9", {}) is None
+
+
+def test_member_from_activity():
+    a = {"id": "x", "start_local": "2026-08-01T07:00:00", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}
+    assert member_from_activity(a) == {"activity_id": "x", "date": "2026-08-01", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}

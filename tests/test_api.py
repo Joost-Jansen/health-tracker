@@ -169,3 +169,16 @@ def test_dashboard_has_upcoming_sessions_and_readiness(client):
     pid = client.get("/api/plans/active").json()["plan"]["id"]
     client.patch(f"/api/plans/{pid}", json={"race": "Marathon, 2099-01-01"})
     assert client.get("/api/dashboard").json()["race"]["name"] == "Marathon"
+
+
+def test_trends_uses_the_active_plan_goal_and_reports_the_sync_stop(client, engine):
+    login(client)
+    db.create_plan(db.Scope(engine, 1), title="Doel", author="alice", goal="halve marathon in 1:50:00", race="2099-05-01")
+    t = client.get("/api/trends").json()
+    assert t["goal"] and t["goal"]["km"] > 21
+    assert "stopped_at_sync" in t and "form_until" in t
+
+
+def test_trends_without_plan_has_no_goal(client):
+    login(client)
+    assert client.get("/api/trends").json()["goal"] is None

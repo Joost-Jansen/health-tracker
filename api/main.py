@@ -24,7 +24,7 @@ from api.dashboard import build_dashboard, next_race, plan_week, sync_day, today
 from api.history import activity_detail, heatmap, list_activities
 from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
-from api.trends import build_trends
+from api.trends import build_trends, hr_flags
 from tools import db
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,7 +110,9 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     @app.get("/api/activities")
     def activities(sport: str | None = None, start: str | None = Query(None, alias="from"), end: str | None = Query(None, alias="to"), u=Depends(current_user)):
-        return list_activities(u.store.activities, sport, start, end)
+        s = u.store
+        flags = cached(u, ("hrflags",), lambda: hr_flags(s.activities, s.streams))
+        return list_activities(s.activities, sport, start, end, hr_flags=flags)
 
     @app.get("/api/activities/{activity_id}")
     def activity(activity_id: str, u=Depends(current_user)):
@@ -126,9 +128,11 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     @app.get("/api/trends")
     def trends(u=Depends(current_user)):
-        day = today()
-        s = u.store
-        return cached(u, ("trends", day), lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day, s.rhr_fallback))
+        day, s = today(), u.store
+        plan = db.active_plan(u.scope)
+        # the goal-based insights follow the active plan, so it is part of the cache key
+        key = ("trends", day, plan and (plan["id"], plan.get("race"), plan.get("goal")))
+        return cached(u, key, lambda: build_trends(s.activities, s.wellness, s.zones, s.streams, day, s.rhr_fallback, plan=plan, last_sync=s.last_sync))
 
     app.include_router(plans_router(today, current_user))
     app.include_router(content_router(current_user))

@@ -234,8 +234,9 @@ class Server:
                 raise ToolError(f"Activiteit {args.get('id')} niet gevonden; gebruik list_activities voor de ids.")
             return activity_md(a)
         if name == "get_trends":
-            t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback)
+            t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync)
             t["form"] = t["form"][-60:]
+            t["recovery_daily"] = t.get("recovery_daily", [])[-60:]  # keeps the agent response small
             t["weekly"] = t["weekly"][-26:]
             return json.dumps(t, ensure_ascii=False)
         if name == "get_plan":

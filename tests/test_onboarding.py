@@ -19,15 +19,15 @@ def app(engine, tmp_path):  # noqa: F811
 
 
 @pytest.fixture
-def joost(app):
+def admin(app):
     c = TestClient(app)
     login(c)
     return c
 
 
 @pytest.fixture
-def anna(app, joost):
-    joost.patch("/api/admin/settings", json={"registration": "open"})
+def anna(app, admin):
+    admin.patch("/api/admin/settings", json={"registration": "open"})
     c = TestClient(app)
     assert c.post("/api/register", json={"username": "anna", "password": ANNA_PW}).status_code == 200
     return c
@@ -52,15 +52,15 @@ def test_new_user_gets_the_tour_with_nothing_done(anna):
     assert st["agents"] == {"tokens": 0} and st["goals"] is False and st["plan"] == {"count": 0, "active": False}
 
 
-def test_existing_user_with_data_is_not_shown_the_tour(joost):
-    r = joost.get("/api/onboarding").json()
+def test_existing_user_with_data_is_not_shown_the_tour(admin):
+    r = admin.get("/api/onboarding").json()
     assert r["done"] is True
     assert r["status"]["activities"]["count"] == 1 and r["status"]["activities"]["sports"] == ["run"]
     assert r["steps"]["sync"] and r["steps"]["zones"]
     assert r["status"]["zones"]["set"] == ["run"]
     # Help can start it again
-    assert joost.put("/api/onboarding", json={"done": False, "step": 0}).json()["done"] is False
-    assert joost.get("/api/onboarding").json()["done"] is False
+    assert admin.put("/api/onboarding", json={"done": False, "step": 0}).json()["done"] is False
+    assert admin.get("/api/onboarding").json()["done"] is False
 
 
 def test_steps_follow_the_users_data(app, anna, engine):  # noqa: F811
@@ -126,10 +126,10 @@ def test_nonsense_is_400(anna):
     assert anna.get("/api/onboarding").json()["step"] == 0
 
 
-def test_each_user_their_own_onboarding(joost, anna):
+def test_each_user_their_own_onboarding(admin, anna):
     anna.put("/api/onboarding", json={"done": True, "choice": "site", "hide": "data", "visit": "trends"})
-    joost.put("/api/onboarding", json={"done": False, "step": 2})
-    j = joost.get("/api/onboarding").json()
+    admin.put("/api/onboarding", json={"done": False, "step": 2})
+    j = admin.get("/api/onboarding").json()
     a = anna.get("/api/onboarding").json()
     assert j["done"] is False and j["step"] == 2 and j["choice"] is None and j["hidden"] == [] and j["visited"] == []
     assert a["done"] is True and a["step"] == 0 and a["choice"] == "site" and a["hidden"] == ["data"]

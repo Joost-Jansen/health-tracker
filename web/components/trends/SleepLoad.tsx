@@ -15,7 +15,7 @@ import type { FormRow, RecoveryDay } from "@/lib/training";
 const TS = T.trends.sleepLoad;
 const MIN_POINTS = 6;
 const MIN_DAYS_PER_WEEK = 4;
-const PAD = { top: 8, right: 10, bottom: 26, left: 38 };
+const PAD = { top: 8, right: 10, bottom: 20, left: 38 };
 const H = 190;
 
 type Point = { label: string; load: number; sleep: number | null; rhr: number | null };
@@ -127,9 +127,8 @@ function Scatter({ pts, field, title, unit, digits, colour }: { pts: Point[]; fi
               </g>
             ))}
             {xTicks.map((t) => (
-              <text key={t} x={x(t)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--text-faint)" className="tabular-nums">{Math.round(t)}</text>
+              <text key={t} x={x(t)} y={H - 4} textAnchor="middle" fontSize="11" fill="var(--text-faint)" className="tabular-nums">{Math.round(t)}</text>
             ))}
-            <text x={PAD.left + plotW} y={H - 0.5} textAnchor="end" fontSize="10.5" fill="var(--text-faint)">{TS.load} →</text>
             {line && (
               <line x1={x(0)} x2={x(xMax)} y1={y(line[0])} y2={y(line[0] + line[1] * xMax)} stroke="var(--chart-2)" strokeOpacity="0.6" strokeWidth="1.25" strokeDasharray="5 4" />
             )}
@@ -143,6 +142,7 @@ function Scatter({ pts, field, title, unit, digits, colour }: { pts: Point[]; fi
           </svg>
         )}
       </div>
+      {xy.length > 0 && <p className="mt-0.5 text-right text-[11px] text-ink-muted">{TS.loadAxis}</p>}
     </div>
   );
 }

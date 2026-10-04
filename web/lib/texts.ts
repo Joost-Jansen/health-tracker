@@ -383,6 +383,7 @@ export const T = {
       perWeek: "Per week",
       view: "Per dag of per week",
       load: "Belasting",
+      loadAxis: "Belasting (TRIMP) →",
       sleepTitle: "Slaap (u)",
       rhrTitle: "Rusthartslag (bpm)",
       hours: " u",

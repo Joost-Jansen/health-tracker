@@ -179,13 +179,13 @@ export default function TrendsPage() {
               <p className="text-[13px] text-ink-muted">{TT.predictions.none(predictDays)}</p>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                   {(["5k", "10k", "21k", "42k"] as const).map((k) => {
                     const p = t.predictions[k];
                     return (
                       <div key={k} className="flex flex-col">
                         <span className="text-[11.5px] text-ink-muted">{TT.predictions.label[k]}</span>
-                        <span className="font-display text-[21px] leading-tight tabular-nums">{p ? fmtClock(p.seconds) : "–"}</span>
+                        <span className="whitespace-nowrap font-display text-[19px] leading-tight tabular-nums xl:text-[21px]">{p ? fmtClock(p.seconds) : "–"}</span>
                         {p && <span className="text-[11px] tabular-nums text-ink-muted">{fmtClock(p.pace_s_per_km)}/km</span>}
                         {p && (
                           <Link className="text-[11px] tabular-nums text-ink-muted underline-offset-2 hover:underline" href={href(p.from.activity_id)} title={TT.predictions.fromTitle(fmtKm(p.from.km), fmtClock(p.from.seconds), fmtDay(p.from.date))}>
@@ -316,7 +316,8 @@ export default function TrendsPage() {
         </Card>
       )}
 
-      <div className={`grid gap-4 ${running ? "lg:grid-cols-[1.3fr_1fr]" : ""}`}>
+      {/* Records over de hele breedte: het verloop per afstand heeft ruimte nodig. */}
+      <div className="grid gap-4">
         {running && (
           <Card title={TT.records.title}>
             {!hasRecords ? (

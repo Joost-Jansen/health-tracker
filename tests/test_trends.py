@@ -278,3 +278,14 @@ def test_build_trends_has_goal_and_longest_runs():
     assert out["goal"]["km"] == 10.0 and out["goal"]["seconds"] == 2700
     assert out["longest_runs"][0]["km"] == 10.0
     assert build_trends([], {}, ZONES, lambda aid: None, date(2026, 9, 3))["goal"] is None
+
+
+def test_form_stops_at_the_last_synced_day_after_a_stale_sync():
+    acts = [act("a", "2026-09-01T08:00:00")]
+    out = build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30), last_sync="2026-09-20 06:02")
+    assert out["form"][-1]["date"] == "2026-09-20"
+    assert out["form_until"] == "2026-09-20" and out["stopped_at_sync"] is True
+    fresh = build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30), last_sync="2026-09-29 06:02")
+    assert fresh["form"][-1]["date"] == "2026-09-30" and fresh["stopped_at_sync"] is False
+    unknown = build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30))
+    assert unknown["form_until"] == "2026-09-30" and unknown["stopped_at_sync"] is False

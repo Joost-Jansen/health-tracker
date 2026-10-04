@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from statistics import mean
 from typing import Callable
 
-from api.dashboard import max_by_sport, resting_hr
+from api.dashboard import max_by_sport, resting_hr, sync_day
 from tools import hrquality
 from tools.analytics import fitness_series
 from tools.summarize import run_sessions
@@ -466,9 +466,22 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
     return out
 
 
-def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn: StreamsFn, today: date, rhr_fallback: float | None = None, plan: dict | None = None) -> dict:
-    """Everything the Trends page shows. `plan`: the active plan, for the user's own goal (goal_from_plan)."""
-    form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=today)
+def build_trends(
+    activities: list[dict],
+    wellness: dict,
+    zones: dict,
+    streams_fn: StreamsFn,
+    today: date,
+    rhr_fallback: float | None = None,
+    plan: dict | None = None,
+    last_sync: str | None = None,
+) -> dict:
+    """Everything the Trends page shows. `plan`: the active plan, for the user's own goal (goal_from_plan).
+    `last_sync`: the store's sync text; after a sync older than yesterday the form series stops at the last synced
+    day, as on Vandaag (api/dashboard.py build_dashboard), because the days since are unknown, not rest days."""
+    synced = sync_day(last_sync)
+    stopped = synced is not None and synced < today - timedelta(days=1)
+    form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today)
     weekly = weekly_volume(activities)
     flags = hr_flags(activities, streams_fn)
     recs = records(activities)
@@ -478,6 +491,8 @@ def build_trends(activities: list[dict], wellness: dict, zones: dict, streams_fn
     return {
         "today": today.isoformat(),
         "form": form,
+        "form_until": form[-1]["date"] if form else None,
+        "stopped_at_sync": stopped,
         "weekly": weekly,
         "z2_pace": z2_pace(activities, streams_fn, zones, exclude=set(flags)),
         "vo2max": vo2max(activities),

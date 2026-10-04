@@ -269,8 +269,7 @@ def test_loop_with_an_extra_lap_is_a_candidate():
     extra = _shape([(0, 0), (1000, 0), (1500, 0), (1500, 500), (1000, 500), (1000, 1000), (0, 1000), (0, 0)])  # +1 km
     c = compare(a, extra, "run")
     assert c["outcome"] == "candidate"
-    assert c["reason"].startswith("zelfde rondje met een extra lus")
-    assert "1,0 km" in c["reason"]
+    assert c["reason"] == "zelfde rondje met een extra lus of omweg"
 
 
 def test_loop_with_a_shortcut_is_a_candidate():
@@ -458,3 +457,17 @@ def test_apply_merge_of_unknown_ids_returns_none():
 def test_member_from_activity():
     a = {"id": "x", "start_local": "2026-08-01T07:00:00", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}
     assert member_from_activity(a) == {"activity_id": "x", "date": "2026-08-01", "distance_km": 5.0, "moving_time_s": 1500, "avg_hr": 140, "elevation_gain_m": 12}
+
+
+def test_loop_inside_a_run_of_almost_twice_the_length_is_different():
+    a = _shape(SQUARE)
+    twice = _shape(SQUARE + [(1000, 0), (1000, 1000), (0, 1000), (0, 0)])  # the loop twice: 8 km on the same cells
+    assert compare(a, twice, "run")["outcome"] == "different"
+
+
+def test_loop_or_line_of_an_existing_route_does_not_flip():
+    # the generated name says "rondje" or "route"; a new main track must not rename a route the user knows
+    routes, _ = detect(_loops(), existing=[])
+    routes[0]["is_loop"], routes[0]["name"] = False, "4.0 km route (r1)"
+    again, _ = detect(_loops(), existing=routes)
+    assert again[0]["is_loop"] is False and again[0]["name"] == "4.0 km route (r1)"

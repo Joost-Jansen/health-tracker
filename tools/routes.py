@@ -88,18 +88,15 @@ def same_shape(a: dict, b: dict, sport: str = "run") -> bool:
 # Pairs that are not the same route by MATCH but plausibly the same circuit: ask the user.
 # short: share of the shorter on the longer (a detour, shortcut or lead-in keeps this high);
 # long: share of the longer on the shorter (the extra part is at most ~40% of the longer);
-# near / near_diff: both shares at least `near` with a similar distance (partly other streets).
+# near / near_diff: both shares at least `near` with a similar distance (partly other streets);
+# max_diff: never a candidate beyond this relative distance difference (a loop done twice is not a variant).
 CANDIDATE = {
-    "run": {"short": 0.80, "long": 0.60, "near": 0.60, "near_diff": 0.25},
-    "ride": {"short": 0.75, "long": 0.60, "near": 0.50, "near_diff": 0.40},
+    "run": {"short": 0.80, "long": 0.60, "near": 0.60, "near_diff": 0.25, "max_diff": 0.30},
+    "ride": {"short": 0.75, "long": 0.60, "near": 0.50, "near_diff": 0.40, "max_diff": 0.40},
 }
 
 
 CONFIDENCE_BAND = {"same": (0.80, 1.0), "candidate": (0.50, 0.79), "different": (0.0, 0.49)}
-
-
-def _km(x: float) -> str:
-    return f"{x:.1f}".replace(".", ",")
 
 
 def compare(a: dict, b: dict, sport: str = "run") -> dict:
@@ -117,12 +114,12 @@ def compare(a: dict, b: dict, sport: str = "run") -> dict:
     start_far = haversine_m(a["start"], b["start"]) > START_RADIUS_M
     if same_shape(a, b, sport):
         outcome, reason = "same", "lijkt hetzelfde rondje"
-    elif (s >= cand["short"] and l >= cand["long"]) or (min(s, l) >= cand["near"] and d <= cand["near_diff"]):
+    elif d <= cand["max_diff"] and ((s >= cand["short"] and l >= cand["long"]) or (min(s, l) >= cand["near"] and d <= cand["near_diff"])):
         outcome = "candidate"
         if s >= cand["short"] and start_far:
             reason = "zelfde rondje, ander startpunt"
         elif s >= cand["short"] and d > max_diff:
-            reason = f"zelfde rondje met een extra lus of omweg ({_km(abs(da - db))} km verschil)"
+            reason = "zelfde rondje met een extra lus of omweg"  # distances are shown next to it
         else:
             reason = "grotendeels hetzelfde rondje, deels een andere weg"
     else:
@@ -358,7 +355,9 @@ def detect(
         shapes = [m[1] for m in keep_c["members"]]
         m = _medoid(shapes)
         rep, medoid = shapes[m], keep_c["members"][m][0]
-        is_loop = haversine_m(rep["start"], rep["end"]) <= LOOP_RADIUS_M
+        known = by_id.get(keep) or by_id.get(keep_c["home"] or "")
+        # an existing route stays a loop or a line (its generated name says which) when its main track changes
+        is_loop = known["is_loop"] if known and "is_loop" in known else haversine_m(rep["start"], rep["end"]) <= LOOP_RADIUS_M
         ordered = _sort_groups([{"id": c["gid"], "kind": c["kind"], "activity_ids": [x[0]["activity_id"] for x in c["members"]]} for c in comp], keep)
         name = next((n for g in ordered for n in (_custom_name(by_id.get(g["id"])),) if n), None)
         name = name or next((n for c in comp for n in (_custom_name(by_id.get(c["home"])),) if n), None)

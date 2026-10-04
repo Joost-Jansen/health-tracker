@@ -128,7 +128,7 @@ CAND_ACTS = ACTS + [
 ]
 PENDING = {
     "candidates": [
-        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg (1,0 km verschil)"},
+        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg"},
         {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"}, "sport": "run", "outcome": "candidate", "confidence": 0.6, "reason": "zelfde rondje, ander startpunt"},
     ]
 }

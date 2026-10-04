@@ -335,6 +335,12 @@ export default function TimeChart({
       }
       const [i0, i1] = s.kind === "step" ? [Math.max(0, lowerBound(s.days, a) - 1), lowerBound(s.days, b + 0.5) - 1] : strictlyVisible(s.days);
       for (let i = i0; i <= i1; i++) if (i >= 0) vals.push(s.points[i].v);
+      if (s.trend) {
+        // De uiteinden van de trendlijn kunnen buiten de punten vallen (bij een paar ver uiteenliggende metingen);
+        // zonder ze mee te tellen loopt de stippellijn boven of onder het vlak uit.
+        const [k0, k1] = strictlyVisible(s.days);
+        if (k1 >= k0) for (const p of linearTrend(s.points.slice(k0, k1 + 1))) vals.push(p.v);
+      }
       if (s.avg.length) {
         const [j0, j1] = strictlyVisible(s.avgDays);
         for (let j = j0; j <= j1; j++) vals.push(s.avg[j].v);

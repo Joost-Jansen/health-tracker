@@ -231,3 +231,95 @@ def test_medoid_is_the_most_typical_member():
     odd = _ride("odd", "2026-09-09", 0.6, 0.75, lead_in_m=6000)  # east side: lead-in crosses the inside
     routes = build_routes(typical + [odd], existing=[], sport="ride")
     assert len(routes) == 1 and routes[0]["runs"] == 4 and routes[0]["medoid_id"] != "odd"
+
+
+# --- similarity with confidence: same / candidate / different ----------------------------------------
+
+from tests.helpers import path  # noqa: E402
+from tools.routes import compare, distance_variants, shape  # noqa: E402
+
+SQUARE = [(0, 0), (1000, 0), (1000, 1000), (0, 1000), (0, 0)]  # 4 km loop from HOME
+
+
+def _shape(waypoints, km=None, start=HOME):
+    pts = path(waypoints, start=start)
+    if km is None:
+        km = round(sum(haversine_m(a, b) for a, b in zip(pts, pts[1:])) / 1000, 2)
+    return shape(run("x", "2026-09-01", pts, km))
+
+
+def test_loop_started_elsewhere_and_ridden_the_other_way_is_same():
+    a = _shape(SQUARE)
+    other_way = _shape([(1000, 1000), (1000, 0), (0, 0), (0, 1000), (1000, 1000)])  # NE corner, anticlockwise
+    c = compare(a, other_way, "run")
+    assert c["outcome"] == "same" and c["confidence"] >= 0.8
+
+
+def test_loop_with_lead_in_from_another_start_is_a_candidate():
+    a = _shape(SQUARE)
+    from_elsewhere = _shape([(-800, 0)] + SQUARE + [(-800, 0)])  # 800 m to the loop and back: 5.6 km
+    c = compare(a, from_elsewhere, "run")
+    assert c["outcome"] == "candidate"
+    assert c["reason"] == "zelfde rondje, ander startpunt"
+    assert 0.5 <= c["confidence"] < 0.8
+
+
+def test_loop_with_an_extra_lap_is_a_candidate():
+    a = _shape(SQUARE)
+    extra = _shape([(0, 0), (1000, 0), (1500, 0), (1500, 500), (1000, 500), (1000, 1000), (0, 1000), (0, 0)])  # +1 km
+    c = compare(a, extra, "run")
+    assert c["outcome"] == "candidate"
+    assert c["reason"].startswith("zelfde rondje met een extra lus")
+    assert "1,0 km" in c["reason"]
+
+
+def test_loop_with_a_shortcut_is_a_candidate():
+    a = _shape([(0, 0), (1000, 0), (1000, 1500), (0, 1500), (0, 0)])  # 5 km
+    shortcut = _shape([(0, 0), (1000, 0), (1000, 1000), (0, 1000), (0, 0)])  # cuts the east 500 m off: 4 km
+    assert compare(a, shortcut, "run")["outcome"] == "candidate"
+
+
+def test_other_loop_is_different():
+    a = _shape(SQUARE)
+    b = _shape([(0, 0), (-1000, 0), (-1000, -1000), (0, -1000), (0, 0)])  # SW square, only the start shared
+    c = compare(a, b, "run")
+    assert c["outcome"] == "different" and c["confidence"] < 0.5
+
+
+def test_short_stretch_of_a_long_loop_is_different():
+    a = _shape(SQUARE)
+    bit = _shape([(0, 0), (800, 0), (0, 0)])  # 1.6 km out and back along one side
+    assert compare(a, bit, "run")["outcome"] == "different"
+
+
+def test_confidence_orders_same_candidate_different():
+    a = _shape(SQUARE)
+    same = compare(a, _shape(SQUARE, start=offset(HOME, 30, 20)), "run")
+    cand = compare(a, _shape([(-800, 0)] + SQUARE + [(-800, 0)]), "run")
+    diff = compare(a, _shape([(0, 0), (-1000, 0), (-1000, -1000), (0, -1000), (0, 0)]), "run")
+    assert same["outcome"] == "same" and same["confidence"] > cand["confidence"] > diff["confidence"]
+
+
+def test_compare_is_symmetric():
+    a, b = _shape(SQUARE), _shape([(-800, 0)] + SQUARE + [(-800, 0)])
+    assert compare(a, b, "run") == compare(b, a, "run")
+
+
+def test_ride_variants_of_one_circuit():
+    # 40 km circuit; one ride adds a 6 km extra lap: too long for "same", but clearly the same circuit
+    base = [(0, 0), (10_000, 0), (10_000, 10_000), (0, 10_000), (0, 0)]
+    longer = [(0, 0), (10_000, 0), (13_000, 0), (13_000, 3_000), (10_000, 3_000), (10_000, 10_000), (0, 10_000), (0, 0)]
+    c = compare(_shape(base), _shape(longer), "ride")
+    assert c["outcome"] in ("same", "candidate")
+
+
+def test_distance_variants_split_on_clear_gaps():
+    members = [{"activity_id": f"a{i}", "date": f"2026-09-{i + 1:02d}", "distance_km": d} for i, d in enumerate([38.0, 38.4, 42.1, 42.5, 41.9, 47.2])]
+    v = distance_variants(members, "ride")
+    assert [(x["distance_km"], x["runs"]) for x in v] == [(38.2, 2), (42.1, 3), (47.2, 1)]
+    assert v[2]["activity_ids"] == ["a5"] and v[2]["last_run"] == "2026-09-06"
+
+
+def test_distance_variants_ignore_gps_noise():
+    members = [{"activity_id": f"a{i}", "date": "2026-09-01", "distance_km": d} for i, d in enumerate([10.4, 10.6, 10.7, 10.9])]
+    assert len(distance_variants(members, "run")) == 1

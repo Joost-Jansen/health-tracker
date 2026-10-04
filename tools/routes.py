@@ -85,6 +85,80 @@ def same_shape(a: dict, b: dict, sport: str = "run") -> bool:
     return s >= min_short and l >= min_long
 
 
+# Pairs that are not the same route by MATCH but plausibly the same circuit: ask the user.
+# short: share of the shorter on the longer (a detour, shortcut or lead-in keeps this high);
+# long: share of the longer on the shorter (the extra part is at most ~40% of the longer);
+# near / near_diff: both shares at least `near` with a similar distance (partly other streets).
+CANDIDATE = {
+    "run": {"short": 0.80, "long": 0.60, "near": 0.60, "near_diff": 0.25},
+    "ride": {"short": 0.75, "long": 0.60, "near": 0.50, "near_diff": 0.40},
+}
+
+
+CONFIDENCE_BAND = {"same": (0.80, 1.0), "candidate": (0.50, 0.79), "different": (0.0, 0.49)}
+
+
+def _km(x: float) -> str:
+    return f"{x:.1f}".replace(".", ",")
+
+
+def compare(a: dict, b: dict, sport: str = "run") -> dict:
+    """How alike two shapes are: outcome `same` (MATCH, merged automatically), `candidate` (plausibly the same
+    circuit or a variant of it: ask) or `different`, a confidence in 0..1 and a reason in Dutch.
+
+    Cells are a set, so where a loop starts and which way round it goes do not matter."""
+    max_diff = MATCH.get(sport, MATCH["run"])[0]
+    cand = CANDIDATE.get(sport, CANDIDATE["run"])
+    da, db = a["distance_km"], b["distance_km"]
+    longest = max(da, db)
+    d = abs(da - db) / longest if longest > 0 else 1.0
+    s, l = overlap(a, b)
+    raw = (0.6 * s + 0.4 * l) * (1 - 0.5 * min(d, 1.0))
+    start_far = haversine_m(a["start"], b["start"]) > START_RADIUS_M
+    if same_shape(a, b, sport):
+        outcome, reason = "same", "lijkt hetzelfde rondje"
+    elif (s >= cand["short"] and l >= cand["long"]) or (min(s, l) >= cand["near"] and d <= cand["near_diff"]):
+        outcome = "candidate"
+        if s >= cand["short"] and start_far:
+            reason = "zelfde rondje, ander startpunt"
+        elif s >= cand["short"] and d > max_diff:
+            reason = f"zelfde rondje met een extra lus of omweg ({_km(abs(da - db))} km verschil)"
+        else:
+            reason = "grotendeels hetzelfde rondje, deels een andere weg"
+    else:
+        outcome, reason = "different", "ander rondje"
+    # each outcome has its own band (same >= 0.8, candidate 0.5-0.79, different < 0.5), ordered by raw likeness
+    lo, hi = CONFIDENCE_BAND[outcome]
+    return {"outcome": outcome, "confidence": round(lo + (hi - lo) * raw, 2), "reason": reason, "overlap": [round(s, 2), round(l, 2)], "distance_diff": round(d, 2)}
+
+
+VARIANT_GAP = 0.08  # a new length variant starts where sorted distances jump by 8% ...
+VARIANT_MIN_KM = {"run": 0.5, "ride": 2.0}  # ... and by at least this much
+
+
+def distance_variants(members: list[dict], sport: str = "run") -> list[dict]:
+    """Length variants within a route: members grouped where their sorted distances jump clearly,
+    shortest first, each with its median distance, count, members and last date."""
+    ordered = sorted((m for m in members if m.get("distance_km")), key=lambda m: m["distance_km"])
+    groups: list[list[dict]] = []
+    min_km = VARIANT_MIN_KM.get(sport, VARIANT_MIN_KM["run"])
+    for m in ordered:
+        prev = groups[-1][-1]["distance_km"] if groups else None
+        if prev is None or (m["distance_km"] - prev > min_km and m["distance_km"] > prev * (1 + VARIANT_GAP)):
+            groups.append([m])
+        else:
+            groups[-1].append(m)
+    return [
+        {
+            "distance_km": round(median(m["distance_km"] for m in g), 1),
+            "runs": len(g),
+            "activity_ids": [m["activity_id"] for m in sorted(g, key=lambda m: m["date"])],
+            "last_run": max(m["date"] for m in g),
+        }
+        for g in groups
+    ]
+
+
 def same_route(a: dict, b: dict, sport: str = "run") -> bool:
     sa, sb = shape(a), shape(b)
     return sa is not None and sb is not None and same_shape(sa, sb, sport)

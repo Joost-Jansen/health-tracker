@@ -77,3 +77,13 @@ def fake_user_dep(store, via="cookie", username="alice"):
     from api.users import User
 
     return lambda: User(store.scope.user_id, username, None, True, via, store)
+
+
+def path(waypoints_m, start=HOME, step_m=10):
+    """Track through (north_m, east_m) offsets from `start`, one point every `step_m` metres."""
+    points = []
+    for (n0, e0), (n1, e1) in zip(waypoints_m, waypoints_m[1:]):
+        steps = max(1, int(math.hypot(n1 - n0, e1 - e0) / step_m))
+        points += [offset(start, n0 + (n1 - n0) * i / steps, e0 + (e1 - e0) * i / steps) for i in range(steps)]
+    points.append(offset(start, *waypoints_m[-1]))
+    return [list(p) for p in points]

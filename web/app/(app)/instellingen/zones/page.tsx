@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button, Checkbox, Input } from "@/components/ds";
-import { api, ApiError } from "@/lib/api";
-import { sportLabel, ZONE_COLOUR, ZONES } from "@/lib/training";
+import { api } from "@/lib/api";
+import { errorText, useT } from "@/lib/i18n";
+import { ZONE_COLOUR, ZONES } from "@/lib/training";
 
 type SportZone = { max_hr: number; bounds: number[]; estimate?: boolean };
 type ZonesResp = { percent: number[]; zones: Record<string, SportZone>; suggested_max: Record<string, number | null>; estimate_offset: Record<string, number> };
@@ -34,6 +35,7 @@ function ZonePreview({ max, percent }: { max: number; percent: number[] }) {
 }
 
 function ZonesCard({ data }: { data: ZonesResp }) {
+  const t = useT();
   const qc = useQueryClient();
   const [percent, setPercent] = useState(data.percent.map(String));
   const [max, setMax] = useState<Record<string, string>>({});
@@ -53,17 +55,17 @@ function ZonesCard({ data }: { data: ZonesResp }) {
         percent: p,
         sports: Object.fromEntries(SPORTS.map((s) => [s, { max_hr: max[s] ? Number(max[s]) : null, estimate: estimate[s] }])),
       });
-      setMsg({ ok: true, text: "Opgeslagen. De tijd per zone van je activiteiten wordt opnieuw berekend; dat duurt even." });
+      setMsg({ ok: true, text: t.zonesSettings.saved });
       qc.invalidateQueries();
     } catch (err) {
-      setMsg({ ok: false, text: err instanceof ApiError ? err.message : "Opslaan mislukt" });
+      setMsg({ ok: false, text: errorText(err, t, t.common.saveFailed) });
     }
   }
 
   return (
-    <Card title="Hartslagzones" action={<Button size="sm" variant="primary" onClick={save}>Opslaan</Button>}>
+    <Card title={t.zonesSettings.title} action={<Button size="sm" variant="primary" onClick={save}>{t.common.save}</Button>}>
       <p className="mb-4 max-w-prose text-[12.5px] leading-relaxed text-ink-muted">
-        Zones als percentage van je maximale hartslag, per sport. Ken je je max niet, neem dan het voorstel uit je eigen data (je hoogste gemeten hartslag, zonder uitschieters) of schat fietsen en zwemmen vanaf je loopmax en vink "schatting" aan.
+        {t.zonesSettings.intro}
       </p>
       <div className="flex flex-col gap-5">
         {SPORTS.map((s) => {
@@ -73,29 +75,29 @@ function ZonesCard({ data }: { data: ZonesResp }) {
           return (
             <div key={s} className="flex flex-col gap-2 border-t border-border pt-4 first:border-t-0 first:pt-0">
               <div className="flex flex-wrap items-end gap-3">
-                <Input label={`${sportLabel(s)}: max hartslag`} inputMode="numeric" className="w-28" value={max[s] ?? ""} onChange={(e) => setMax({ ...max, [s]: e.target.value.replace(/\D/g, "") })} />
-                <Checkbox label="Schatting" checked={estimate[s] ?? false} onChange={(v) => setEstimate({ ...estimate, [s]: v })} />
+                <Input label={t.zonesSettings.maxFor(s)} inputMode="numeric" className="w-28" value={max[s] ?? ""} onChange={(e) => setMax({ ...max, [s]: e.target.value.replace(/\D/g, "") })} />
+                <Checkbox label={t.zonesSettings.estimate} checked={estimate[s] ?? false} onChange={(v) => setEstimate({ ...estimate, [s]: v })} />
                 {suggestion && String(suggestion) !== max[s] && (
-                  <Button size="sm" variant="ghost" onClick={() => setMax({ ...max, [s]: String(suggestion) })}>Voorstel uit je data: {suggestion}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setMax({ ...max, [s]: String(suggestion) })}>{t.zonesSettings.suggestion(suggestion)}</Button>
                 )}
                 {!suggestion && fallback && !max[s] && (
                   <Button size="sm" variant="ghost" onClick={() => { setMax({ ...max, [s]: String(fallback) }); setEstimate({ ...estimate, [s]: true }); }}>
-                    Schatten vanaf lopen: {fallback}
+                    {t.zonesSettings.fromRunning(fallback)}
                   </Button>
                 )}
               </div>
-              {m >= 100 && m <= 230 ? <ZonePreview max={m} percent={p} /> : <p className="text-[12px] text-ink-muted">Zonder max geen zones voor {sportLabel(s).toLowerCase()}.</p>}
+              {m >= 100 && m <= 230 ? <ZonePreview max={m} percent={p} /> : <p className="text-[12px] text-ink-muted">{t.zonesSettings.noMax(s)}</p>}
             </div>
           );
         })}
       </div>
       <details className="mt-5 text-[12.5px]">
-        <summary className="cursor-pointer text-ink-muted">Grenzen tussen de zones (% van max)</summary>
+        <summary className="cursor-pointer text-ink-muted">{t.zonesSettings.bounds}</summary>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           {["Z2", "Z3", "Z4", "Z5"].map((z, i) => (
-            <Input key={z} label={`${z} vanaf`} inputMode="decimal" className="w-20" value={percent[i]} onChange={(e) => setPercent(percent.map((x, j) => (j === i ? e.target.value.replace(",", ".") : x)))} />
+            <Input key={z} label={t.zonesSettings.from(z)} inputMode="decimal" className="w-20" value={percent[i]} onChange={(e) => setPercent(percent.map((x, j) => (j === i ? e.target.value.replace(",", ".") : x)))} />
           ))}
-          <Button size="sm" variant="ghost" onClick={() => setPercent(["70", "77", "85", "92.5"])}>Standaard</Button>
+          <Button size="sm" variant="ghost" onClick={() => setPercent(["70", "77", "85", "92.5"])}>{t.zonesSettings.defaults}</Button>
         </div>
       </details>
       {msg && <p className={`mt-3 text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</p>}
@@ -104,6 +106,7 @@ function ZonesCard({ data }: { data: ZonesResp }) {
 }
 
 function FactsCard() {
+  const t = useT();
   const q = useQuery({ queryKey: ["profile-facts"], queryFn: () => api.get<Facts>("/api/settings/profile") });
   const [f, setF] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -114,8 +117,8 @@ function FactsCard() {
     <Input label={label} inputMode="decimal" className="w-28" value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value.replace(",", ".") })} />
   );
   return (
-    <Card title="Profiel">
-      <p className="mb-4 max-w-prose text-[12.5px] text-ink-muted">Optioneel. Coachingagents gebruiken dit bij hun advies; de site rekent er niet mee.</p>
+    <Card title={t.zonesSettings.profile}>
+      <p className="mb-4 max-w-prose text-[12.5px] text-ink-muted">{t.zonesSettings.profileIntro}</p>
       <form
         className="flex flex-wrap items-end gap-3"
         onSubmit={async (e) => {
@@ -123,17 +126,17 @@ function FactsCard() {
           try {
             const body = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)]));
             await api.put("/api/settings/profile", body);
-            setMsg("Opgeslagen.");
+            setMsg(t.common.saved);
           } catch (err) {
-            setMsg(err instanceof ApiError ? err.message : "Opslaan mislukt");
+            setMsg(errorText(err, t, t.common.saveFailed));
           }
         }}
       >
-        {field("birth_year", "Geboortejaar")}
-        {field("height_cm", "Lengte (cm)")}
-        {field("weight_kg", "Gewicht (kg)")}
-        {field("resting_hr", "Rusthartslag")}
-        <Button type="submit" size="sm" variant="primary">Opslaan</Button>
+        {field("birth_year", t.zonesSettings.birthYear)}
+        {field("height_cm", t.zonesSettings.height)}
+        {field("weight_kg", t.zonesSettings.weight)}
+        {field("resting_hr", t.zonesSettings.restingHr)}
+        <Button type="submit" size="sm" variant="primary">{t.common.save}</Button>
         {msg && <span className="text-[12.5px] text-ink-muted">{msg}</span>}
       </form>
     </Card>
@@ -141,8 +144,9 @@ function FactsCard() {
 }
 
 export default function ZonesPage() {
+  const t = useT();
   const q = useQuery({ queryKey: ["settings-zones"], queryFn: () => api.get<ZonesResp>("/api/settings/zones") });
-  if (!q.data) return <p className="text-sm text-ink-muted">Laden…</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   return (
     <div className="flex flex-col gap-4">
       <ZonesCard data={q.data} />

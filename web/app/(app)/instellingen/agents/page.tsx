@@ -8,11 +8,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button } from "@/components/ds";
 import { api } from "@/lib/api";
+import { errorText, useFormat, useT } from "@/lib/i18n";
+import { rich } from "@/lib/i18n/rich";
 
 type TokenRow = { id: string; name: string; created_at: string };
 type NewToken = TokenRow & { token: string };
 
 function Copy({ label, value, secret = false }: { label: string; value: string; secret?: boolean }) {
+  const t = useT();
   const [done, setDone] = useState(false);
   return (
     <div className="flex flex-col gap-1">
@@ -27,7 +30,7 @@ function Copy({ label, value, secret = false }: { label: string; value: string; 
             setTimeout(() => setDone(false), 1500);
           }}
         >
-          {done ? "Gekopieerd" : "Kopieer"}
+          {done ? t.common.copied : t.common.copy}
         </Button>
       </div>
     </div>
@@ -35,6 +38,8 @@ function Copy({ label, value, secret = false }: { label: string; value: string; 
 }
 
 export default function AgentsPage() {
+  const t = useT();
+  const f = useFormat();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["agent-tokens"], queryFn: () => api.get<TokenRow[]>("/api/agent-tokens") });
   const [name, setName] = useState("Claude");
@@ -48,77 +53,74 @@ export default function AgentsPage() {
       setMade(await api.post<NewToken>("/api/agent-tokens", { name }));
       qc.invalidateQueries({ queryKey: ["agent-tokens"] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Mislukt");
+      setError(errorText(e, t, t.common.failed));
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title="Toegang voor Claude (agents)">
+      <Card title={t.agents.title}>
         <p className="max-w-prose text-[13px] leading-relaxed text-ink-muted">
-          Met een agent-token kan Claude je trainingsdata lezen en je schema, logboek en doelen bijwerken; je ziet het meteen hier op de site.
-          Maak per plek een eigen token (bijvoorbeeld "Claude-app" en "Laptop"), dan kun je er één intrekken zonder de rest.
+          {t.agents.intro1} {t.agents.intro2}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input className="ds-input w-56" value={name} onChange={(e) => setName(e.target.value)} aria-label="Naam van het token" />
-          <Button variant="primary" size="sm" onClick={create} disabled={!name.trim()}>Nieuw token</Button>
+          <input className="ds-input w-56" value={name} onChange={(e) => setName(e.target.value)} aria-label={t.agents.tokenName} />
+          <Button variant="primary" size="sm" onClick={create} disabled={!name.trim()}>{t.agents.newToken}</Button>
           {error && <span className="text-[12.5px] text-loss">{error}</span>}
         </div>
       </Card>
 
       {made && (
-        <Card title={`Token "${made.name}" (alleen nu zichtbaar)`} action={<Button size="sm" variant="ghost" onClick={() => setMade(null)}>Klaar</Button>}>
+        <Card title={t.agents.madeTitle(made.name)} action={<Button size="sm" variant="ghost" onClick={() => setMade(null)}>{t.common.done}</Button>}>
           <div className="flex flex-col gap-4">
-            <Copy label="Token" value={made.token} secret />
+            <Copy label={t.agents.token} value={made.token} secret />
             <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Claude-app, claude.ai en Claude Code in de cloud</h3>
+              <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.appTitle}</h3>
               <p className="mb-2 text-[12.5px] text-ink-muted">
-                Op{" "}
-                <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">claude.ai/customize/connectors</a>
-                , "Add custom connector". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek en elke nieuwe
-                cloud-sessie je data lezen en je schema, doelen en log bijwerken. URL (bevat het token, behandel hem als wachtwoord):
+                {rich(t.agents.appText, {
+                  link: (c) => <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">{c}</a>,
+                })}
               </p>
-              <Copy label="Connector-URL" value={`${origin}/api/mcp/${made.token}`} secret />
+              <Copy label={t.agents.connectorUrl} value={`${origin}/api/mcp/${made.token}`} secret />
             </div>
             <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Claude Code (laptop)</h3>
-              <Copy label="Eén keer uitvoeren in een terminal" value={`claude mcp add --transport http --scope user health-tracker ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
+              <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.codeTitle}</h3>
+              <Copy label={t.agents.runOnce} value={`claude mcp add --transport http --scope user health-tracker ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
             </div>
             <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Alleen voor tools/tr.py (opdrachtregel)</h3>
+              <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.cliTitle}</h3>
               <p className="mb-2 text-[12.5px] text-ink-muted">
-                Niet nodig als je de connector gebruikt. Zet deze twee als variabelen in je eigen shell en sta netwerktoegang tot{" "}
-                <code className="font-mono text-[12px]">{origin.replace(/^https?:\/\//, "")}</code> toe.
+                {rich(t.agents.cliText, { code: () => <code className="font-mono text-[12px]">{origin.replace(/^https?:\/\//, "")}</code> })}
               </p>
-              <Copy label="Variabelen" value={`TRAINING_API_URL=${origin}\nTRAINING_API_TOKEN=${made.token}`} secret />
+              <Copy label={t.agents.variables} value={`TRAINING_API_URL=${origin}\nTRAINING_API_TOKEN=${made.token}`} secret />
             </div>
           </div>
         </Card>
       )}
 
-      <Card title="Actieve tokens">
+      <Card title={t.agents.active}>
         {q.isLoading ? (
-          <p className="text-sm text-ink-muted">Laden…</p>
+          <p className="text-sm text-ink-muted">{t.common.loading}</p>
         ) : !q.data?.length ? (
-          <p className="text-[13px] text-ink-muted">Nog geen tokens op de site gemaakt. (Een token uit tools/set_agent_token.py werkt ook en staat hier niet.)</p>
+          <p className="text-[13px] text-ink-muted">{t.agents.none}</p>
         ) : (
           <ul className="flex flex-col">
-            {q.data.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
+            {q.data.map((tok) => (
+              <li key={tok.id} className="flex items-center justify-between gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
                 <span>
-                  <span className="font-medium">{t.name}</span>
-                  <span className="text-ink-muted"> · gemaakt {new Date(t.created_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  <span className="font-medium">{tok.name}</span>
+                  <span className="text-ink-muted"> · {t.agents.created(f.day(tok.created_at))}</span>
                 </span>
                 <Button
                   size="sm"
                   variant="danger"
                   onClick={async () => {
-                    if (!confirm(`Token "${t.name}" intrekken? Wat ermee gekoppeld is, werkt daarna niet meer.`)) return;
-                    await api.del(`/api/agent-tokens/${t.id}`);
+                    if (!confirm(t.agents.revokeConfirm(tok.name))) return;
+                    await api.del(`/api/agent-tokens/${tok.id}`);
                     qc.invalidateQueries({ queryKey: ["agent-tokens"] });
                   }}
                 >
-                  Intrekken
+                  {t.common.revoke}
                 </Button>
               </li>
             ))}

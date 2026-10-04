@@ -7,10 +7,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button, Input } from "@/components/ds";
 import { api, ApiError } from "@/lib/api";
+import { errorText, useFormat, useT } from "@/lib/i18n";
 
 type Status = { garmin: { connected: boolean; readable: boolean | null; connected_at: string | null; last_sync: string | null; last_failed: string[]; syncing: boolean } };
 
 function ConnectForm({ onDone }: { onDone: () => void }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -32,7 +34,7 @@ function ConnectForm({ onDone }: { onDone: () => void }) {
         onDone();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Koppelen is niet gelukt");
+      setError(errorText(err, t, t.connections.connectFailed));
       if (err instanceof ApiError && err.status === 410) setStep("login");
     } finally {
       setBusy(false);
@@ -44,21 +46,23 @@ function ConnectForm({ onDone }: { onDone: () => void }) {
     <form onSubmit={go} className="flex max-w-sm flex-col gap-3">
       {step === "login" ? (
         <>
-          <Input label="Garmin-e-mail" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input label="Garmin-wachtwoord" type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
-            hint="Gaat alleen naar Garmin om in te loggen; de site bewaart het niet." />
+          <Input label={t.connections.email} type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input label={t.connections.password} type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
+            hint={t.connections.passwordHint} />
         </>
       ) : (
-        <Input label="Code uit je e-mail of authenticator-app" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)}
-          hint="Garmin vraagt om een extra code (tweestapsverificatie)." autoFocus />
+        <Input label={t.connections.code} inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)}
+          hint={t.connections.codeHint} autoFocus />
       )}
       {error && <p className="text-[12.5px] text-loss">{error}</p>}
-      <div><Button type="submit" variant="primary" size="sm" disabled={busy || (step === "login" ? !email || !password : !code)}>{busy ? "Bezig…" : step === "login" ? "Koppelen" : "Bevestigen"}</Button></div>
+      <div><Button type="submit" variant="primary" size="sm" disabled={busy || (step === "login" ? !email || !password : !code)}>{busy ? t.common.busy : step === "login" ? t.connections.connect : t.connections.confirm}</Button></div>
     </form>
   );
 }
 
 export default function KoppelingenPage() {
+  const t = useT();
+  const f = useFormat();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["connections"],
@@ -69,7 +73,7 @@ export default function KoppelingenPage() {
     qc.invalidateQueries({ queryKey: ["connections"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
-  if (!q.data) return <p className="text-sm text-ink-muted">Laden…</p>;
+  if (!q.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   const g = q.data.garmin;
 
   return (
@@ -79,39 +83,39 @@ export default function KoppelingenPage() {
           <>
             <p className="mb-4 max-w-prose text-[13px] leading-relaxed text-ink-muted">
               {g.readable === false
-                ? "De opgeslagen koppeling kan niet meer gelezen worden (de server heeft een nieuwe sleutel). Koppel opnieuw; je data blijft staan."
-                : "Koppel je Garmin-account om activiteiten (met GPS en hartslag), slaap, rusthartslag en Body Battery binnen te halen. De eerste keer haalt de site het afgelopen jaar op; daarna elke ochtend wat er nieuw is."}
+                ? t.connections.unreadable
+                : t.connections.intro}
             </p>
             <ConnectForm onDone={refresh} />
           </>
         ) : (
           <div className="flex flex-col gap-3 text-[13px]">
             <dl className="grid max-w-md grid-cols-[140px_1fr] gap-y-1.5">
-              <dt className="text-ink-muted">Status</dt>
-              <dd>{g.syncing ? "Bezig met synchroniseren…" : g.last_failed.length ? <span className="text-loss">Laatste sync mislukt ({g.last_failed.join(", ")})</span> : "Gekoppeld"}</dd>
-              <dt className="text-ink-muted">Gekoppeld sinds</dt>
-              <dd>{g.connected_at ?? "–"}</dd>
-              <dt className="text-ink-muted">Laatste sync</dt>
-              <dd>{g.last_sync ?? "nog niet"}</dd>
+              <dt className="text-ink-muted">{t.connections.status}</dt>
+              <dd>{g.syncing ? t.connections.syncing : g.last_failed.length ? <span className="text-loss">{t.connections.lastFailed(g.last_failed)}</span> : t.connections.connected}</dd>
+              <dt className="text-ink-muted">{t.connections.connectedSince}</dt>
+              <dd>{g.connected_at ? f.dateTime(g.connected_at) : "–"}</dd>
+              <dt className="text-ink-muted">{t.connections.lastSync}</dt>
+              <dd>{g.last_sync ? f.dateTime(g.last_sync) : t.common.notYet}</dd>
             </dl>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="primary" disabled={g.syncing} onClick={async () => { await api.post("/api/connections/sync"); refresh(); }}>
-                {g.syncing ? "Bezig…" : "Nu synchroniseren"}
+                {g.syncing ? t.common.busy : t.connections.syncNow}
               </Button>
               <Button size="sm" variant="ghost" onClick={async () => {
-                if (!confirm("Garmin ontkoppelen? Je opgehaalde data blijft staan; er komt alleen niets nieuws meer bij.")) return;
+                if (!confirm(t.connections.disconnectConfirm)) return;
                 await api.del("/api/connections/garmin");
                 refresh();
-              }}>Ontkoppelen</Button>
+              }}>{t.connections.disconnect}</Button>
             </div>
             {g.last_failed.length > 0 && (
-              <p className="max-w-prose text-[12.5px] text-ink-muted">Blijft het mislukken, ontkoppel en koppel dan opnieuw: Garmin laat een sessie soms verlopen.</p>
+              <p className="max-w-prose text-[12.5px] text-ink-muted">{t.connections.keepsFailing}</p>
             )}
           </div>
         )}
       </Card>
       <p className="max-w-prose text-[11.5px] text-ink-muted">
-        Garmin heeft geen openbare koppeling voor particulieren; de site logt in zoals de Garmin Connect-app dat doet. Dat kan een keer haperen als Garmin iets verandert.
+        {t.connections.unofficial}
       </p>
     </div>
   );

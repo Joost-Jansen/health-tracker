@@ -251,7 +251,7 @@ export const nl = {
     token: "Token",
     appTitle: "Claude-app, claude.ai en Claude Code in de cloud",
     appText:
-      "<link>claude.ai/customize/connectors</link>, \"Add custom connector\". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek en elke nieuwe cloud-sessie je data lezen en je schema, doelen en log bijwerken. URL (bevat het token, behandel hem als wachtwoord):",
+      "Op <link>claude.ai/customize/connectors</link>, \"Add custom connector\". Naam: health-tracker. Eén keer per account: daarna kan Claude in elk nieuw gesprek en elke nieuwe cloud-sessie je data lezen en je schema, doelen en log bijwerken. URL (bevat het token, behandel hem als wachtwoord):",
     connectorUrl: "Connector-URL",
     codeTitle: "Claude Code (laptop)",
     runOnce: "Eén keer uitvoeren in een terminal",

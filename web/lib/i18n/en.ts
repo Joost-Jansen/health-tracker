@@ -260,7 +260,7 @@ export const en: Messages = {
     token: "Token",
     appTitle: "Claude app, claude.ai and Claude Code in the cloud",
     appText:
-      "<link>claude.ai/customize/connectors</link>, \"Add custom connector\". Name: health-tracker. Once per account: after that Claude can read your data and update your plan, goals and log in every new conversation and every new cloud session. URL (contains the token, treat it as a password):",
+      "At <link>claude.ai/customize/connectors</link>, \"Add custom connector\". Name: health-tracker. Once per account: after that Claude can read your data and update your plan, goals and log in every new conversation and every new cloud session. URL (contains the token, treat it as a password):",
     connectorUrl: "Connector URL",
     codeTitle: "Claude Code (laptop)",
     runOnce: "Run once in a terminal",

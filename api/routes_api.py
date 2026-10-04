@@ -166,7 +166,7 @@ def candidates_view(pending: list[dict], answered: set, routes: list[dict], acti
                     break
                 sides.append({**{k: r.get(k) for k in ("id", "name", "distance_km", "runs", "last_run")}, "kind": "route", "track": _track(r, _runs(r, activities), streams_fn, PREVIEW_POINTS)})
         else:
-            out.append({**{k: c.get(k) for k in ("sport", "outcome", "confidence", "reason")}, "a": sides[0], "b": sides[1]})
+            out.append({**{k: c.get(k) for k in ("sport", "outcome", "confidence", "reason_code", "reason")}, "a": sides[0], "b": sides[1]})
     return out
 
 

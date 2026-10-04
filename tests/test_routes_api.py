@@ -159,6 +159,7 @@ def test_candidates_come_with_tracks_and_current_names(cand_client):
     assert out["last_sync"] == "2026-10-01 06:00"
     pairs = out["candidates"]
     assert [(p["a"]["id"], p["b"]["id"]) for p in pairs] == [("r1", "r3"), ("r1", "h")]
+    assert pairs[1]["reason_code"] is None and pairs[0]["confidence"] == 0.7
     assert pairs[0]["b"]["name"] == "Met de brug" and pairs[0]["a"]["last_run"] == "2026-09-10"
     assert pairs[1]["b"]["name"] == "Avondloop" and pairs[1]["b"]["date"] == "2026-09-25"
     assert len(pairs[0]["a"]["track"]) == 150 and len(pairs[1]["b"]["track"]) == 150

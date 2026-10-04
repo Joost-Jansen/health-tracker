@@ -260,7 +260,7 @@ def test_loop_with_lead_in_from_another_start_is_a_candidate():
     from_elsewhere = _shape([(-800, 0)] + SQUARE + [(-800, 0)])  # 800 m to the loop and back: 5.6 km
     c = compare(a, from_elsewhere, "run")
     assert c["outcome"] == "candidate"
-    assert c["reason"] == "zelfde rondje, ander startpunt"
+    assert c["reason"] == "zelfde rondje, ander startpunt" and c["reason_code"] == "other_start"
     assert 0.5 <= c["confidence"] < 0.8
 
 

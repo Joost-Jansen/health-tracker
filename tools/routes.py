@@ -96,6 +96,14 @@ CANDIDATE = {
 }
 
 
+# reason codes with a Dutch default text; the site shows its own text per code (web/lib/texts.ts)
+REASONS = {
+    "same": "lijkt hetzelfde rondje",
+    "other_start": "zelfde rondje, ander startpunt",
+    "extra_loop": "zelfde rondje met een extra lus of omweg",
+    "partly_other_way": "grotendeels hetzelfde rondje, deels een andere weg",
+    "different": "ander rondje",
+}
 CONFIDENCE_BAND = {"same": (0.80, 1.0), "candidate": (0.50, 0.79), "different": (0.0, 0.49)}
 
 
@@ -113,20 +121,20 @@ def compare(a: dict, b: dict, sport: str = "run") -> dict:
     raw = (0.6 * s + 0.4 * l) * (1 - 0.5 * min(d, 1.0))
     start_far = haversine_m(a["start"], b["start"]) > START_RADIUS_M
     if same_shape(a, b, sport):
-        outcome, reason = "same", "lijkt hetzelfde rondje"
+        outcome, code = "same", "same"
     elif d <= cand["max_diff"] and ((s >= cand["short"] and l >= cand["long"]) or (min(s, l) >= cand["near"] and d <= cand["near_diff"])):
         outcome = "candidate"
         if s >= cand["short"] and start_far:
-            reason = "zelfde rondje, ander startpunt"
+            code = "other_start"
         elif s >= cand["short"] and d > max_diff:
-            reason = "zelfde rondje met een extra lus of omweg"  # distances are shown next to it
+            code = "extra_loop"  # the longer one has it; distances are shown next to it
         else:
-            reason = "grotendeels hetzelfde rondje, deels een andere weg"
+            code = "partly_other_way"
     else:
-        outcome, reason = "different", "ander rondje"
+        outcome, code = "different", "different"
     # each outcome has its own band (same >= 0.8, candidate 0.5-0.79, different < 0.5), ordered by raw likeness
     lo, hi = CONFIDENCE_BAND[outcome]
-    return {"outcome": outcome, "confidence": round(lo + (hi - lo) * raw, 2), "reason": reason, "overlap": [round(s, 2), round(l, 2)], "distance_diff": round(d, 2)}
+    return {"outcome": outcome, "confidence": round(lo + (hi - lo) * raw, 2), "reason_code": code, "reason": REASONS[code], "overlap": [round(s, 2), round(l, 2)], "distance_diff": round(d, 2)}
 
 
 VARIANT_GAP = 0.08  # a new length variant starts where sorted distances jump by 8% ...
@@ -407,7 +415,7 @@ def _candidates(routes: list[dict], parts: dict, tracks: dict, answered: set, sp
         for rb in by_age[i + 1:]:
             best = None if asked(ids[ra["id"]], ids[rb["id"]]) else _best(parts[ra["id"]], parts[rb["id"]], sport)
             if best:
-                out.append({"a": _side_route(ra), "b": _side_route(rb), "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason": best["reason"]})
+                out.append({"a": _side_route(ra), "b": _side_route(rb), "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason_code": best["reason_code"], "reason": best["reason"]})
     on_route = {aid for r in routes for aid in r["activity_ids"]}
     for aid, (run, s) in tracks.items():
         if aid in on_route:
@@ -417,7 +425,7 @@ def _candidates(routes: list[dict], parts: dict, tracks: dict, answered: set, sp
         if options:
             r, best = max(options, key=lambda x: x[1]["confidence"])
             side = {"id": aid, "kind": "activity", "name": None, "distance_km": run["distance_km"], "runs": 1, "date": run["date"]}
-            out.append({"a": _side_route(r), "b": side, "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason": best["reason"]})
+            out.append({"a": _side_route(r), "b": side, "sport": sport, "outcome": best["outcome"], "confidence": best["confidence"], "reason_code": best["reason_code"], "reason": best["reason"]})
     return sorted(out, key=lambda c: -c["confidence"])
 
 

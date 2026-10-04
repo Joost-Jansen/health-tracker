@@ -72,10 +72,13 @@ export type Dashboard = {
     load: LoadIndicator;
     series: FormRow[];
   };
-  recent: ActivitySummary[];
+  recent: RecentItem[];
   recovery: { days: ({ date: string } & Record<string, number | string>)[]; baseline_rhr: number | null };
   upcoming: PlanSession[];
   plan_title?: string;
+  /** Alleen met een actief schema. */
+  plan_week?: PlanWeekSummary;
+  race?: NextRace | null;
   readiness?: Readiness | null;
 };
 
@@ -371,3 +374,22 @@ export type RouteCandidates = { candidates: RouteCandidate[]; last_sync: string 
 
 /** POST /api/routes/candidates {a, b, same} */
 export type RouteCandidateResult = { applied: boolean; applied_on_next_sync: boolean; route: RouteWithVariants | null; remaining: number };
+
+// ── Vandaag: schema deze week, wedstrijd, laatste activiteiten ───────────────
+
+/** Een sessie van het schema per sport deze week; tijd gepland alleen uit sessies met een duur. */
+export type PlanWeekSport = { planned_km: number; done_km: number; planned_s: number; done_s: number; sessions: number; done: number };
+
+/** GET /api/dashboard `plan_week`: maandag t/m zondag van het actieve schema (api/dashboard.py plan_week). */
+export type PlanWeekSummary = {
+  start: string;
+  end: string;
+  sports: Record<string, PlanWeekSport>;
+  sessions: { total: number; done: number; missed: number; upcoming: number };
+};
+
+/** GET /api/dashboard `race`: de eerstvolgende wedstrijd uit het schema; `name` alleen bij de wedstrijd van het schema zelf. */
+export type NextRace = { date: string; days: number; name: string | null; distance_km: number | null; sport: string | null };
+
+/** Een item onder Laatste activiteiten: runs met minder dan 30 minuten pauze zijn één item met `parts`. */
+export type RecentItem = ActivitySummary & { parts?: number; activity_ids?: string[]; race?: boolean };

@@ -1,0 +1,72 @@
+// Belasting: de laatste week (vermoeidheid, 7 dagen) tegenover wat je gewend bent (fitheid, 42 dagen), met drie zachte
+// banden. Getallen en band komen uit api/dashboard.py load_indicator; de zinnen uit T.vandaag.load.
+
+import Card from "@/components/Card";
+import InfoPopover from "@/components/InfoPopover";
+import { T } from "@/lib/texts";
+import type { LoadIndicator } from "@/lib/training";
+
+// De schaal van de balk; waarden daarbuiten staan op de rand.
+const MIN = 0.4;
+const MAX = 1.8;
+const BAND_COLOUR = { low: "var(--zone-1)", build: "var(--zone-2)", high: "var(--zone-4)", unknown: "var(--text-faint)" };
+
+/** 1,3 en 0,85: komma, zonder nullen achter de komma. */
+const num = (v: number, digits = 2) => v.toFixed(digits).replace(".", ",").replace(/(,\d*?)0+$/, "$1").replace(/,$/, "");
+const pos = (v: number) => `${((Math.min(MAX, Math.max(MIN, v)) - MIN) / (MAX - MIN)) * 100}%`;
+
+export default function LoadCard({ load, className = "" }: { load: LoadIndicator; className?: string }) {
+  const t = T.vandaag.load;
+  const { low, high, ramp_high } = load.thresholds;
+  const explain =
+    load.band === "high" ? (load.reason === "ramp" ? t.highRamp(num(load.ramp ?? 0, 1)) : t.highRatio(num(high))) : t.explain[load.band];
+  const segments = [
+    { key: "low", from: MIN, to: low },
+    { key: "build", from: low, to: high },
+    { key: "high", from: high, to: MAX },
+  ] as const;
+  return (
+    <Card title={t.title} className={className} action={<InfoPopover label={t.info}>{t.method(num(low), num(high), num(ramp_high, 0))}</InfoPopover>}>
+      <div className="flex items-center gap-2.5">
+        <span className="inline-block h-3 w-3 rounded-full" style={{ background: BAND_COLOUR[load.band] }} />
+        <span className="font-display text-[23px] font-light">{t.band[load.band]}</span>
+      </div>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">{explain}</p>
+      {load.acwr != null && (
+        <div className="mt-3 max-w-[420px]">
+          <div className="relative h-2.5" role="img" aria-label={`${t.ratio}: ${num(load.acwr)}`}>
+            <div className="absolute inset-0 flex overflow-hidden rounded-full">
+              {segments.map((s) => (
+                <span
+                  key={s.key}
+                  className="h-full"
+                  style={{ width: `${((s.to - s.from) / (MAX - MIN)) * 100}%`, background: BAND_COLOUR[s.key], opacity: load.band === s.key ? 0.9 : 0.3 }}
+                />
+              ))}
+            </div>
+            <span
+              aria-hidden="true"
+              className="absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full border border-surface bg-ink"
+              style={{ left: pos(load.acwr) }}
+            />
+          </div>
+          <div className="relative mt-1 h-4 text-[10.5px] tabular-nums text-ink-muted">
+            <span className="absolute -translate-x-1/2" style={{ left: pos(low) }}>{num(low)}</span>
+            <span className="absolute -translate-x-1/2" style={{ left: pos(high) }}>{num(high)}</span>
+          </div>
+          <div className="flex justify-between text-[10.5px] text-ink-muted">
+            <span>{t.scale.low}</span>
+            <span>{t.scale.build}</span>
+            <span>{t.scale.high}</span>
+          </div>
+        </div>
+      )}
+      {load.acwr != null && (
+        <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
+          <div><dt className="text-ink-muted">{t.ratio}</dt><dd className="text-[15px]">{num(load.acwr)}×</dd></div>
+          <div><dt className="text-ink-muted">{t.ramp}</dt><dd className="text-[15px]">{(load.ramp ?? 0) > 0 ? "+" : ""}{num(load.ramp ?? 0, 1)}</dd></div>
+        </dl>
+      )}
+    </Card>
+  );
+}

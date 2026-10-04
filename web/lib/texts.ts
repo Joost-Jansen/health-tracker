@@ -161,6 +161,64 @@ export const T = {
       },
     },
 
+    /** Belasting: vermoeidheid (7 dagen) tegenover fitheid (42 dagen), zie api/dashboard.py load_indicator. */
+    load: {
+      title: "Belasting",
+      info: "Uitleg belasting",
+      band: { low: "Rustig", build: "Opbouw", high: "Pas op", unknown: "Nog onbekend" } as Record<string, string>,
+      explain: {
+        low: "Je laatste week was lichter dan je gewend bent: ruimte om te herstellen, of je fitheid zakt langzaam.",
+        build: "Je laatste week past bij wat je gewend bent: een goede basis om rustig op te bouwen.",
+        unknown: "Na ongeveer vier weken training met hartslag is te zien hoe je laatste week zich verhoudt tot wat je gewend bent.",
+      } as Record<string, string>,
+      highRatio: (high: string) => `Je laatste week was flink zwaarder dan je gewend bent (boven ${high}). Bouw rustiger op of plan een lichte dag.`,
+      highRamp: (ramp: string) => `Je fitheid stijgt snel (+${ramp} in 7 dagen). Bouw rustiger op of plan een lichte dag.`,
+      ratio: "Laatste week tegenover gewend",
+      ramp: "Fitheid in 7 dagen",
+      scale: { low: "rustig", build: "opbouw", high: "pas op" },
+      method: (low: string, high: string, rampHigh: string) =>
+        `Vermoeidheid (7 dagen) gedeeld door fitheid (42 dagen). Tussen ${low} en ${high} past de belasting bij wat je gewend bent; die grenzen komen uit sportonderzoek naar trainingsbelasting. Fitheid die meer dan ${rampHigh} per week stijgt, is snelle opbouw. Een richtlijn, geen voorspelling.`,
+    },
+
+    /** Schema deze week: gepland tegenover gedaan. */
+    planWeek: {
+      title: "Schema deze week",
+      info: "Uitleg schema deze week",
+      more: "Schema",
+      empty: "Geen sessies gepland deze week.",
+      done: (done: number, total: number) => `${done} van ${total} ${total === 1 ? "sessie" : "sessies"} gedaan`,
+      missed: (n: number) => `${n} gemist`,
+      upcoming: (n: number) => `${n} te gaan`,
+      ofPlanned: (done: string, planned: string) => `${done} van ${planned}`,
+      method: "Gedaan telt alleen activiteiten die bij een sessie van het schema horen (zelfde sport, zelfde dag).",
+    },
+
+    /** Aftellen naar de eerstvolgende wedstrijd van het schema. */
+    race: {
+      today: "Vandaag",
+      days: (n: number) => (n === 1 ? "dag" : "dagen"),
+      until: (name: string | null) => `tot ${name ?? "de wedstrijd"}`,
+      todayIs: (name: string | null) => `is het zover: ${name ?? "de wedstrijd"}`,
+    },
+
+    upcoming: {
+      title: "Komende trainingen",
+      more: "Schema",
+      none: "Geen sessies meer in het schema.",
+      today: "Vandaag",
+      rest: "Rust",
+      done: "gedaan",
+    },
+
+    recent: {
+      title: "Laatste activiteiten",
+      more: "Historie",
+      empty: "Nog geen activiteiten. Ze verschijnen hier na de eerste sync.",
+      parts: (n: number) => `${n} delen`,
+      partsHelp: "Opgeslagen in stukken met minder dan 30 minuten pauze; telt als één training.",
+      race: "Wedstrijd",
+    },
+
     /** Vorm-kaart als de reeks stopt bij een sync van eergisteren of ouder. */
     formStopped: (day: string) =>
       `Stand op ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,

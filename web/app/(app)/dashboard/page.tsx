@@ -4,24 +4,24 @@
 // hoe fris je bent, en je laatste activiteiten en herstel.
 
 import { useState } from "react";
-import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import PeriodNav from "@/components/zones/PeriodNav";
+import LoadCard from "@/components/dashboard/LoadCard";
+import PlanWeekCard from "@/components/dashboard/PlanWeekCard";
 import ReadinessCard from "@/components/dashboard/ReadinessCard";
+import RecentActivities from "@/components/dashboard/RecentActivities";
+import Upcoming from "@/components/dashboard/Upcoming";
 import LineChart from "@/components/charts/LineChart";
-import { SportBadge } from "@/components/plan/SportIcon";
 import { api } from "@/lib/api";
 import { T } from "@/lib/texts";
 import {
   type Dashboard,
   fmtDate,
   fmtDuration,
-  fmtIntensity,
   fmtKm,
-  type PlanSession,
   sportLabel,
   type ZonesForPeriod,
 } from "@/lib/training";
@@ -31,30 +31,6 @@ const FORM_LINES = [
   { label: "Vermoeidheid", colour: "var(--chart-3)", dash: false },
   { label: "Vorm", colour: "var(--chart-4)", dash: true },
 ];
-
-function Upcoming({ sessions, title }: { sessions: PlanSession[]; title?: string }) {
-  return (
-    <Card title="Komende trainingen" more="Schema" moreHref="/plan/">
-      {sessions.length === 0 ? (
-        <p className="text-[13px] text-ink-muted">{title ? "Geen sessies meer in het schema." : "Nog geen actief schema."} <Link href="/plan/" className="underline underline-offset-2">Schema</Link></p>
-      ) : (
-        <ul className="flex flex-col">
-          {sessions.slice(0, 4).map((s, i) => (
-            <li key={`${s.date}-${i}`} className="grid grid-cols-[72px_1fr] items-baseline gap-3 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr]">
-              <span className={s.status === "vandaag" ? "font-semibold" : "text-ink-muted"}>{s.status === "vandaag" ? "Vandaag" : fmtDate(s.date)}</span>
-              <span className="truncate">
-                <span className="font-medium">{s.sport === "rest" ? "Rust" : sportLabel(s.sport)}</span>
-                {[s.kind, s.distance_km ? fmtKm(s.distance_km) : null, s.duration_min ? `${s.duration_min} min` : null, s.target_zone].filter(Boolean).map((x) => <span key={String(x)} className="text-ink-muted"> · {x}</span>)}
-                {s.status === "gedaan" && <span className="text-gain"> · gedaan</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {title && <p className="mt-1 truncate text-[11.5px] text-ink-muted">{title}</p>}
-    </Card>
-  );
-}
 
 const SPORT_ORDER = ["run", "ride", "swim"];
 
@@ -123,10 +99,20 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        {d.readiness ? <ReadinessCard r={d.readiness} /> : <Card title={T.vandaag.readiness.title}><p className="text-[13px] text-ink-muted">Geen hersteldata.</p></Card>}
-        <Upcoming sessions={d.upcoming} title={d.plan_title} />
-      </div>
+      {/* Alleen kaarten met iets te zeggen: zonder nachtdata, vorm of schema valt de kaart weg en vult de rest de rij. */}
+      {(d.readiness || form) && (
+        <div className={`grid gap-4 ${d.readiness && form ? "lg:grid-cols-[1.25fr_1fr]" : ""}`}>
+          {d.readiness && <ReadinessCard r={d.readiness} />}
+          {form && <LoadCard load={form.load} />}
+        </div>
+      )}
+
+      {d.plan_week && (
+        <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+          <PlanWeekCard week={d.plan_week} race={d.race} />
+          <Upcoming sessions={d.upcoming} title={d.plan_title} />
+        </div>
+      )}
 
       {form && (
         <Card title="Vorm" more="Alle trends" moreHref="/trends/">
@@ -267,26 +253,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Card title="Laatste activiteiten" more="Historie" moreHref="/historie/">
-        {d.recent.length === 0 && <p className="text-[13px] text-ink-muted">Nog geen activiteiten. Ze verschijnen hier na de eerste sync.</p>}
-        <ul className="flex flex-col">
-          {d.recent.map((a) => (
-            <li key={a.id} className="grid grid-cols-[72px_1fr] items-baseline gap-x-3 gap-y-0.5 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr_auto]">
-              <span className="text-ink-muted">{fmtDate(a.start_local)}</span>
-              <span className="flex min-w-0 items-center gap-2">
-                <SportBadge sport={a.sport} size={22} />
-                <span className="truncate">
-                  <span className="font-medium">{sportLabel(a.sport)}</span>
-                  {a.name && <span className="text-ink-muted"> · {a.name}</span>}
-                </span>
-              </span>
-              <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
-                {a.distance_km ? fmtKm(a.distance_km) : fmtDuration(a.moving_time_s)} · {fmtIntensity(a)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <RecentActivities items={d.recent} />
 
     </div>
   );

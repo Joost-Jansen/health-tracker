@@ -1,7 +1,7 @@
 # Development
 
 How the code is organised, how to run it, and the rules the code follows. Deployment and environment variables are in
-the README ("Deploy your own"). UI language is Dutch; code, comments and commits are English or Dutch, keep what the file
+the README ("Deploy your own"). The UI speaks Dutch and English (see "Languages" below); code, comments and commits are English or Dutch, keep what the file
 already uses.
 
 ## Architecture
@@ -57,9 +57,32 @@ Docker check before touching the Dockerfile: `docker build -t health-tracker:tes
    (triathlon/brick) is not comparable to a standalone run.
 6. **No personal text in the UI**: explanations about health and performance live in `web/lib/texts.ts` and take the
    user's own numbers as parameters.
-7. **Frontend**: reuse `web/components/ds`, `Card`, `charts/*` and the CSS tokens in `web/app/globals.css` (`--sage-*`,
+7. **Two languages**: every text in the UI comes from `useT()` (`web/lib/i18n`), never a string in a component; numbers
+   and dates go through `useFormat()`. `npm run check:i18n` (also run by pytest) must stay green.
+8. **Frontend**: reuse `web/components/ds`, `Card`, `charts/*` and the CSS tokens in `web/app/globals.css` (`--sage-*`,
    `--zone-1..5`, `--chart-*`). Light and dark mode must both work, and phone width without horizontal scroll.
-8. **Commits**: small and descriptive.
+9. **Commits**: small and descriptive.
+
+## Languages
+
+The site is in Dutch (`nl`, the source) and English (`en`, en-GB formatting: 5.3 km, 4 Oct 2026, 24-hour clock).
+
+| File | What |
+|---|---|
+| `web/lib/i18n/nl.ts`, `en.ts` | the texts, same keys; `en` is typed as `Messages` (= `typeof nl`), so a missing or extra key or other parameters is a type error. Texts with numbers or names are functions; plurals with `f.plural(n, {one, other})` |
+| `web/lib/texts.ts`, `web/lib/i18n/texts.en.ts` | the health and performance explanations (`T`): Dutch source and English; reached as `useT().texts`. A Dutch key without English falls back to Dutch and fails `check:i18n` |
+| `web/lib/i18n/format.ts` | `useFormat()`: numbers, km, km/u or km/h, pace, durations, dates, lists |
+| `web/lib/i18n/index.tsx` | provider, `useT`, `useFormat`, `useLocale`, `errorText` (API error code in the user's language), `routeName` (generated loop names) |
+| `web/lib/i18n/rich.tsx` | `rich(text, {link, b})` for a link or bold word inside a translated sentence (`<link>…</link>`) |
+| `web/scripts/check-i18n.mjs` | key parity of both catalogs and of T, and a grep for Dutch strings in converted files (`// i18n-ignore` to allow one) |
+
+Adding a string: add the key to `nl.ts` and `en.ts`, use `const t = useT()` and `t.area.key` (or `t.area.key(params)`), run
+`npm run check:i18n`. An API text the site shows is a code with params (`ApiError`, see Errors), never a sentence.
+
+Which language: the account's `locale` (`GET /api/me`, set with `PATCH /api/account {locale}` from Instellingen, Account,
+or at registration); without one the last choice on this device (localStorage `locale`, also the switch on the login
+page), else the browser language (Dutch browsers Dutch, everything else English). `<html lang>` follows, set before
+the first paint by an inline script in `web/app/layout.tsx`.
 
 ## API contract
 

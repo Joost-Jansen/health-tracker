@@ -4,7 +4,7 @@
 
 ![Dashboard ("Vandaag") with readiness, upcoming sessions, form and time per heart-rate zone](docs/screenshots/dashboard.jpg)
 
-<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in Dutch.</sub>
+<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in Dutch and English; these screenshots show the Dutch version.</sub>
 
 health-tracker syncs runs, rides, swims, sleep and recovery from Garmin Connect into Postgres, computes what the watch
 app does not (your own heart-rate zones per sport, training load, recurring routes, race predictions) and shows it in a

@@ -14,8 +14,9 @@ from pathlib import Path
 
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
-FIELD_PRIORITY = {"name": ("strava", "garmin")}
-DEFAULT_PRIORITY = ("garmin", "strava")
+FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit")}
+# Uploaded FIT files (Wahoo, or any other device) come after the synced sources.
+DEFAULT_PRIORITY = ("garmin", "strava", "wahoo", "fit")
 SCALAR_FIELDS = (
     "name",
     "distance_km",
@@ -120,6 +121,43 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
         "fit_file": fit_file,
         "streams": streams or None,
         "sources": {"garmin": {"id": activity["activityId"], "raw": activity}},
+    }
+    return _drop_none(record)
+
+
+def from_fit(activity: dict, fit_file: str | None = None, filename: str | None = None) -> dict:
+    """A record from tools.fit.read_fit_activity. Source `wahoo` for a Wahoo file, else `fit`."""
+    source = "wahoo" if "wahoo" in activity.get("manufacturer", "") else "fit"
+    laps = []
+    for lap in activity.get("laps") or []:
+        km = (lap.get("distance_m") or 0) / 1000
+        laps.append(_drop_none({
+            "distance_km": _round(km, 2), "time_s": _round(lap.get("time_s")), "avg_hr": _round(lap.get("avg_hr")),
+            "pace": _pace(lap.get("time_s") or 0, km), "elevation_gain_m": lap.get("ascent_m"),
+        }))
+    sport = activity["sport"]
+    label = {"ride": "Cycling", "run": "Running", "swim": "Swimming"}.get(sport, sport.capitalize())
+    cadence = activity.get("avg_cadence")
+    if cadence is not None and sport == "run":
+        cadence *= 2  # FIT stores running cadence per leg
+    record = {
+        "start_utc": activity["start_utc"],
+        "start_local": activity["start_local"],
+        "sport": sport,
+        "name": f"{'Wahoo' if source == 'wahoo' else 'FIT'} {label}",  # like Garmin's "Amsterdam Cycling"
+        "distance_km": _round((activity.get("distance_m") or 0) / 1000, 2),
+        "moving_time_s": _round(activity.get("timer_s")),
+        "elapsed_time_s": _round(activity.get("elapsed_s") or activity.get("timer_s")),
+        "elevation_gain_m": activity.get("ascent_m"),
+        "avg_hr": _round(activity.get("avg_hr")),
+        "max_hr": _round(activity.get("max_hr")),
+        "avg_cadence_spm": _round(cadence),
+        "avg_power_w": _round(activity.get("avg_power")),
+        "indoor": activity.get("indoor") or None,
+        "laps": laps or None,
+        "fit_file": fit_file,
+        "streams": activity.get("streams") or None,
+        "sources": {source: {"file": filename, "manufacturer": activity.get("manufacturer") or None}},
     }
     return _drop_none(record)
 

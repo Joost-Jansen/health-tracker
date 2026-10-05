@@ -75,6 +75,10 @@ MESSAGES: dict[str, str] = {
     "unknown_document": "onbekend document",
     "activity_not_found": "activiteit niet gevonden",
     "max_periods": "maximaal {max} perioden",
+    # FIT upload (api/uploads.py)
+    "upload_empty": "leeg bestand",
+    "upload_too_large": "bestand groter dan {max_mb} MB",
+    "fit_unreadable": "geen leesbare activiteit in dit FIT-bestand",
 }
 
 

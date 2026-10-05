@@ -38,6 +38,9 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  /** A file as the raw body (FIT upload): no multipart needed on the server. */
+  upload: <T>(path: string, file: Blob) =>
+    request<T>(path, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } }),
 };
 
 // fetchPlotlyFigure lived here to pull a figure JSON straight past request()'s

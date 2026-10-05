@@ -145,6 +145,9 @@ export const nl = {
     tokens_site_only: "Agent-tokens beheer je alleen ingelogd op de site.",
     token_name_length: (p: { min: number; max: number }) => `Een naam van ${p.min} tot ${p.max} tekens.`,
     too_many_tokens: (p: { max: number }) => `Maximaal ${p.max} tokens; trek er eerst een in.`,
+    upload_empty: "Leeg bestand.",
+    upload_too_large: (p: { max_mb: number }) => `Bestand groter dan ${p.max_mb} MB.`,
+    fit_unreadable: "Geen leesbare activiteit in dit FIT-bestand.",
     token_not_found: "Token niet gevonden.",
     connections_site_only: "Koppelingen beheer je ingelogd op de site.",
     no_encryption_key: "De server heeft geen sleutel om de koppeling veilig op te slaan (TOKEN_ENCRYPTION_KEY).",
@@ -318,6 +321,18 @@ export const nl = {
     heatNote: "Hoe vaker je ergens langs komt, hoe voller de lijn. De kaart start bij thuis; zoom uit voor vakanties.",
     heatAria: (n: number) => `Heatmap van ${n} routes`,
     noGps: "Geen routes met GPS.",
+    upload: {
+      button: "FIT uploaden",
+      title: "Activiteiten uploaden",
+      hint: "Ritten van een Wahoo (of een ander apparaat) die niet op Garmin staan. Kies een of meer .fit-bestanden: in de ELEMNT-app per rit via Delen, of uit de Dropbox-map waar Wahoo ze automatisch neerzet. Een rit die al via Garmin binnenkwam, wordt samengevoegd in plaats van dubbel geteld.",
+      choose: "Bestanden kiezen",
+      working: (i: number, n: number) => `Bezig met ${i} van ${n}…`,
+      added: "toegevoegd",
+      merged: (with_: string) => `samengevoegd met ${with_}`,
+      failed: "niet gelukt",
+      done: (n: number) => f.plural(n, { one: "# activiteit verwerkt.", other: "# activiteiten verwerkt." }),
+      close: "Sluiten",
+    },
   },
 
   activity: {

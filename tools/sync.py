@@ -341,10 +341,10 @@ def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: dat
     except WrongKey:
         print("wahoo: opgeslagen koppeling is met een andere sleutel versleuteld; koppel Wahoo opnieuw op de site")
         return False
-    except wahoo.WahooRevoked:
+    except wahoo.WahooRevoked as err:
         removed = end_wahoo(s)
         client = None
-        print(f"wahoo: toegang ingetrokken bij Wahoo, koppeling beëindigd en Wahoo-data verwijderd ({removed})")
+        print(f"wahoo: toegang ingetrokken bij Wahoo, koppeling beëindigd en Wahoo-data verwijderd ({err}; {removed})")
         state.pop("wahoo", None)
         return True
     except Exception as err:

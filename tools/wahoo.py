@@ -16,7 +16,7 @@ import json
 import os
 import time
 from datetime import date, timedelta
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import requests
 
@@ -49,7 +49,13 @@ def credentials() -> tuple[str, str] | None:
 
 def authorize_url(client_id: str, redirect_uri: str, state: str) -> str:
     q = {"client_id": client_id, "redirect_uri": redirect_uri, "scope": SCOPES, "response_type": "code", "state": state}
-    return f"{API}/oauth/authorize?{urlencode(q)}"
+    return f"{API}/oauth/authorize?{urlencode(q, quote_via=quote)}"  # scopes space-separated as %20, as Wahoo documents
+
+
+def _detail(r) -> str:
+    """Status and the start of the body, for the log (Wahoo's error bodies hold no tokens)."""
+    body = (r.content or b"")[:200].decode("utf-8", "replace").strip()
+    return f"HTTP {r.status_code}" + (f" {body}" if body else "")
 
 
 def _tokens(body: dict, now: float) -> dict:
@@ -61,7 +67,7 @@ def exchange_code(code: str, redirect_uri: str, creds: tuple[str, str], http=req
     r = http.post(f"{API}/oauth/token", data={"client_id": creds[0], "client_secret": creds[1], "code": code,
                                               "redirect_uri": redirect_uri, "grant_type": "authorization_code"}, timeout=TIMEOUT_S)
     if r.status_code != 200:
-        raise WahooError(f"token exchange: HTTP {r.status_code}")
+        raise WahooError(f"token exchange: {_detail(r)}")
     return _tokens(r.json(), now())
 
 
@@ -78,10 +84,10 @@ class WahooClient:
     def refresh(self) -> None:
         r = self.http.post(f"{API}/oauth/token", data={"client_id": self.creds[0], "client_secret": self.creds[1],
                                                        "grant_type": "refresh_token", "refresh_token": self._t["refresh_token"]}, timeout=TIMEOUT_S)
-        if r.status_code in (400, 401):
-            raise WahooRevoked("refresh token refused")
+        if r.status_code in (400, 401) and b"invalid_grant" in (r.content or b""):
+            raise WahooRevoked(f"refresh token refused: {_detail(r)}")
         if r.status_code != 200:
-            raise WahooError(f"token refresh: HTTP {r.status_code}")
+            raise WahooError(f"token refresh: {_detail(r)}")
         self._t = _tokens(r.json(), self.now())
 
     def _request(self, method: str, path: str, **params):
@@ -93,10 +99,8 @@ class WahooClient:
             if r.status_code == 401 and attempt == 1:
                 self.refresh()
                 continue
-            if r.status_code == 401:
-                raise WahooRevoked("access refused")
-            if r.status_code >= 400:
-                raise WahooError(f"{method} {path}: HTTP {r.status_code}")
+            if r.status_code >= 400:  # a 401 with a fresh token is not a revoke: that shows in the refresh (invalid_grant)
+                raise WahooError(f"{method} {path}: {_detail(r)}")
             return r.json() if r.content else {}
 
     def workouts(self, page: int = 1, per_page: int = PER_PAGE) -> dict:

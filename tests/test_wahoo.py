@@ -43,7 +43,7 @@ class Http:
 def test_authorize_url_asks_for_the_three_scopes():
     url = wahoo.authorize_url("cid", "https://x/api/connections/wahoo/callback", "st8")
     assert url.startswith("https://api.wahooligan.com/oauth/authorize?")
-    assert "scope=workouts_read+offline_data+user_read" in url and "state=st8" in url and "response_type=code" in url
+    assert "scope=workouts_read%20offline_data%20user_read" in url and "state=st8" in url and "response_type=code" in url
 
 
 def test_an_expired_token_is_refreshed_first_and_a_refused_refresh_means_revoked():
@@ -53,9 +53,19 @@ def test_an_expired_token_is_refreshed_first_and_a_refused_refresh_means_revoked
     c.workouts()
     assert ("auth", "Bearer a2") in http.calls and c.tokens() == {"access_token": "a2", "refresh_token": "r2", "expires_at": 8200}
     gone = wahoo.WahooClient({"access_token": "a", "refresh_token": "r", "expires_at": 0}, CREDS,
-                             http=Http({("POST", "/oauth/token"): [Resp(400, {})]}), now=lambda: 1000)
+                             http=Http({("POST", "/oauth/token"): [Resp(400, {}, b'{"error":"invalid_grant"}')]}), now=lambda: 1000)
     with pytest.raises(wahoo.WahooRevoked):
         gone.workouts()
+
+
+def test_a_refused_call_with_a_fresh_token_is_an_error_not_a_revoke():
+    http = Http({("POST", "/oauth/token"): [Resp(200, {"access_token": "a2", "refresh_token": "r2", "expires_in": 7200})],
+                 ("GET", "/v1/workouts"): [Resp(401, {}, b'{"error":"nope"}'), Resp(401, {}, b'{"error":"nope"}')]})
+    c = wahoo.WahooClient({"access_token": "a1", "refresh_token": "r1", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000)
+    with pytest.raises(wahoo.WahooError) as err:
+        c.workouts()
+    assert not isinstance(err.value, wahoo.WahooRevoked) and "HTTP 401" in str(err.value) and "nope" in str(err.value)
+    assert c.tokens()["access_token"] == "a2"  # the refreshed pair is kept (and saved by the sync)
 
 
 def ride(day, hh, km, hr=130):

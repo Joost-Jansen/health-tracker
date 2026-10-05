@@ -1,5 +1,5 @@
 // The site's navigation, in one place. The names are in lib/i18n (nav.items, nav.tabs); localizeNav fills them in.
-// The ids are catalog keys (and some are Dutch, e.g. "rondjes"); the hrefs are the English paths.
+// The ids are catalog keys (lib/i18n nav.items, nav.tabs).
 
 import type { Messages } from "@/lib/i18n";
 
@@ -23,28 +23,28 @@ export const NAV: NavGroup[] = [
     items: [
       { id: "dashboard", label: "", href: "/dashboard/", icon: "layout" },
       { id: "trends", label: "", href: "/trends/", icon: "chart" },
-      { id: "rondjes", label: "", href: "/routes/", icon: "route" },
-      { id: "historie", label: "", href: "/history/", icon: "map" },
+      { id: "routes", label: "", href: "/routes/", icon: "route" },
+      { id: "history", label: "", href: "/history/", icon: "map" },
       { id: "plan", label: "", href: "/plan/", icon: "clipboard" },
       {
-        id: "logboek",
+        id: "log",
         label: "",
         href: "/log/",
         icon: "book",
         extraPaths: ["/analyses/"],
-        tabs: [tab("log", "/log/"), tab("analyses", "/analyses/"), tab("doelen", "/analyses/goals/"), tab("profiel", "/analyses/profile/")],
+        tabs: [tab("log", "/log/"), tab("analyses", "/analyses/"), tab("goals", "/analyses/goals/"), tab("profile", "/analyses/profile/")],
       },
       {
-        id: "instellingen",
+        id: "settings",
         label: "",
         href: "/settings/",
         icon: "settings",
         tabs: [
           tab("account", "/settings/"),
-          tab("koppelingen", "/settings/connections/"),
+          tab("connections", "/settings/connections/"),
           tab("zones", "/settings/zones/"),
           tab("agents", "/settings/agents/"),
-          tab("beheer", "/settings/admin/", true),
+          tab("admin", "/settings/admin/", true),
         ],
       },
       {
@@ -53,7 +53,7 @@ export const NAV: NavGroup[] = [
         label: "",
         href: "/help/",
         icon: "help",
-        tabs: [tab("start", "/help/"), tab("handleiding", "/help/guide/"), tab("claude", "/help/claude/")],
+        tabs: [tab("start", "/help/"), tab("guide", "/help/guide/"), tab("claude", "/help/claude/")],
       },
     ],
   },

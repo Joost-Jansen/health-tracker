@@ -56,13 +56,13 @@ def readiness(wellness: dict, today: date, tsb: float | None = None) -> dict | N
     warns = sum(s["level"] == "warn" for s in signals)
     attention = sum(s["level"] == "attention" for s in signals)
     if warns >= 2 or (warns and attention):
-        verdict = "herstel"
+        verdict = "recover"
     elif warns or attention:
-        verdict = "rustig aan"
+        verdict = "easy"
     elif latest:
-        verdict = "klaar"
+        verdict = "ready"
     else:
-        verdict = "onbekend"
+        verdict = "unknown"
     return {"verdict": verdict, "date": latest, "no_night": latest is None, "signals": signals}
 
 
@@ -82,4 +82,5 @@ def as_text(r: dict) -> str:
         }.get(s["note"]["code"], "")
         parts.append(f"{names.get(s['key'], s['key'])} {value}" + (f" ({detail})" if detail else "") + f" [{s['level']}]")
     night = f"nacht van {r['date']}" if r["date"] else "geen nachtdata van afgelopen nacht"
-    return f"{r['verdict']} ({night}); " + "; ".join(parts)
+    verdict = {"ready": "klaar", "easy": "rustig aan", "recover": "herstel", "unknown": "onbekend"}.get(r["verdict"], r["verdict"])
+    return f"{verdict} ({night}); " + "; ".join(parts)

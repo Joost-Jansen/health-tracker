@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 
 export type Choice = "site" | "claude";
 export type StepId = "garmin" | "sync" | "zones" | "profile" | "explore" | "agent" | "goals" | "plan";
-export type Page = "dashboard" | "trends" | "rondjes" | "historie";
+export type Page = "dashboard" | "trends" | "routes" | "history";
 export type Banner = "checklist" | "data";
 
 export type OnboardingStatus = {
@@ -79,14 +79,13 @@ export function stepShown(step: { id: StepId; claude?: boolean }, o: Pick<Onboar
   return !step.claude || o.choice === "claude" || o.steps[step.id];
 }
 
-/** The pages of the Rondkijken (look around) step (name and what you find there: lib/i18n onboarding.pages). The
- *  dashboard does not count: you land there anyway. The ids are stored per user (`visited`), so they keep their Dutch names
- *  ("rondjes", "historie") while the pages live on English paths; tests/test_web_routes.py checks both sides. */
+/** The pages of the look-around step (name and what you find there: lib/i18n onboarding.pages). The dashboard does not
+ *  count: you land there anyway. The ids are stored per user (`visited`); tests/test_web_routes.py checks they match the API. */
 export const PAGES: { id: Page; href: string }[] = [
   { id: "dashboard", href: "/dashboard/" },
   { id: "trends", href: "/trends/" },
-  { id: "rondjes", href: "/routes/" },
-  { id: "historie", href: "/history/" },
+  { id: "routes", href: "/routes/" },
+  { id: "history", href: "/history/" },
 ];
 
-export const PAUSED_KEY = "rondleiding-gepauzeerd";
+export const PAUSED_KEY = "tour-paused";

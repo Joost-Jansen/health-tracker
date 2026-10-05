@@ -39,7 +39,7 @@ SPORTS = {
     "rest": ("rest", "rust", "rustdag", "vrij", "off"),
 }
 MONTHS = {"jan": 1, "feb": 2, "mrt": 3, "mar": 3, "apr": 4, "mei": 5, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "oct": 10, "nov": 11, "dec": 12}
-STATUSES = ("actief", "afgerond", "gestopt")
+STATUSES = ("active", "finished", "stopped")
 
 
 # --- parsing ------------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date) ->
     for s in sorted(sessions, key=lambda s: (s["date"], s.get("id") or 0)):
         row = dict(s)
         if s["sport"] == "rest":
-            row["status"] = "rust"
+            row["status"] = "rest"
             out.append(row)
             continue
         cands = [a for a in by_day.get((s["date"], s["sport"]), []) if a["id"] not in used]
@@ -234,13 +234,13 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date) ->
             secs = sum(a.get("moving_time_s") or 0 for a in chosen)
             merged = {"hr_zones_s": {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in chosen) for z in NAMES}}
             row.update(
-                status="gedaan",
+                status="done",
                 activity_ids=[a["id"] for a in chosen],
                 done={"distance_km": km, "moving_time_s": secs, "avg_hr": chosen[0].get("avg_hr"), "zone_pct": zone_compliance(merged, s.get("target_zone"))},
             )
         else:
             day = date.fromisoformat(s["date"])
-            row["status"] = "gemist" if day < today else "vandaag" if day == today else "gepland"
+            row["status"] = "missed" if day < today else "today" if day == today else "planned"
         out.append(row)
     return out
 
@@ -261,7 +261,7 @@ def suggest_routes(sessions: list[dict], routes: list[dict], today: date) -> Non
     for s in sessions:
         if s.get("route"):
             continue
-        if s["sport"] not in ("run", "ride") or not s.get("distance_km") or s.get("status") in ("gedaan", "gemist"):
+        if s["sport"] not in ("run", "ride") or not s.get("distance_km") or s.get("status") in ("done", "missed"):
             continue
         recs = recommend(usable, s["distance_km"], today, limit=1, sport=s["sport"])
         if recs:
@@ -279,10 +279,10 @@ def weekly_summary(sessions: list[dict]) -> list[dict]:
             continue
         w["planned"] += 1
         w["planned_km"] += s.get("distance_km") or 0
-        if s.get("status") == "gedaan":
+        if s.get("status") == "done":
             w["done"] += 1
             w["done_km"] += s["done"]["distance_km"]
-        elif s.get("status") == "gemist":
+        elif s.get("status") == "missed":
             w["missed"] += 1
     return [{**w, "planned_km": round(w["planned_km"], 1), "done_km": round(w["done_km"], 1)} for w in sorted(weeks.values(), key=lambda w: w["week"])]
 

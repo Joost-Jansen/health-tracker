@@ -26,9 +26,10 @@ from tools import db
 KEY = "onboarding"
 CHOICES = ("site", "claude")
 BANNERS = ("checklist", "data")  # the "Aan de slag" (getting started) card on the dashboard, the start banner above empty pages
-# The "look around" step. Stored per user in `visited`, so the ids keep their Dutch names although the pages are now
-# /routes/ and /history/ (web/lib/onboarding.ts PAGES maps them; tests/test_web_routes.py checks both sides match).
-PAGES = ("dashboard", "trends", "rondjes", "historie")
+# The "look around" step, stored per user in `visited` (web/lib/onboarding.ts PAGES; tests/test_web_routes.py checks
+# both sides match). Up to schema 3 two ids were Dutch; tools/db.py migrated them and a visit still accepts them.
+PAGES = ("dashboard", "trends", "routes", "history")
+OLD_PAGES = {"rondjes": "routes", "historie": "history"}
 FIELDS = {"choice", "done", "step", "hide", "visit"}
 REQUIRED = ("garmin", "sync", "zones")
 
@@ -68,7 +69,7 @@ def status(u, running: bool) -> dict:
         "profile": {"filled": sorted(store.profile_facts)},
         "agents": {"tokens": len(db.list_agent_tokens(s))},
         "goals": bool(goals and (goals.get("body") or "").strip()),
-        "plan": {"count": len(plans), "active": any(p.get("status") == "actief" for p in plans)},
+        "plan": {"count": len(plans), "active": any(p.get("status") == "active" for p in plans)},
     }
 
 
@@ -101,7 +102,7 @@ def read(u, running: bool = False) -> dict:
     choice = stand.get("choice") if stand.get("choice") in CHOICES else None
     step = stand.get("step") if isinstance(stand.get("step"), int) and not isinstance(stand.get("step"), bool) and stand["step"] >= 0 else 0
     hidden = [b for b in stand.get("hidden") or [] if b in BANNERS]
-    visited = [p for p in stand.get("visited") or [] if p in PAGES]
+    visited = [p for p in dict.fromkeys(OLD_PAGES.get(p, p) for p in stand.get("visited") or []) if p in PAGES]
     done_steps = steps(st, visited)
     return {
         "choice": choice,
@@ -137,6 +138,7 @@ def write(u, **fields) -> None:
             raise ApiError(400, "unknown_banner", options=list(BANNERS))
         new["hidden"] = sorted({*new["hidden"], fields["hide"]})
     if "visit" in fields:
+        fields["visit"] = OLD_PAGES.get(fields["visit"], fields["visit"])
         if fields["visit"] not in PAGES:
             raise ApiError(400, "unknown_page", options=list(PAGES))
         new["visited"] = [*new["visited"], fields["visit"]] if fields["visit"] not in new["visited"] else new["visited"]

@@ -23,11 +23,11 @@ export const ZONE_OPTIONS = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z1-Z2", "Z2-Z3", "Z3
 
 /** Colour per status; the names are in lib/i18n (plan.statuses), kinds of workout as suggestions in plan.kinds. */
 export const STATUS_TONE: Record<SessionStatus, "gain" | "loss" | "brand" | "neutral"> = {
-  gedaan: "gain",
-  gemist: "loss",
-  vandaag: "brand",
-  gepland: "neutral",
-  rust: "neutral",
+  done: "gain",
+  missed: "loss",
+  today: "brand",
+  planned: "neutral",
+  rest: "neutral",
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -138,7 +138,7 @@ export function kmBySport(sessions: PlanSession[]): Record<string, { planned: nu
     if (s.sport === "rest") continue;
     const row = (out[s.sport] ??= { planned: 0, done: 0 });
     row.planned += s.distance_km ?? 0;
-    if (s.status === "gedaan") row.done += s.done?.distance_km ?? 0;
+    if (s.status === "done") row.done += s.done?.distance_km ?? 0;
   }
   return out;
 }

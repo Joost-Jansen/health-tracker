@@ -239,7 +239,7 @@ def races(activities: list[dict]) -> list[dict]:
                     {
                         "date": day,
                         "name": a.get("name") or "",  # the page words a heart-rate find as "race or test (name)"
-                        "detected": "naam" if named else "hartslag",
+                        "detected": "name" if named else "heart_rate",
                         "sport": a["sport"],
                         "seconds": a.get("moving_time_s"),
                         "distance_km": a.get("distance_km"),
@@ -265,7 +265,7 @@ def efforts(activities: list[dict], since: str) -> list[dict]:
             if raw.get(field):
                 out.append({"date": a["start_local"][:10], "km": km, "seconds": raw[field], "activity_id": a["id"], "source": "split"})
         if a["id"] in race_ids and a.get("moving_time_s"):
-            out.append({"date": a["start_local"][:10], "km": a["distance_km"], "seconds": a["moving_time_s"], "activity_id": a["id"], "source": "wedstrijd"})
+            out.append({"date": a["start_local"][:10], "km": a["distance_km"], "seconds": a["moving_time_s"], "activity_id": a["id"], "source": "race"})
     return out
 
 
@@ -427,15 +427,15 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
         out.append({"level": level, "code": code, "params": params})
 
     for r in recent or []:
-        add("goed", "record_set", key=r["key"], seconds=r["seconds"], previous_seconds=r["previous_seconds"], date=r["date"], activity_id=r["activity_id"])
+        add("good", "record_set", key=r["key"], seconds=r["seconds"], previous_seconds=r["previous_seconds"], date=r["date"], activity_id=r["activity_id"])
     if len(form) >= 8:
         now, week_ago = form[-1], form[-8]
         ramp = now["ctl"] - week_ago["ctl"]
         acwr = now["atl"] / now["ctl"] if now["ctl"] else None
         if acwr and acwr > 1.5:
-            add("let_op", "acwr_high", atl=round(now["atl"]), ctl=round(now["ctl"]), ratio=round(acwr, 1))
+            add("watch", "acwr_high", atl=round(now["atl"]), ctl=round(now["ctl"]), ratio=round(acwr, 1))
         elif ramp > 6:
-            add("let_op", "ramp_fast", ramp=round(ramp, 1))
+            add("watch", "ramp_fast", ramp=round(ramp, 1))
         elif now["tsb"] > 15:
             add("info", "fresh", tsb=round(now["tsb"]))
     since = (today - timedelta(days=28)).isoformat()
@@ -445,13 +445,13 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
     if total > 3600:
         easy = round((secs["Z1"] + secs["Z2"]) / total * 100)
         grey = round(secs["Z3"] / total * 100)
-        add("goed" if easy >= 75 else "let_op", "easy_share", easy_pct=easy, grey_pct=grey, hard_pct=100 - easy - grey)
+        add("good" if easy >= 75 else "watch", "easy_share", easy_pct=easy, grey_pct=grey, hard_pct=100 - easy - grey)
     sessions = [s for s in run_sessions(activities) if s["start_local"][:10] > since]
     if sessions:
         km = round(max(s["distance_km"] for s in sessions), 1)
         target = long_run_target(goal["km"]) if goal else None
         if target:
-            add("goed" if km >= target else "info", "long_run_goal", km=km, target_km=target, goal_km=goal["km"])
+            add("good" if km >= target else "info", "long_run_goal", km=km, target_km=target, goal_km=goal["km"])
         else:
             add("info", "longest_run", km=km)
     if goal and goal.get("seconds"):

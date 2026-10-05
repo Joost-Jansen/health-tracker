@@ -119,7 +119,7 @@ def v_len(s):
 # --- candidate pairs: "is this the same loop?" ----------------------------------------------------------
 
 CAND_ROUTES = [
-    {**ROUTES[0], "sport": "run", "name": "4.0 km rondje (r1)", "activity_ids": ["a", "b"], "medoid_id": "a"},
+    {**ROUTES[0], "sport": "run", "name": "4.0 km loop (r1)", "activity_ids": ["a", "b"], "medoid_id": "a"},
     {"id": "r3", "sport": "run", "name": "Met de brug", "distance_km": 5.0, "is_loop": True, "runs": 1, "first_run": "2026-09-20", "last_run": "2026-09-20", "start": list(HOME), "end": list(HOME), "median_pace": "5:20", "median_hr": 140, "activity_ids": ["g"], "medoid_id": "g"},
 ]
 CAND_ACTS = ACTS + [
@@ -128,8 +128,8 @@ CAND_ACTS = ACTS + [
 ]
 PENDING = {
     "candidates": [
-        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg"},
-        {"a": {"id": "r1", "kind": "route", "name": "4.0 km rondje (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"}, "sport": "run", "outcome": "candidate", "confidence": 0.6, "reason": "zelfde rondje, ander startpunt"},
+        {"a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "r3", "kind": "route", "name": "Met de brug", "distance_km": 5.0, "runs": 1}, "sport": "run", "outcome": "candidate", "confidence": 0.7, "reason": "zelfde rondje met een extra lus of omweg"},
+        {"a": {"id": "r1", "kind": "route", "name": "4.0 km loop (r1)", "distance_km": 4.0, "runs": 2}, "b": {"id": "h", "kind": "activity", "name": None, "distance_km": 4.6, "runs": 1, "date": "2026-09-25"}, "sport": "run", "outcome": "candidate", "confidence": 0.6, "reason": "zelfde rondje, ander startpunt"},
     ]
 }
 

@@ -100,8 +100,11 @@ an existing page. Remove a redirect (and its line in that test) once nobody uses
 | `/analyses/doelen/`, `/analyses/profiel/` | `/analyses/goals/`, `/analyses/profile/` |
 | `/help/handleiding/` | `/help/guide/` |
 
-Ids did not change: the onboarding page ids stored per user (`visited`: `rondjes`, `historie`), the nav and catalog keys
-(`nav.items.rondjes`, `nav.tabs.koppelingen`, ...) and the guide's anchors (`#gegevens`) keep their names.
+The ids followed in schema 3: onboarding page ids (`visited`: `routes`, `history`), plan statuses (`active`, `finished`,
+`stopped`), nav and catalog keys (`nav.items.routes`, `nav.tabs.connections`, ...) and the guide's anchors (`#data`) are
+English. `tools/db.py` `_migrate_v3` converts the Dutch values a schema 2 database holds; the API also still accepts the
+old onboarding page ids and plan statuses in Dutch from MCP agents. Generated route names are English too ("6.0 km loop
+(r1)"); the site shows them in the user's language and still recognises the Dutch ones.
 
 ## API contract
 
@@ -128,7 +131,7 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | POST | `/api/connections/sync` | sync now in the background |
 | GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
 | GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |
-| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|rondjes\|historie}` (stored page ids; the pages themselves are `/routes/` and `/history/`) |
+| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|routes\|history}` |
 
 Sync: `web` runs a daily sync for every connected user after 06:00 Europe/Amsterdam (`api/sync_runner.py`, off with `SYNC_IN_WEB=false`); the optional cron `sync` (`tools/sync.py run_all_users`) does the same.
 

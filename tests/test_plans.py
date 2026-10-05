@@ -50,7 +50,7 @@ def test_match_statuses_and_split_runs():
     ]
     acts = [act("a", "2026-10-05", km=6), act("b", "2026-10-05", km=4), act("c", "2026-10-08", sport="swim", km=2)]
     out = match_sessions(sessions, acts, date(2026, 10, 8))
-    assert [s["status"] for s in out] == ["gedaan", "gemist", "rust", "gedaan", "gepland"]
+    assert [s["status"] for s in out] == ["done", "missed", "rest", "done", "planned"]
     assert out[0]["done"]["distance_km"] == 10 and set(out[0]["activity_ids"]) == {"a", "b"}
     weeks = weekly_summary(out)
     assert weeks[0]["planned"] == 4 and weeks[0]["done"] == 2 and weeks[0]["missed"] == 1
@@ -72,9 +72,9 @@ def test_route_suggestions_follow_the_session_sport():
 
     routes = [route("r1", "run", 10.0), route("f1", "ride", 40.0)]
     sessions = [
-        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "gepland"},
-        {"date": "2026-10-06", "sport": "ride", "distance_km": 40.0, "status": "gepland"},
-        {"date": "2026-10-07", "sport": "swim", "distance_km": 2.0, "status": "gepland"},
+        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "planned"},
+        {"date": "2026-10-06", "sport": "ride", "distance_km": 40.0, "status": "planned"},
+        {"date": "2026-10-07", "sport": "swim", "distance_km": 2.0, "status": "planned"},
     ]
     suggest_routes(sessions, routes, _date(2026, 10, 3))
     assert sessions[0]["route_suggestion"]["parts"] == ["r1"]
@@ -92,8 +92,8 @@ def test_chosen_route_replaces_the_suggestion():
         {"id": "r2", "name": "Dijk", "sport": "run", "distance_km": 14.2, "is_loop": True, "last_run": "2026-09-01", "start": [52.0, 5.0], "end": [52.0, 5.0]},
     ]
     sessions = [
-        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "gepland", "route_id": "r2"},
-        {"date": "2026-10-06", "sport": "run", "distance_km": 10.0, "status": "gepland", "route_id": "onbekend"},
+        {"date": "2026-10-05", "sport": "run", "distance_km": 10.0, "status": "planned", "route_id": "r2"},
+        {"date": "2026-10-06", "sport": "run", "distance_km": 10.0, "status": "planned", "route_id": "unknown"},
     ]
     suggest_routes(sessions, routes, _date(2026, 10, 3))
     assert sessions[0]["route"] == {"id": "r2", "name": "Dijk", "distance_km": 14.2}

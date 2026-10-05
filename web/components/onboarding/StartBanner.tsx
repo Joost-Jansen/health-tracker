@@ -18,7 +18,7 @@ function text(o: Onboarding, t: Messages): { text: string; href: string; link: s
   const st = o.status;
   const b = t.onboarding.banner;
   if (!st.garmin.connected) return { text: b.notConnected, href: "/settings/connections/", link: b.connect };
-  if (st.sync.running) return { text: b.syncing, href: "/help/guide/#gegevens", link: b.how };
+  if (st.sync.running) return { text: b.syncing, href: "/help/guide/#data", link: b.how };
   return { text: b.waiting, href: "/settings/connections/", link: b.toConnections };
 }
 

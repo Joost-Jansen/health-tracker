@@ -25,11 +25,11 @@ function amount(s: PlanSession, f: Format) {
 /** Only what differs from "planned" gets a label; today is already shown above the day. */
 function StatusTag({ s }: { s: PlanSession }) {
   const t = useT();
-  if (s.status !== "gedaan" && s.status !== "gemist") return null;
+  if (s.status !== "done" && s.status !== "missed") return null;
   const tone = STATUS_TONE[s.status];
   return (
     <Tag tone={tone} outline={tone === "neutral"} className="flex-none">
-      {s.status === "gedaan" && (
+      {s.status === "done" && (
         <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M2.5 6.2 4.8 8.5 9.5 3.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       )}
       {t.plan.statuses[s.status]}
@@ -105,12 +105,12 @@ function SessionItem({ s }: { s: PlanSession }) {
   const title = s.kind ? capitalise(s.kind) : t.sport(s.sport);
   const amt = amount(s, f);
   return (
-    <div className={`flex gap-3 ${s.status === "gemist" ? "opacity-75" : ""}`}>
+    <div className={`flex gap-3 ${s.status === "missed" ? "opacity-75" : ""}`}>
       <SportBadge sport={s.sport} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 pt-[3px]">
-            <span className={`text-[14px] font-semibold ${s.status === "gemist" ? "line-through decoration-[var(--text-loss)] decoration-1" : ""}`}>{title}</span>
+            <span className={`text-[14px] font-semibold ${s.status === "missed" ? "line-through decoration-[var(--text-loss)] decoration-1" : ""}`}>{title}</span>
             {amt && <span className="text-[14px] tabular-nums">{amt}</span>}
             {s.kind && <span className="text-[12px] text-ink-muted">{t.sport(s.sport)}</span>}
             <ZoneChip zone={s.target_zone} />
@@ -120,7 +120,7 @@ function SessionItem({ s }: { s: PlanSession }) {
         </div>
         {s.description && <p className="mt-0.5 max-w-[72ch] text-[12.5px] leading-relaxed text-ink-muted">{s.description}</p>}
         {s.done && <Done s={s} />}
-        {s.status !== "gedaan" && s.status !== "gemist" && <Route s={s} />}
+        {s.status !== "done" && s.status !== "missed" && <Route s={s} />}
       </div>
     </div>
   );
@@ -181,14 +181,14 @@ function DayRow({ date, sessions, today }: { date: string; sessions: PlanSession
 function Strip({ sessions }: { sessions: PlanSession[] }) {
   const items = sessions.filter((s) => s.sport !== "rest");
   const colour: Record<string, string> = {
-    gedaan: "var(--data-gain)",
-    gemist: "var(--data-loss)",
-    vandaag: "var(--surface-brand)",
-    gepland: "var(--surface-inset)",
+    done: "var(--data-gain)",
+    missed: "var(--data-loss)",
+    today: "var(--surface-brand)",
+    planned: "var(--surface-inset)",
   };
   return (
     <span className="flex h-[6px] w-full max-w-[220px] gap-[3px]" aria-hidden>
-      {items.map((s, i) => <span key={i} className="flex-1 rounded-full" style={{ background: colour[s.status ?? "gepland"] ?? "var(--surface-inset)" }} />)}
+      {items.map((s, i) => <span key={i} className="flex-1 rounded-full" style={{ background: colour[s.status ?? "planned"] ?? "var(--surface-inset)" }} />)}
     </span>
   );
 }
@@ -217,8 +217,8 @@ export default function WeekCard({
   const past = week.days[6].date < today;
   const isRaceWeek = !!raceDate && raceDate >= week.monday && raceDate <= week.days[6].date;
   const train = week.sessions.filter((s) => s.sport !== "rest");
-  const done = train.filter((s) => s.status === "gedaan").length;
-  const missed = train.filter((s) => s.status === "gemist").length;
+  const done = train.filter((s) => s.status === "done").length;
+  const missed = train.filter((s) => s.status === "missed").length;
   const km = Object.entries(kmBySport(week.sessions)).filter(([, v]) => v.planned > 0 || v.done > 0);
   const label = current ? w.thisWeek : isRaceWeek ? w.raceWeek : index === 0 && !past ? w.firstWeek : w.week(index + 1);
 

@@ -33,7 +33,7 @@ const MAIN = ["run", "ride", "swim"];
 const SPORT_COLOUR: Record<string, string> = { run: "var(--chart-1)", ride: "var(--chart-4)", swim: "var(--chart-3)" };
 const RECORD_COLOUR: Record<RecordKey, string> = { "1k": "var(--chart-4)", "5k": "var(--chart-1)", "10k": "var(--chart-3)", "21k": "var(--chart-5)" };
 const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
-const levelColour = (level: string) => (level === "goed" ? "var(--zone-2)" : level === "let_op" ? "var(--zone-4)" : "var(--zone-1)");
+const levelColour = (level: string) => (level === "good" ? "var(--zone-2)" : level === "watch" ? "var(--zone-4)" : "var(--zone-1)");
 
 export default function TrendsPage() {
   const tr = useT();
@@ -138,7 +138,7 @@ export default function TrendsPage() {
   const hrv = series("hrv");
   const hasSleep = recovery.some((r) => r.sleep_h != null);
 
-  const raceName = (r: TrendsPlus["races"][number]) => (r.sport === "triathlon" ? TT.races.triathlon : r.detected === "hartslag" ? TT.races.byHeartRate(r.name) : r.name);
+  const raceName = (r: TrendsPlus["races"][number]) => (r.sport === "triathlon" ? TT.races.triathlon : r.detected === "heart_rate" ? TT.races.byHeartRate(r.name) : r.name);
   const races = t.races.filter((r) => all || r.sport === sport);
   const raceMarkers = races.map((r) => ({ d: r.date, label: raceName(r) }));
   const hasRecords = Object.values(t.records).some((rows) => rows.length > 0);

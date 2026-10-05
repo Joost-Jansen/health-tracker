@@ -8,7 +8,7 @@ import type { RecentItem } from "@/lib/training";
 
 export default function RecentActivities({ items }: { items: RecentItem[] }) {
   const tt = useT();
-  const t = tt.texts.vandaag.recent;
+  const t = tt.texts.today.recent;
   const f = useFormat();
   return (
     <Card title={t.title} more={t.more} moreHref="/history/">

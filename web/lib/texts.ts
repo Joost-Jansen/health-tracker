@@ -33,10 +33,10 @@ export const T = {
 
   /** Under the status as a heading ("Fris", "In balans" …), so without repeating that name. */
   formStatus: {
-    fris: "Er is ruimte voor een zware training of een wedstrijd.",
-    "in balans": "Belasting en herstel houden elkaar in evenwicht.",
-    vermoeid: "Je bouwt op; plan binnenkort een rustiger dag.",
-    "zeer vermoeid": "De belasting is hoog tegenover wat je gewend bent; neem rust.",
+    fresh: "Er is ruimte voor een zware training of een wedstrijd.",
+    balanced: "Belasting en herstel houden elkaar in evenwicht.",
+    tired: "Je bouwt op; plan binnenkort een rustiger dag.",
+    very_tired: "De belasting is hoog tegenover wat je gewend bent; neem rust.",
   } as Record<string, string>,
 
   formMethod: "Belasting per training = TRIMP uit gemiddelde hartslag, rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
@@ -141,14 +141,14 @@ export const T = {
   },
 
   /** Vandaag (dashboard). The API gives codes and numbers; the sentences are here. */
-  vandaag: {
+  today: {
     readiness: {
       title: "Klaar voor vandaag?",
-      verdict: { klaar: "Klaar voor training", "rustig aan": "Rustig aan", herstel: "Herstel eerst", onbekend: "Geen nachtdata" } as Record<string, string>,
+      verdict: { ready: "Klaar voor training", easy: "Rustig aan", recover: "Herstel eerst", unknown: "Geen nachtdata" } as Record<string, string>,
       advice: {
-        herstel: "Meerdere signalen van vermoeidheid. Maak er een rustdag of heel rustige training van.",
-        "rustig aan": "Eén of twee signalen wijken af. Train gerust, maar houd het rustig (Z1-Z2) of kort.",
-        klaar: "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld.",
+        recover: "Meerdere signalen van vermoeidheid. Maak er een rustdag of heel rustige training van.",
+        easy: "Eén of twee signalen wijken af. Train gerust, maar houd het rustig (Z1-Z2) of kort.",
+        ready: "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld.",
       } as Record<string, string>,
       /** Without night data and without deviating signals: what is there is fine. */
       unknown: (labels: string[]) => `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
@@ -284,7 +284,7 @@ export const T = {
           return { title: "Fris", text: `Vorm +${i.params.tsb}: goed moment voor een wedstrijd of een zware sessie.` };
         case "easy_share": {
           const p = i.params;
-          const low = i.level !== "goed";
+          const low = i.level !== "good";
           return {
             title: `${p.easy_pct}% rustig (Z1-Z2) de laatste 4 weken`,
             text: `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. Voor duurtraining is ongeveer 80% rustig de gangbare richtlijn.` + (low ? " Wedstrijden tellen mee; zonder wedstrijd hoort het grootste deel in Z1-Z2 te liggen." : ""),

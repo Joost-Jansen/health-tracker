@@ -134,8 +134,8 @@ def test_plans_import_edit_and_match(client):
     assert preview["saved"] is False and len(preview["sessions"]) == 2
     res = client.post("/api/plans/import", json={"text": text, "title": "Test"}).json()
     plan = res["plan"]
-    assert plan["title"] == "Test" and plan["status"] == "actief"
-    assert plan["sessions"][0]["status"] == "gedaan"  # the 10 km run on 2026-09-29 in the fixture
+    assert plan["title"] == "Test" and plan["status"] == "active"
+    assert plan["sessions"][0]["status"] == "done"  # the 10 km run on 2026-09-29 in the fixture
     sessions = [{k: s[k] for k in ("date", "sport", "distance_km")} for s in plan["sessions"]][:1]
     edited = client.put(f"/api/plans/{plan['id']}/sessions", json=sessions).json()
     assert len(edited["sessions"]) == 1

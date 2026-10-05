@@ -11,7 +11,7 @@ const SPORT_ORDER = ["run", "ride", "swim"];
 const bySportOrder = (a: string, b: string) => (SPORT_ORDER.indexOf(a) + 1 || 99) - (SPORT_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b);
 
 function Countdown({ race }: { race: NextRace }) {
-  const t = useT().texts.vandaag.race;
+  const t = useT().texts.today.race;
   const f = useFormat();
   const today = race.days === 0;
   return (
@@ -30,7 +30,7 @@ function Countdown({ race }: { race: NextRace }) {
 /** Kilometres when the plan has distances, otherwise the time. */
 function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
   const tt = useT();
-  const t = tt.texts.vandaag.planWeek;
+  const t = tt.texts.today.planWeek;
   const f = useFormat();
   const byKm = row.planned_km > 0;
   const planned = byKm ? row.planned_km : row.planned_s;
@@ -53,7 +53,7 @@ function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
 }
 
 export default function PlanWeekCard({ week, race, className = "" }: { week: PlanWeekSummary; race?: NextRace | null; className?: string }) {
-  const t = useT().texts.vandaag.planWeek;
+  const t = useT().texts.today.planWeek;
   const sports = Object.keys(week.sports).sort(bySportOrder);
   const c = week.sessions;
   return (

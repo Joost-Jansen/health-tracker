@@ -477,7 +477,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
 
     db.set_setting(s, "sync_state", {"last_sync_local": f"{end.isoformat()} 06:02"})
     db.set_setting(s, "onboarding", {"choice": "claude", "done": True, "step": 0, "hidden": ["checklist", "data"],
-                                     "visited": ["dashboard", "trends", "rondjes", "historie"]})
+                                     "visited": ["dashboard", "trends", "routes", "history"]})
 
     half_time = half_result["moving_time_s"] if half_result else 0
     half_pace = round(half_time / 21.1) if half_result else 0

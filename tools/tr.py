@@ -67,7 +67,8 @@ def context_markdown(ctx: dict) -> str:
         out.append("")
     f = d.get("form")
     if f:
-        out += [f"## Vorm: {f['status']}", f"Fitheid {f['ctl']:.0f}, vermoeidheid {f['atl']:.0f}, vorm {f['tsb']:+.0f}; piek fitheid {f['ctl_peak']:.0f} op {f['ctl_peak_date']}.", ""]
+        status = {"fresh": "fris", "balanced": "in balans", "tired": "vermoeid", "very_tired": "zeer vermoeid"}.get(f["status"], f["status"])
+        out += [f"## Vorm: {status}", f"Fitheid {f['ctl']:.0f}, vermoeidheid {f['atl']:.0f}, vorm {f['tsb']:+.0f}; piek fitheid {f['ctl_peak']:.0f} op {f['ctl_peak_date']}.", ""]
     out.append("## Volume deze week (gemiddelde 4 weken)")
     for sport, v in d["volume"]["week"].items():
         avg = d["volume"]["avg4w"].get(sport, {})

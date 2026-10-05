@@ -35,10 +35,10 @@ export const textsEn = {
   zoneEstimate: (s: string) => `${Sport(s)} zones are an estimate (Settings, Zones and profile).`,
 
   formStatus: {
-    fris: "There is room for a hard session or a race.",
-    "in balans": "Load and recovery are in balance.",
-    vermoeid: "You are building up; plan an easier day soon.",
-    "zeer vermoeid": "Load is high compared with what you are used to; take a rest.",
+    fresh: "There is room for a hard session or a race.",
+    balanced: "Load and recovery are in balance.",
+    tired: "You are building up; plan an easier day soon.",
+    very_tired: "Load is high compared with what you are used to; take a rest.",
   } as Record<string, string>,
 
   formMethod:
@@ -134,14 +134,14 @@ export const textsEn = {
     wristHr: "Heart rate usually comes from the wrist: with an odd spike or dip in a session it's worth looking at the chart before drawing conclusions.",
   },
 
-  vandaag: {
+  today: {
     readiness: {
       title: "Ready for today?",
-      verdict: { klaar: "Ready to train", "rustig aan": "Take it easy", herstel: "Recover first", onbekend: "No overnight data" } as Record<string, string>,
+      verdict: { ready: "Ready to train", easy: "Take it easy", recover: "Recover first", unknown: "No overnight data" } as Record<string, string>,
       advice: {
-        herstel: "Several signs of fatigue. Make it a rest day or a very easy session.",
-        "rustig aan": "One or two signals are off. Train if you like, but keep it easy (Z1-Z2) or short.",
-        klaar: "Recovery looks normal. The planned session can go ahead as intended.",
+        recover: "Several signs of fatigue. Make it a rest day or a very easy session.",
+        easy: "One or two signals are off. Train if you like, but keep it easy (Z1-Z2) or short.",
+        ready: "Recovery looks normal. The planned session can go ahead as intended.",
       } as Record<string, string>,
       unknown: (labels: string[]) => `${f.list(labels)} ${labels.length > 1 ? "are" : "is"} fine; without overnight data recovery is hard to judge.`,
       noNight: "No sleep or resting heart rate from last night (watch not worn or not synced yet).",
@@ -259,7 +259,7 @@ export const textsEn = {
           return { title: "Fresh", text: `Form +${i.params.tsb}: a good moment for a race or a hard session.` };
         case "easy_share": {
           const p = i.params;
-          const low = i.level !== "goed";
+          const low = i.level !== "good";
           return {
             title: `${p.easy_pct}% easy (Z1-Z2) over the last 4 weeks`,
             text: `Z3 ${p.grey_pct}%, Z4-Z5 ${p.hard_pct}%. For endurance training about 80% easy is the usual guideline.` + (low ? " Races count too; without races most of it should be in Z1-Z2." : ""),

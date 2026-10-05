@@ -2,10 +2,11 @@
 // the race from the plan, colours per sport and status.
 
 import type { Format } from "@/lib/i18n";
+import { sportGroup } from "@/lib/sports";
 import type { PlanSession, SessionStatus } from "@/lib/training";
 
-/** What the API accepts as a sport (api/plans.py SPORTS). */
-export const PLAN_SPORTS = ["run", "ride", "swim", "strength_training", "rest"] as const;
+/** The sports the editor offers (api/plans.py SPORTS reads more names); any sport code of lib/sports.ts works. */
+export const PLAN_SPORTS = ["run", "ride", "swim", "strength_training", "walking", "hiking", "yoga", "rest"] as const;
 export type PlanSport = (typeof PLAN_SPORTS)[number];
 
 /** The same sport colours as on Trends. */
@@ -16,7 +17,8 @@ export const SPORT_COLOUR: Record<string, string> = {
   strength_training: "var(--chart-5)",
   rest: "var(--text-faint)",
 };
-export const sportColour = (s: string) => SPORT_COLOUR[s] ?? "var(--chart-6)";
+/** E-bike and hand cycling in the cycling colour; every other sport in clay. */
+export const sportColour = (s: string) => SPORT_COLOUR[s] ?? (sportGroup(s) === "ride" ? SPORT_COLOUR.ride : "var(--chart-6)");
 
 /** Zones the API understands (parse_zone): one zone or a range. */
 export const ZONE_OPTIONS = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z1-Z2", "Z2-Z3", "Z3-Z4", "Z4-Z5"];

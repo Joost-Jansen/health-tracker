@@ -28,7 +28,7 @@ export default function RecentActivities({ items }: { items: RecentItem[] }) {
               )}
             </span>
             <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
-              {a.distance_km ? f.km(a.distance_km) : f.duration(a.moving_time_s)} · {f.intensity(a)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
+              {a.distance_km ? `${f.km(a.distance_km)} · ${f.intensity(a)}` : f.duration(a.moving_time_s)}{a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
               {a.parts && a.parts > 1 && <span title={t.partsHelp}> · {t.parts(a.parts)}</span>}
             </span>
           </li>

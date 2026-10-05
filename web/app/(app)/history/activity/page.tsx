@@ -16,6 +16,7 @@ import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
 import { routeName, useFormat, useT, type Format, type Messages } from "@/lib/i18n";
 import { SportBadge } from "@/components/plan/SportIcon";
+import { effortKind } from "@/lib/sports";
 import { type ActivityDetail, zoneShare } from "@/lib/training";
 
 const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), { ssr: false, loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" /> });
@@ -120,7 +121,7 @@ function Detail({ id }: { id: string }) {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {a.distance_km ? <Stat label={t.activity.distance} value={f.km(a.distance_km)} /> : null}
           <Stat label={t.activity.time} value={f.clock(a.moving_time_s)} note={a.elapsed_time_s && a.elapsed_time_s - (a.moving_time_s ?? 0) > 60 ? t.activity.total(f.clock(a.elapsed_time_s)) : undefined} />
-          {a.distance_km ? <Stat label={a.sport === "ride" ? t.activity.speed : t.activity.pace} value={f.intensity(a)} /> : null}
+          {a.distance_km ? <Stat label={effortKind(a.sport) === "speed" ? t.activity.speed : t.activity.pace} value={f.intensity(a)} /> : null}
           {a.avg_hr ? <Stat label={t.activity.hr} value={`${a.avg_hr}`} note={a.max_hr ? t.activity.max(a.max_hr) : undefined} /> : null}
           {a.elevation_gain_m ? <Stat label={t.activity.elevation} value={`${Math.round(a.elevation_gain_m)} m`} /> : null}
           {a.avg_cadence_spm ? <Stat label={t.activity.cadence} value={`${a.avg_cadence_spm}`} note={t.activity.stepsPerMin} /> : a.vo2max ? <Stat label="VO2max" value={a.vo2max} /> : null}
@@ -177,7 +178,7 @@ function Detail({ id }: { id: string }) {
                   <th className="pb-2 font-normal">#</th>
                   <th className="pb-2 font-normal">{t.activity.distance}</th>
                   <th className="pb-2 font-normal">{t.activity.time}</th>
-                  <th className="pb-2 font-normal">{a.sport === "ride" ? t.activity.speed : t.activity.pace}</th>
+                  <th className="pb-2 font-normal">{effortKind(a.sport) === "speed" ? t.activity.speed : t.activity.pace}</th>
                   <th className="pb-2 font-normal">{t.activity.hrShort}</th>
                 </tr>
               </thead>

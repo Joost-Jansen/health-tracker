@@ -6,6 +6,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
+import { effortKind } from "@/lib/sports";
 import { fmtClock, ZONES } from "@/lib/training";
 
 type Panel = {
@@ -81,10 +82,11 @@ export default function StreamChart({
     panels.push({ key: "hr", label: t.charts.hr, values: smooth(heartrate.map((v) => v || null), 2), colour: "var(--n-800)", format: (v) => `${Math.round(v)}`, bands: bounds ?? undefined, height: 150 });
   }
   if (velocity?.some((v) => v)) {
-    const moving = velocity.map((v) => (v && v > (sport === "ride" ? 1.5 : 1.2) ? v : null));
-    if (sport === "ride") {
+    const kind = effortKind(sport);
+    const moving = velocity.map((v) => (v && v > (kind === "speed" ? 1.5 : 1.2) ? v : null));
+    if (kind === "speed") {
       panels.push({ key: "speed", label: t.charts.speed, values: smooth(moving.map((v) => (v == null ? null : v * 3.6)), 3), colour: "var(--chart-1)", format: (v) => `${f.num(v)} ${f.kmhUnit}`, height: 110 });
-    } else if (sport !== "swim") {
+    } else if (kind === "pace") {
       panels.push({ key: "pace", label: t.charts.pace, values: smooth(moving.map((v) => (v == null ? null : 1000 / v)), 3), colour: "var(--chart-1)", format: (v) => fmtClock(v), invert: true, height: 110 });
     }
   }

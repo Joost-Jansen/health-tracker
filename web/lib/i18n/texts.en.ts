@@ -6,14 +6,14 @@
 
 import type { T } from "@/lib/texts";
 import type { HrFlagReason, InsightCode, RecordKey } from "@/lib/training";
+import { lowerName, sportName } from "@/lib/sports";
 import { makeFormat } from "./format";
 
 type Texts = typeof T;
 export type DeepPartial<X> = X extends (...args: never[]) => unknown ? X : X extends object ? { [K in keyof X]?: DeepPartial<X[K]> } : X;
 
 const f = makeFormat("en");
-const SPORT: Record<string, string> = { run: "running", ride: "cycling", swim: "swimming", walking: "walking", strength_training: "strength", breathwork: "breathwork", resort_skiing: "skiing" };
-const sport = (s: string) => SPORT[s] ?? s.replace(/_/g, " ");
+const sport = (s: string) => lowerName(sportName(s, "en"));
 const sports = (items: string[]) => f.list(items.map(sport));
 const Sport = (s: string) => sport(s).charAt(0).toUpperCase() + sport(s).slice(1);
 const num = (n: number, digits = 1) => f.trim(n, digits);

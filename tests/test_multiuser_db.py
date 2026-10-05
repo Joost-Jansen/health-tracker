@@ -147,6 +147,7 @@ def test_schema_4_recomputes_the_sport_from_the_raw_type(tmp_path):
         "c": ("2026-09-03T08:00:00", "ride", raw("e_bike_fitness", 2)),
         "d": ("2026-09-04T08:00:00", "walk", {"strava": {"id": 2, "raw": {"sport_type": "Walk"}}}),
         "e": ("2026-09-05T08:00:00", "yoga", {}),
+        "f": ("2026-09-06T08:00:00", "walk", {"wahoo": {"fields": {}}}),
     }
     with e.begin() as c:
         for aid, (start, sport, sources) in rows.items():
@@ -155,7 +156,7 @@ def test_schema_4_recomputes_the_sport_from_the_raw_type(tmp_path):
         c.execute(db.app_settings.update().where(db.app_settings.c.key == "schema_version").values(value=3))
     db.create_schema(e)
     got = {a["id"]: a["sport"] for a in db.load_activities(s)}
-    assert got == {"a": "run", "b": "tennis", "c": "e_bike", "d": "walking", "e": "yoga"}
+    assert got == {"a": "run", "b": "tennis", "c": "e_bike", "d": "walking", "e": "yoga", "f": "walking"}
     with e.connect() as c:
         assert dict(c.execute(db.select(db.activities.c.id, db.activities.c.sport)).all()) == got
 

@@ -109,6 +109,10 @@ minutes of each other are the same activity). Sleep, resting HR, Body Battery, s
 The API computes everything else (form, trends, plan matching, readiness) from that data on request, with a small per-user
 cache that is invalidated after a sync.
 
+**Other devices.** Rides or runs that never reached Garmin (a Wahoo bike computer, Zwift, a borrowed watch) can be
+uploaded as FIT files under History. They go through the same merge: a file whose start matches an activity that is
+already there is folded into it instead of counted twice, with Garmin's values leading.
+
 The web app is a static export (`web/out`) served by the same FastAPI process, so there is one service, one origin and no
 CORS. In development `next dev` proxies `/api/*` to the API.
 

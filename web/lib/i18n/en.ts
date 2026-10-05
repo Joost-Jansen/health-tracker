@@ -145,6 +145,9 @@ export const en: Messages = {
     tokens_site_only: "Agent tokens can only be managed when logged in on the site.",
     token_name_length: (p: { min: number; max: number }) => `A name of ${p.min} to ${p.max} characters.`,
     too_many_tokens: (p: { max: number }) => `At most ${p.max} tokens; revoke one first.`,
+    upload_empty: "Empty file.",
+    upload_too_large: (p: { max_mb: number }) => `File larger than ${p.max_mb} MB.`,
+    fit_unreadable: "No readable activity in this FIT file.",
     token_not_found: "Token not found.",
     connections_site_only: "Connections can only be managed when logged in on the site.",
     no_encryption_key: "The server has no key to store the connection safely (TOKEN_ENCRYPTION_KEY).",
@@ -317,6 +320,18 @@ export const en: Messages = {
     heatNote: "The more often you pass somewhere, the fuller the line. The map starts at home; zoom out for holidays.",
     heatAria: (n: number) => `Heatmap of ${n} routes`,
     noGps: "No routes with GPS.",
+    upload: {
+      button: "Upload FIT",
+      title: "Upload activities",
+      hint: "Rides from a Wahoo (or another device) that are not on Garmin. Choose one or more .fit files: in the ELEMNT app per ride via Share, or from the Dropbox folder Wahoo fills automatically. A ride that already came in through Garmin is merged instead of counted twice.",
+      choose: "Choose files",
+      working: (i: number, n: number) => `Working on ${i} of ${n}…`,
+      added: "added",
+      merged: (with_: string) => `merged with ${with_}`,
+      failed: "failed",
+      done: (n: number) => f.plural(n, { one: "# activity processed.", other: "# activities processed." }),
+      close: "Close",
+    },
   },
 
   activity: {

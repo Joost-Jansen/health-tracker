@@ -292,7 +292,7 @@ def _migrate_v4(conn) -> None:
     """The sport of every stored activity again from its raw Garmin or Strava type (tools/sports.py): running,
     cycling and swimming variants that had their own code before, and Garmin's `_v2`/`_ws` suffixes."""
     for row in conn.execute(select(activities.c.user_id, activities.c.id, activities.c.sport, activities.c.data)).mappings().all():
-        sport = sport_of(row["data"] or {})
+        sport = sport_of(row["data"] or {}) or {"walk": "walking", "hike": "hiking"}.get(row["sport"])  # FIT uploads before v4
         if sport and sport != row["sport"]:
             data = {**row["data"], "sport": sport}
             conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(sport=sport, data=data))

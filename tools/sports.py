@@ -92,3 +92,39 @@ def sport_of(record: dict) -> str | None:
     if strava.get("sport_type") or strava.get("type"):
         return strava_sport(strava.get("sport_type") or strava.get("type"))
     return None
+
+
+# A FIT file's session.sport and sub_sport (the FIT profile's names, e.g. from a Wahoo) -> our code.
+FIT_SPORTS = {
+    "running": "run", "cycling": "ride", "swimming": "swim", "transition": "transition", "multisport": "multi_sport",
+    "generic": "other", "training": "strength_training", "fitness_equipment": "fitness_equipment",
+    "walking": "walking", "hiking": "hiking", "e_biking": "e_bike", "rowing": "rowing", "cross_country_skiing": "cross_country_skiing",
+    "alpine_skiing": "resort_skiing", "snowboarding": "resort_snowboarding", "snowshoeing": "snow_shoe", "ice_skating": "skating",
+    "inline_skating": "inline_skating", "paddling": "paddling", "kayaking": "kayaking", "stand_up_paddleboarding": "stand_up_paddleboarding",
+    "surfing": "surfing", "kitesurfing": "kiteboarding", "windsurfing": "windsurfing", "sailing": "sailing", "wakeboarding": "wakeboarding",
+    "water_skiing": "waterskiing", "rafting": "whitewater_rafting", "rock_climbing": "rock_climbing", "mountaineering": "mountaineering",
+    "golf": "golf", "disc_golf": "disc_golf", "tennis": "tennis", "padel": "padel", "pickleball": "pickleball", "racket": "racket_sports",
+    "soccer": "soccer", "basketball": "basketball", "volleyball": "volleyball", "american_football": "american_football",
+    "baseball": "baseball", "cricket": "cricket", "rugby": "rugby", "hockey": "field_hockey", "ice_hockey": "ice_hockey",
+    "lacrosse": "lacrosse", "boxing": "boxing", "mixed_martial_arts": "mixed_martial_arts", "dance": "dance", "jumpmaster": "sky_diving",
+    "diving": "diving", "horseback_riding": "horseback_riding", "hunting": "hunting", "fishing": "fishing", "flying": "flying",
+    "hang_gliding": "hang_gliding", "driving": "driving_general", "motorcycling": "motorcycling", "wheelchair_push_run": "wheelchair_push_run",
+    "wheelchair_push_walk": "wheelchair_push_walk", "meditation": "meditation", "jump_rope": "jump_rope",
+}
+FIT_SUB_SPORTS = {
+    "e_bike_fitness": "e_bike", "e_bike_mountain": "e_bike", "hand_cycling": "hand_cycling", "indoor_hand_cycling": "hand_cycling",
+    "strength_training": "strength_training", "cardio_training": "indoor_cardio", "yoga": "yoga", "pilates": "pilates", "hiit": "hiit",
+    "breathing": "breathwork", "flexibility_training": "mobility", "indoor_rowing": "indoor_rowing", "elliptical": "elliptical",
+    "stair_climbing": "stair_climbing", "indoor_climbing": "indoor_climbing", "bouldering": "bouldering", "backcountry": "backcountry_skiing",
+    "skate_skiing": "skate_skiing",
+}
+
+
+def fit_sport(sport: str | None, sub_sport: str | None = None) -> str:
+    """Our code for a FIT file's sport and sub_sport ("cycling"/"e_bike_mountain", "training"/"yoga", ...)."""
+    sport, sub = (sport or "").lower(), (sub_sport or "").lower()
+    if sub in FIT_SUB_SPORTS and sport in ("cycling", "training", "fitness_equipment", "rowing", "rock_climbing", "cross_country_skiing", "alpine_skiing", "e_biking"):
+        return FIT_SUB_SPORTS[sub]
+    if sport in FIT_SPORTS:
+        return FIT_SPORTS[sport]
+    return sport or "other"

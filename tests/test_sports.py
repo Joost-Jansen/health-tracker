@@ -64,11 +64,19 @@ def test_every_garmin_type_has_a_name_and_icon_on_the_site():
     from pathlib import Path
 
     from api.plans import SPORTS as PLAN_SPORTS
-    from tools.sports import STRAVA_SPORTS
+    from tools.sports import FIT_SPORTS, FIT_SUB_SPORTS, STRAVA_SPORTS
 
     here = Path(__file__).resolve().parent
     types = json.loads((here / "garmin_activity_types.json").read_text())
     assert len(types) > 150
-    codes = {garmin_sport(x) for x in types} | set(STRAVA_SPORTS.values()) | set(PLAN_SPORTS)
+    codes = {garmin_sport(x) for x in types} | set(STRAVA_SPORTS.values()) | set(FIT_SPORTS.values()) | set(FIT_SUB_SPORTS.values()) | set(PLAN_SPORTS)
     web = set(re.findall(r"^  ([a-z_]+): s\(", (here.parent / "web" / "lib" / "sports.ts").read_text(), re.M))
     assert codes <= web, sorted(codes - web)
+
+
+def test_fit_files_from_other_devices_use_the_same_codes():
+    from tools.sports import fit_sport
+
+    assert [fit_sport(*x) for x in [("cycling", "road"), ("cycling", "e_bike_mountain"), ("running", "treadmill"), ("training", "yoga"),
+            ("training", "generic"), ("fitness_equipment", "indoor_rowing"), ("walking", None), ("generic", None), (None, None)]] == [
+        "ride", "e_bike", "run", "yoga", "strength_training", "indoor_rowing", "walking", "other", "other"]

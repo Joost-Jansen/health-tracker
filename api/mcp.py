@@ -63,7 +63,7 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"id": _str("activity id, bv. 2026-09-27_1130_run")}, "required": ["id"]},
     },
     {"name": "get_trends", "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.", "inputSchema": {"type": "object", "properties": {}}},
-    {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje.", "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.", "inputSchema": {"type": "object", "properties": {}}},
     {
         "name": "create_plan",
         "description": "Nieuw trainingsschema uit een tabel. Wordt het actieve schema; het vorige gaat naar afgerond. Gebruik preview=true om eerst te zien hoe de tabel gelezen wordt.",
@@ -176,6 +176,8 @@ def plan_md(plan: dict | None) -> str:
     for s in plan["sessions"]:
         d = s.get("done")
         done = (f"{d['distance_km']} km {_clock(d['moving_time_s'])} HR {d.get('avg_hr') or '-'}" + (f", {d['zone_pct']}% volgens zone" if d.get("zone_pct") is not None else "")) if d else ""
+        if d and d.get("date") != s["date"]:
+            done += f", gedaan op {d['date']}"
         rs = s.get("route_suggestion")
         out.append(
             f"| {s['date']} | {s['sport']} | {s.get('kind') or ''} | {s.get('distance_km') or ''} | {s.get('duration_min') or ''} | {s.get('target_zone') or ''} | "

@@ -27,7 +27,8 @@ function Countdown({ race }: { race: NextRace }) {
   );
 }
 
-/** Kilometres when the plan has distances, otherwise the time. */
+/** Kilometres when the plan has distances, otherwise the time. A sport done without a session this week shows only
+ *  what was done. */
 function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
   const tt = useT();
   const t = tt.texts.vandaag.planWeek;
@@ -35,8 +36,11 @@ function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
   const byKm = row.planned_km > 0;
   const planned = byKm ? row.planned_km : row.planned_s;
   const done = byKm ? row.done_km : row.done_s;
-  const pct = planned ? Math.min(100, (done / planned) * 100) : row.sessions ? (row.done / row.sessions) * 100 : 0;
-  const amount = byKm ? t.ofPlanned(f.km(row.done_km), f.km(row.planned_km)) : planned ? t.ofPlanned(f.duration(row.done_s), f.duration(row.planned_s)) : t.ofPlanned(String(row.done), String(row.sessions));
+  const unplanned = row.sessions === 0;
+  const pct = unplanned ? 100 : planned ? Math.min(100, (done / planned) * 100) : (row.done / row.sessions) * 100;
+  const amount = unplanned
+    ? row.done_km > 0 ? f.km(row.done_km) : f.duration(row.done_s)
+    : byKm ? t.ofPlanned(f.km(row.done_km), f.km(row.planned_km)) : planned ? t.ofPlanned(f.duration(row.done_s), f.duration(row.planned_s)) : t.ofPlanned(String(row.done), String(row.sessions));
   return (
     <li className="grid grid-cols-[22px_1fr_auto] items-baseline gap-x-2.5 gap-y-1 border-t border-border py-2 text-[13px] first:border-t-0">
       <span className="row-span-2 self-center"><SportBadge sport={sport} size={22} /></span>

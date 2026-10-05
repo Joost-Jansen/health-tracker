@@ -176,6 +176,17 @@ sessions = Table(
     Column("description", Text),
     Column("route_id", String(20)),
 )
+plan_links = Table(
+    # What the user decided about an activity in a plan: linked to the session of its sport on `session_date`, or
+    # (session_date NULL) not part of the plan. Keyed by date, not session id: editing a plan replaces its sessions.
+    "plan_links",
+    meta,
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("plan_id", Integer, ForeignKey("plans.id", ondelete="CASCADE"), nullable=False),
+    Column("activity_id", String(80), nullable=False),
+    Column("session_date", String(10)),
+    PrimaryKeyConstraint("plan_id", "activity_id"),
+)
 routes = Table(
     "routes",
     meta,
@@ -186,7 +197,7 @@ routes = Table(
     PrimaryKeyConstraint("user_id", "id"),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plans, routes)
+USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plan_links, plans, routes)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -620,7 +631,23 @@ def get_plan(s: Scope, plan_id: int) -> dict | None:
             return None
         items = conn.execute(select(sessions).where(sessions.c.plan_id == plan_id).order_by(sessions.c.date, sessions.c.id)).mappings()
         out = {k: v for k, v in row.items() if k != "user_id"}
-        return {**out, "created_at": row["created_at"].isoformat(), "sessions": [dict(x) for x in items]}
+        links = {r.activity_id: r.session_date for r in conn.execute(select(plan_links).where(plan_links.c.plan_id == plan_id))}
+        return {**out, "created_at": row["created_at"].isoformat(), "sessions": [dict(x) for x in items], "links": links}
+
+
+def set_plan_link(s: Scope, plan_id: int, activity_id: str, session_date: str | None) -> None:
+    """Link an activity to the plan's session of its sport on `session_date`, or with None keep it out of the plan."""
+    with s.engine.begin() as conn:
+        if not _owns_plan(conn, s, plan_id):
+            raise KeyError(f"plan {plan_id}")
+        conn.execute(delete(plan_links).where(plan_links.c.plan_id == plan_id, plan_links.c.activity_id == activity_id))
+        conn.execute(insert(plan_links).values(user_id=s.user_id, plan_id=plan_id, activity_id=activity_id, session_date=session_date))
+
+
+def clear_plan_link(s: Scope, plan_id: int, activity_id: str) -> None:
+    """Back to automatic matching for this activity."""
+    with s.engine.begin() as conn:
+        conn.execute(delete(plan_links).where(plan_links.c.user_id == s.user_id, plan_links.c.plan_id == plan_id, plan_links.c.activity_id == activity_id))
 
 
 def active_plan(s: Scope) -> dict | None:

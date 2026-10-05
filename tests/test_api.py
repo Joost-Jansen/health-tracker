@@ -143,6 +143,22 @@ def test_plans_import_edit_and_match(client):
     assert client.patch(f"/api/plans/{plan['id']}", json={"goal": "marathon"}).json()["goal"] == "marathon"
 
 
+def test_plan_links_set_and_cleared_by_hand(client):
+    login(client)
+    # the fixture has a 10 km run on 2026-09-29; the plan has runs on 28 Sep (near) and 4 Oct
+    plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-09-28", "sport": "run"}, {"date": "2026-10-04", "sport": "run"}]}).json()
+    aid = plan["sessions"][0]["activity_ids"][0]
+    assert plan["sessions"][0]["match"] == "near"
+    url = f"/api/plans/{plan['id']}/links/{aid}"
+    out = client.put(url, json={"session_date": None}).json()
+    assert [s["status"] for s in out["sessions"]] == ["gemist", "gemist"] and out["weeks"][0]["done_km"] == 10
+    out = client.put(url, json={"session_date": "2026-10-04"}).json()
+    assert [s.get("match") for s in out["sessions"]] == [None, "manual"]
+    assert client.put(url, json={"session_date": "2026-10-01"}).json()["code"] == "no_session_to_link"
+    assert client.put(f"/api/plans/{plan['id']}/links/bestaat-niet", json={"session_date": None}).status_code == 404
+    assert client.delete(url).json()["sessions"][0]["match"] == "near"
+
+
 def test_plan_sessions_replaced_from_table(client):
     login(client)
     plan = client.post("/api/plans", json={"title": "Blok", "sessions": [{"date": "2026-10-01", "sport": "run"}]}).json()

@@ -2,7 +2,7 @@
 // the race from the plan, colours per sport and status.
 
 import type { Format } from "@/lib/i18n";
-import type { PlanSession, SessionStatus } from "@/lib/training";
+import type { PlanSession, PlanWeek, SessionStatus } from "@/lib/training";
 
 /** What the API accepts as a sport (api/plans.py SPORTS). */
 export const PLAN_SPORTS = ["run", "ride", "swim", "strength_training", "rest"] as const;
@@ -112,10 +112,11 @@ export function planRace(race: string | null | undefined, sessions: PlanSession[
 
 /** `outside`: before the first or after the last session of the plan (not a rest day, the plan is not running then). */
 export type Day = { date: string; sessions: PlanSession[]; outside?: boolean };
-export type Week = { monday: string; days: Day[]; sessions: PlanSession[] };
+/** `km`: per sport planned against done, done being every activity of that sport that week (from the API). */
+export type Week = { monday: string; days: Day[]; sessions: PlanSession[]; km: Record<string, { planned: number; done: number }> };
 
 /** All weeks of the plan, every week with seven days (empty ones too), sessions per day in order. */
-export function buildWeeks(sessions: PlanSession[]): Week[] {
+export function buildWeeks(sessions: PlanSession[], planWeeks: PlanWeek[] = []): Week[] {
   if (!sessions.length) return [];
   const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
   const first = weekOf(sorted[0].date);
@@ -126,12 +127,17 @@ export function buildWeeks(sessions: PlanSession[]): Week[] {
       const date = addDays(monday, i);
       return { date, sessions: sorted.filter((s) => s.date === date), outside: date < sorted[0].date || date > sorted[sorted.length - 1].date };
     });
-    weeks.push({ monday, days, sessions: days.flatMap((d) => d.sessions) });
+    const own = days.flatMap((d) => d.sessions);
+    const api = planWeeks.find((w) => w.week === monday)?.sports;
+    const km = api
+      ? Object.fromEntries(Object.entries(api).map(([sport, v]) => [sport, { planned: v.planned_km, done: v.done_km }]))
+      : kmBySport(own);
+    weeks.push({ monday, days, sessions: own, km });
   }
   return weeks;
 }
 
-/** Kilometres per sport, planned and done. Sessions without a distance do not count. */
+/** Kilometres per sport, planned and done by the sessions alone. Sessions without a distance do not count. */
 export function kmBySport(sessions: PlanSession[]): Record<string, { planned: number; done: number }> {
   const out: Record<string, { planned: number; done: number }> = {};
   for (const s of sessions) {

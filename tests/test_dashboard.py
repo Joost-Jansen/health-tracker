@@ -217,7 +217,7 @@ WEEK_PLAN = [
 
 def test_plan_week_planned_against_done_per_sport_and_session_counts():
     done = [act("2026-09-28", km=10.2, secs=3700), act("2026-09-27", km=15)]
-    w = plan_week(match_sessions(WEEK_PLAN, done, TODAY), TODAY)
+    w = plan_week(match_sessions(WEEK_PLAN, done, TODAY), done, TODAY)
     assert (w["start"], w["end"]) == ("2026-09-28", "2026-10-04")
     assert w["sports"]["run"] == {"planned_km": 38.0, "done_km": 10.2, "planned_s": 3600, "done_s": 3700, "sessions": 3, "done": 1}
     assert w["sports"]["ride"] == {"planned_km": 0.0, "done_km": 0.0, "planned_s": 5400, "done_s": 0, "sessions": 1, "done": 0}
@@ -226,15 +226,34 @@ def test_plan_week_planned_against_done_per_sport_and_session_counts():
 
 
 def test_plan_week_without_sessions_this_week_is_empty():
-    w = plan_week(match_sessions([sess("2026-10-12", km=10)], [], TODAY), TODAY)
+    w = plan_week(match_sessions([sess("2026-10-12", km=10)], [], TODAY), [], TODAY)
     assert w["sports"] == {} and w["sessions"] == {"total": 0, "done": 0, "missed": 0, "upcoming": 0, "unsynced": 0}
 
 
 def test_plan_week_does_not_call_sessions_after_the_last_sync_missed():
     sunday = date(2026, 10, 4)
-    w = plan_week(match_sessions(WEEK_PLAN, [act("2026-09-28", km=10.2, secs=3700)], sunday), sunday, synced=date(2026, 9, 29))
+    done = [act("2026-09-28", km=10.2, secs=3700)]
+    w = plan_week(match_sessions(WEEK_PLAN, done, sunday), done, sunday, synced=date(2026, 9, 29))
     # 29 Sep (synced, nothing done) is missed; 30 Sep, 2 Oct and 4 Oct are not known yet
     assert w["sessions"] == {"total": 5, "done": 1, "missed": 1, "upcoming": 1, "unsynced": 2}
+
+
+def test_plan_week_counts_every_activity_of_the_week_also_outside_a_session():
+    # an extra run on Tuesday (no run planned within two days of it that is still open) and a swim on Monday 28 Sep,
+    # four days before the planned swim on Friday 2 Oct: neither belongs to a session, both count for the week
+    done = [act("2026-09-28", km=10.2, secs=3700), act("2026-09-29", km=5, secs=1800), act("2026-09-28", "swim", km=1.5, secs=2400), act("2026-09-27", km=15)]
+    sessions = match_sessions(WEEK_PLAN, done, TODAY)
+    w = plan_week(sessions, done, TODAY)
+    assert w["sports"]["run"]["done_km"] == 15.2 and w["sports"]["run"]["done_s"] == 5500
+    assert w["sports"]["swim"]["done_km"] == 1.5 and w["sports"]["swim"]["done"] == 0
+
+
+def test_plan_week_shows_a_plan_sport_without_a_session_this_week_when_it_was_done():
+    plan = [sess("2026-09-28", km=10), sess("2026-10-10", "swim", km=2)]
+    done = [act("2026-09-29", "swim", km=2.2, secs=2700)]
+    w = plan_week(match_sessions(plan, done, TODAY), done, TODAY)
+    assert w["sports"]["swim"] == {"planned_km": 0.0, "done_km": 2.2, "planned_s": 0, "done_s": 2700, "sessions": 0, "done": 0}
+    assert w["sessions"]["total"] == 1  # the swim is in the volume, not a session of this week
 
 
 # --- race countdown -------------------------------------------------------------------------------

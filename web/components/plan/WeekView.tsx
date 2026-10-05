@@ -2,19 +2,24 @@
 
 // One week of the plan: seven days stacked, per day the sessions stacked (two workouts on one day
 // sit under one date), empty days as a narrow rest row. Past weeks are collapsed to their head line.
+// A done session can be unlinked from its activity, an open one linked by hand to an activity close by (`onLink`).
 
 import Link from "next/link";
 import { Tag } from "@/components/ds";
 import { ChevronDownIcon, RouteIcon } from "@/components/icons";
 import { routeName, useFormat, useT, type Format } from "@/lib/i18n";
 import type { PlanSession } from "@/lib/training";
-import { type Week, STATUS_TONE, capitalise, fmtWeekRange, kmBySport, parseIso, sportColour } from "./plan";
+import { type Week, STATUS_TONE, capitalise, fmtWeekRange, parseIso, sportColour } from "./plan";
 import { SportBadge, SportGlyph } from "./SportIcon";
 import ZoneChip from "./ZoneChip";
 
 const activityHref = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 const routeHref = (id: string) => `/routes/route/?id=${encodeURIComponent(id)}`;
 const RACE = /wedstrijd|race/i;
+
+/** Link an activity to the session on `sessionDate`, or with null keep it out of the plan. */
+type OnLink = (activityId: string, sessionDate: string | null) => void;
+const linkBtn = "whitespace-nowrap font-medium text-ink-muted underline-offset-2 hover:text-[var(--text-link-hover)] hover:underline";
 
 function amount(s: PlanSession, f: Format) {
   if (s.distance_km) return `${f.trim(s.distance_km)} km`;
@@ -37,7 +42,7 @@ function StatusTag({ s }: { s: PlanSession }) {
   );
 }
 
-function Done({ s }: { s: PlanSession }) {
+function Done({ s, onLink }: { s: PlanSession; onLink?: OnLink }) {
   const t = useT();
   const f = useFormat();
   const T = t.texts;
@@ -55,11 +60,23 @@ function Done({ s }: { s: PlanSession }) {
       <span className="font-semibold text-gain">{t.plan.week.done}</span>
       <span>{bits.join(" · ")}</span>
       {zone && <span className={zoneTone} title={T.plan.zoneFitMethod}>· {zone}</span>}
-      {s.activity_ids?.[0] && (
-        <Link className="ml-auto whitespace-nowrap font-medium text-ink-muted underline-offset-2 hover:text-[var(--text-link-hover)] hover:underline" href={activityHref(s.activity_ids[0])}>
-          {t.plan.week.view}
-        </Link>
+      {d.date && d.date !== s.date && (
+        <span className="text-ink-muted" title={s.match === "near" ? t.plan.week.nearHint : undefined}>
+          · {t.plan.week.doneOn(f.weekdayDay(d.date))}{s.match === "near" ? ` (${t.plan.week.auto})` : ""}
+        </span>
       )}
+      <span className="ml-auto flex items-center gap-3">
+        {onLink && s.activity_ids?.length ? (
+          <button type="button" className={linkBtn} title={t.plan.week.unlinkHint} onClick={() => s.activity_ids!.forEach((id) => onLink(id, null))}>
+            {t.plan.week.unlink}
+          </button>
+        ) : null}
+        {s.activity_ids?.[0] && (
+          <Link className={linkBtn} href={activityHref(s.activity_ids[0])}>
+            {t.plan.week.view}
+          </Link>
+        )}
+      </span>
     </div>
   );
 }
@@ -98,7 +115,31 @@ function Route({ s }: { s: PlanSession }) {
   );
 }
 
-function SessionItem({ s }: { s: PlanSession }) {
+/** Open sessions: link an activity of the same sport from the days around it by hand. */
+function LinkPicker({ s, onLink }: { s: PlanSession; onLink: OnLink }) {
+  const t = useT();
+  const f = useFormat();
+  if (!s.candidates?.length) return null;
+  return (
+    <label className="mt-1.5 flex items-center gap-2 text-[12px] text-ink-muted">
+      <span>{t.plan.week.linkLabel}</span>
+      <select
+        className="min-w-0 rounded border border-border bg-surface px-1.5 py-0.5 text-[12px] tabular-nums text-[var(--text-primary)]"
+        value=""
+        onChange={(e) => e.target.value && onLink(e.target.value, s.date)}
+      >
+        <option value="">{t.plan.week.linkPick}</option>
+        {s.candidates.map((c) => (
+          <option key={c.id} value={c.id}>
+            {[f.weekdayDay(c.date), c.distance_km ? `${f.trim(c.distance_km, 2)} km` : null, c.moving_time_s ? f.clock(c.moving_time_s) : null].filter(Boolean).join(" · ")}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SessionItem({ s, onLink }: { s: PlanSession; onLink?: OnLink }) {
   const t = useT();
   const f = useFormat();
   const race = RACE.test(s.kind ?? "");
@@ -119,8 +160,9 @@ function SessionItem({ s }: { s: PlanSession }) {
           <StatusTag s={s} />
         </div>
         {s.description && <p className="mt-0.5 max-w-[72ch] text-[12.5px] leading-relaxed text-ink-muted">{s.description}</p>}
-        {s.done && <Done s={s} />}
+        {s.done && <Done s={s} onLink={onLink} />}
         {s.status !== "gedaan" && s.status !== "gemist" && <Route s={s} />}
+        {s.status !== "gedaan" && onLink && <LinkPicker s={s} onLink={onLink} />}
       </div>
     </div>
   );
@@ -147,7 +189,7 @@ function DateCell({ date, today, compact }: { date: string; today: boolean; comp
   );
 }
 
-function DayRow({ date, sessions, today }: { date: string; sessions: PlanSession[]; today: string }) {
+function DayRow({ date, sessions, today, onLink }: { date: string; sessions: PlanSession[]; today: string; onLink?: OnLink }) {
   const t = useT();
   const isToday = date === today;
   const rest = sessions.length === 0 || sessions.every((s) => s.sport === "rest");
@@ -171,7 +213,7 @@ function DayRow({ date, sessions, today }: { date: string; sessions: PlanSession
       <DateCell date={date} today={isToday} />
       <div className="flex min-w-0 flex-col gap-3.5">
         {isToday && <span className="-mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">{t.plan.week.today}</span>}
-        {sessions.filter((s) => s.sport !== "rest").map((s, i) => <SessionItem key={s.id ?? i} s={s} />)}
+        {sessions.filter((s) => s.sport !== "rest").map((s, i) => <SessionItem key={s.id ?? i} s={s} onLink={onLink} />)}
       </div>
     </li>
   );
@@ -201,6 +243,7 @@ export default function WeekCard({
   raceDate,
   open,
   onToggle,
+  onLink,
 }: {
   week: Week;
   index: number;
@@ -209,6 +252,7 @@ export default function WeekCard({
   raceDate: string | null;
   open: boolean;
   onToggle: () => void;
+  onLink?: OnLink;
 }) {
   const t = useT();
   const f = useFormat();
@@ -219,7 +263,7 @@ export default function WeekCard({
   const train = week.sessions.filter((s) => s.sport !== "rest");
   const done = train.filter((s) => s.status === "gedaan").length;
   const missed = train.filter((s) => s.status === "gemist").length;
-  const km = Object.entries(kmBySport(week.sessions)).filter(([, v]) => v.planned > 0 || v.done > 0);
+  const km = Object.entries(week.km).filter(([, v]) => v.planned > 0 || v.done > 0);
   const label = current ? w.thisWeek : isRaceWeek ? w.raceWeek : index === 0 && !past ? w.firstWeek : w.week(index + 1);
 
   return (
@@ -268,7 +312,7 @@ export default function WeekCard({
       </button>
       {open && (
         <ul className="border-t border-border px-4 pb-1 sm:px-[18px]">
-          {week.days.filter((d) => !d.outside).map((d) => <DayRow key={d.date} date={d.date} sessions={d.sessions} today={today} />)}
+          {week.days.filter((d) => !d.outside).map((d) => <DayRow key={d.date} date={d.date} sessions={d.sessions} today={today} onLink={onLink} />)}
         </ul>
       )}
     </section>

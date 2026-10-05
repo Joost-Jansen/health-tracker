@@ -26,7 +26,7 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
   if (!sport) return null;
 
   const rows = weeks.map((w) => {
-    const v = kmBySport(w.sessions)[sport] ?? { planned: 0, done: 0 };
+    const v = w.km[sport] ?? { planned: 0, done: 0 };
     // The race itself separately: otherwise race week looks like the heaviest of the plan and the taper is invisible.
     const raceKm = w.sessions.filter((s) => s.sport === sport && RACE.test(s.kind ?? "")).reduce((t, s) => t + (s.distance_km ?? 0), 0);
     const started = w.monday <= today;

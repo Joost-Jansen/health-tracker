@@ -118,8 +118,8 @@ export const T = {
     zoneFitMethod:
       "Tijd per hartslagzone volgens je eigen zones. Rustige sessies (tot en met Z2): de tijd op of onder de doelzone telt, want rustiger is niet erg. Kwaliteit (Z3 en hoger): de tijd binnen de doelzone telt.",
     matching:
-      "Een sessie telt als gedaan zodra er die dag een activiteit van dezelfde sport is. Een run in stukken (minder dan 30 minuten pauze) telt als één sessie.",
-    volume: "Kilometers per week: gepland tegen gedaan. Sessies zonder afstand (alleen een duur) tellen hier niet mee.",
+      "Een sessie telt als gedaan zodra er die dag een activiteit van dezelfde sport is, of tot 2 dagen ervoor of erna als de sessie nog open stond. Een run in stukken (minder dan 30 minuten pauze) telt als één sessie. Ontkoppel een activiteit of koppel er zelf een aan een sessie. De kilometers per week tellen alle activiteiten van de sporten in het schema, ook die zonder sessie.",
+    volume: "Kilometers per week: gepland tegen gedaan. Gedaan telt elke activiteit van die sport in de week, ook buiten een sessie. Sessies zonder afstand (alleen een duur) tellen bij gepland niet mee.",
   },
 
   /** Onboarding (T23): the explanations about health and performance in the tour, the checklist and Help. */
@@ -200,7 +200,7 @@ export const T = {
       upcoming: (n: number) => `${n} te gaan`,
       unsynced: (n: number) => `${n} nog niet gesynct`,
       ofPlanned: (done: string, planned: string) => `${done} van ${planned}`,
-      method: "Gedaan telt alleen activiteiten die bij een sessie van het schema horen (zelfde sport, zelfde dag).",
+      method: "Gedaan per sport telt elke activiteit van die sport deze week, ook als die bij geen sessie hoort. Een sessie telt als gedaan bij een activiteit van dezelfde sport die dag, of tot 2 dagen ervoor of erna; op de schemapagina koppel of ontkoppel je zelf.",
     },
 
     /** Countdown to the plan's next race. */

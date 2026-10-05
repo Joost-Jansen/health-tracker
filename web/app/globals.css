@@ -1,5 +1,5 @@
-/* Vóór de Tailwind-lagen, zodat een utility-klasse het bij gelijke specificiteit
-   nog steeds wint van een .ds-*-klasse. */
+/* Before the Tailwind layers, so that at equal specificity a utility class still
+   wins over a .ds-* class. */
 @import "./ds.css";
 
 @tailwind base;
@@ -9,57 +9,57 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    MERIDIAN — "Paper & Walnut"
 
-   De tokens uit design_handoff_meridian_redesign/system/tokens/, letterlijk
-   overgenomen. De namen zijn het contract: elk component leest ze, en het
-   handoff-pakket levert zijn componentenlaag (ds.css) op precies deze namen.
-   Niet hernoemen.
+   The tokens from design_handoff_meridian_redesign/system/tokens/, copied
+   verbatim. The names are the contract: every component reads them, and the
+   handoff package delivers its component layer (ds.css) on exactly these names.
+   Do not rename.
 
-   Het idee in één zin: een lichte papieren grond met donkere architectonische
-   ankers en drie pigmenten, elk met een taak die het nooit deelt —
-   sage is het merk, groen is winst, rood is verlies. Warmte komt
-   uit contrast, niet uit een tint over alles heen.
+   The idea in one sentence: a light paper ground with dark architectural
+   anchors and three pigments, each with a job it never shares:
+   sage is the brand, green is gain, red is loss. Warmth comes
+   from contrast, not from a tint over everything.
 
-   AFWIJKING VAN HET PAKKET (2026-08-15). Meridian schrijft gedempte olijf en
-   bordeaux voor winst en verlies voor. In de praktijk waren die op een telefoon
-   in daglicht niet snel genoeg uit elkaar te houden: je moest twee keer kijken
-   of een getal omhoog of omlaag stond. De ladders --moss-* en --oxblood-* zijn
-   daarom opgehoogd naar echt groen en echt rood.
+   DEVIATION FROM THE PACKAGE (2026-08-15). Meridian prescribes muted olive and
+   burgundy for gain and loss. In practice those were not quick enough to tell
+   apart on a phone in daylight: you had to look twice to see whether a number
+   was up or down. The --moss-* and --oxblood-* ladders were therefore raised to
+   real green and real red.
 
-   De tokennamen blijven staan, ook al kloppen ze nu niet meer met de kleur die
-   erin zit. Dat is bewust: ds.css komt letterlijk uit het handoff-pakket en
-   leest --moss-500, --oxblood-50/100/400. Hernoemen zou dat bestand uit de pas
-   laten lopen met de volgende versie van het pakket. Lees "moss" dus als
-   "winst" en "oxblood" als "verlies".
+   The token names stay, even though they no longer match the colour inside
+   them. That is deliberate: ds.css comes verbatim from the handoff package and
+   reads --moss-500, --oxblood-50/100/400. Renaming would put that file out of
+   step with the next version of the package. So read "moss" as "gain" and
+   "oxblood" as "loss".
 
-   Wat dit kost, zodat het bekend is: rood en sage liggen nu dichter bij
-   elkaar in kleurtoon dan bordeaux en sage deden. Op een klein scherm
-   kunnen een merkaccent en een verliesgetal daardoor even op elkaar lijken.
-   Terug naar Meridian = deze twee ladders herstellen; verder is er niets
-   veranderd.
+   What this costs, so it is known: red and sage are now closer in hue than
+   burgundy and sage were. On a small screen a brand accent and a loss figure
+   can therefore look alike for a moment.
+   Back to Meridian = restore these two ladders; nothing else has
+   changed.
 
-   Onderaan dit blok staat een aliaslaag: de namen die de app zelf al gebruikte
-   (--bg, --surface, --brand, --pos, --neg, --c1..c6) blijven bestaan en wijzen
-   voortaan hierheen. Zo verandert de hele app van kleur zonder dat er één
-   className mee hoeft.
+   Below this block is an alias layer: the names the app already used
+   (--bg, --surface, --brand, --pos, --neg, --c1..c6) keep existing and now
+   point here. That way the whole app changes colour without a single
+   className having to change.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── warme neutrale ladder ──────────────────────────── */
+  /* ── warm neutral ladder ──────────────────────────── */
   --n-0:  #ffffff;
-  --n-25: #f7f9f7; /* papier — de paginakleur */
+  --n-25: #f7f9f7; /* paper: the page colour */
   --n-50: #f0f4f1;
   --n-100:#e8eee9;
   --n-150:#dfe6e1;
-  --n-200:#dbe3dd; /* haarlijn */
+  --n-200:#dbe3dd; /* hairline */
   --n-300:#bccac1;
-  --n-400:#718078; /* 4,1:1 — asletters, placeholders */
-  --n-500:#5f6d66; /* 5,5:1 — gedempte tekst */
-  --n-600:#505d56; /* 6,8:1 — secundaire tekst */
+  --n-400:#718078; /* 4.1:1: axis labels, placeholders */
+  --n-500:#5f6d66; /* 5.5:1: muted text */
+  --n-600:#505d56; /* 6.8:1: secondary text */
   --n-700:#35403b;
-  --n-800:#1f2a26; /* diep groen-zwart — het contrastanker */
-  --n-900:#121a17; /* 17,6:1 — primaire tekst */
+  --n-800:#1f2a26; /* deep green-black: the contrast anchor */
+  --n-900:#121a17; /* 17.6:1: primary text */
 
-  /* ── sage (merk) ──────────────────────────────── */
+  /* ── sage (brand) ──────────────────────────────── */
   --sage-50: #e9f2ec;
   --sage-100:#d3e5da;
   --sage-300:#8cb9a0;
@@ -67,25 +67,25 @@
   --sage-600:#3e7258;
   --sage-700:#305a45;
 
-  /* ── groen (winst) — heette olijf, zie de kop van dit bestand ─ */
+  /* ── green (gain), used to be olive, see the head of this file ─ */
   --moss-50:  #e2f3e8;
   --moss-100: #c2e6cf;
   --moss-400: #2f9e5c;
   --moss-500: #157f3c;
   --moss-600: #0e6b31;
 
-  /* ── rood (verlies) — heette bordeaux ───────────────── */
+  /* ── red (loss), used to be burgundy ───────────────── */
   --oxblood-50: #fde8e8;
   --oxblood-100:#f9cccc;
   --oxblood-400:#d9484c;
   --oxblood-500:#c81e26;
   --oxblood-600:#ad141c;
 
-  /* ── oker (waarschuwing, zeldzaam) ──────────────────── */
+  /* ── ochre (warning, rare) ──────────────────── */
   --amber-50: #f4ecd9;
   --amber-500:#96702a;
 
-  /* ── semantisch: vlak ───────────────────────────────── */
+  /* ── semantic: surface ───────────────────────────────── */
   --surface-page:      var(--n-25);
   --surface-card:      var(--n-0);
   --surface-sunken:    var(--n-50);
@@ -93,8 +93,8 @@
   --surface-hover:     var(--n-100);
   --surface-active:    var(--n-150);
   --surface-inverse:   var(--n-800);
-  /* Het vaste walnoten paneel: draait NIET mee met het thema. De zijbalk
-     leest hiervan, en blijft dus ook 's nachts diep groen. */
+  /* The fixed walnut panel: does NOT follow the theme. The sidebar reads
+     from it, so it stays deep green at night too. */
   --surface-ink:       #26362f;
   --surface-ink-hover: #2f4139;
   --surface-ink-active:#384c43;
@@ -106,7 +106,7 @@
   --surface-gain-soft: var(--moss-50);
   --surface-loss-soft: var(--oxblood-50);
 
-  /* ── semantisch: tekst ──────────────────────────────── */
+  /* ── semantic: text ──────────────────────────────── */
   --text-primary:   var(--n-900);
   --text-secondary: var(--n-600);
   --text-muted:     var(--n-500);
@@ -118,7 +118,7 @@
   --text-link:      var(--n-900);
   --text-link-hover:var(--sage-600);
 
-  /* ── semantisch: lijn ───────────────────────────────── */
+  /* ── semantic: line ───────────────────────────────── */
   --border-hairline: var(--n-200);
   --border-subtle:   var(--n-150);
   --border-strong:   var(--n-300);
@@ -126,17 +126,17 @@
   --border-focus:    var(--n-800);
   --ring-focus:      0 0 0 3px rgba(77, 138, 107, 0.22);
 
-  /* ── semantisch: data en grafieken ──────────────────── */
+  /* ── semantic: data and charts ──────────────────── */
   --data-gain: var(--moss-500);
   --data-loss: var(--oxblood-500);
   --data-grid: var(--n-150);
   --data-axis: var(--n-400);
-  --chart-1: #4d8a6b; /* sage   — altijd jouw eigen lijn */
-  --chart-2: #1f2a26; /* diep groen-zwart — vergelijkingslijn, gestreept */
-  --chart-3: #6f90b5; /* olijf */
-  --chart-4: #b8995f; /* oker */
-  --chart-5: #8a84b8; /* steenblauw */
-  --chart-6: #b07a66; /* klei */
+  --chart-1: #4d8a6b; /* sage: always your own line */
+  --chart-2: #1f2a26; /* deep green-black: comparison line, dashed */
+  --chart-3: #6f90b5; /* olive */
+  --chart-4: #b8995f; /* ochre */
+  --chart-5: #8a84b8; /* stone blue */
+  --chart-6: #b07a66; /* clay */
   --cat-1: #4f7a28;
   --cat-2: #2266b8;
   --cat-3: #986200;
@@ -147,7 +147,7 @@
   --cat-label: #ffffff;
   --chart-band: rgba(77, 138, 107, 0.09);
 
-  /* ── typografie ─────────────────────────────────────── */
+  /* ── typography ─────────────────────────────────────── */
   --font-display: var(--font-display-loaded), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-mono-loaded), ui-monospace, "SF Mono", Menlo, monospace;
@@ -183,7 +183,7 @@
   --num-tabular: "tnum" 1, "lnum" 1;
   --measure: 68ch;
 
-  /* ── ruimte (4px-raster) ────────────────────────────── */
+  /* ── space (4px grid) ────────────────────────────── */
   --sp-0:   0px;
   --sp-1:   2px;
   --sp-2:   4px;
@@ -206,12 +206,12 @@
   --stack-block:   24px;
   --stack-tight:    8px;
   --sidebar-w:    248px;
-  /* Breed genoeg voor een laptop- of monitorscherm vol tabellen en grafieken;
-     lopende tekst houdt zijn eigen, kortere regellengte. */
+  /* Wide enough for a laptop or monitor screen full of tables and charts;
+     running text keeps its own, shorter line length. */
   --content-max: 1600px;
   --row-h:         44px;
 
-  /* ── hoeken — niets boven 10px, behalve pillen ──────── */
+  /* ── corners: nothing above 10px, except pills ──────── */
   --radius-xs:   2px;
   --radius-sm:   4px;
   --radius-md:   6px;
@@ -219,7 +219,7 @@
   --radius-xl:  10px;
   --radius-pill: 999px;
 
-  /* ── hoogte: licht, geen lift. Warm getint, kort. ───── */
+  /* ── elevation: light, no lift. Warm-tinted, short. ───── */
   --shadow-none: none;
   --shadow-hairline: inset 0 0 0 1px var(--border-hairline);
   --shadow-1: 0 1px 2px rgba(33, 29, 22, 0.05);
@@ -227,7 +227,7 @@
   --shadow-3: 0 8px 20px -8px rgba(33, 29, 22, 0.16), 0 2px 6px -2px rgba(33, 29, 22, 0.07);
   --shadow-4: 0 20px 48px -16px rgba(33, 29, 22, 0.22), 0 4px 10px -4px rgba(33, 29, 22, 0.08);
 
-  /* ── beweging: bevestigt, treedt nooit op ───────────── */
+  /* ── motion: confirms, never performs ───────────── */
   --dur-instant: 90ms;
   --dur-fast:   150ms;
   --dur-base:   220ms;
@@ -239,15 +239,15 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   DONKER — lamplicht in een bibliotheek, geen terminal. Nooit puur zwart,
-   nooit puur wit.
+   DARK: lamplight in a library, not a terminal. Never pure black,
+   never pure white.
 
-   Twee keer opgeschreven, met opzet, precies zoals het hiervóór ook stond:
-   · het @media-blok beantwoordt de voorkeur van het besturingssysteem zolang
-     de gebruiker zelf niets gekozen heeft;
-   · het [data-theme]-blok is de knop in de app, en moet in béide richtingen
-     winnen — dus komt het daarna.
-   Wijzig je hier een waarde, wijzig hem dan in allebei.
+   Written down twice, on purpose, exactly as it was before:
+   · the @media block answers the operating system's preference as long as
+     the user has not chosen anything;
+   · the [data-theme] block is the toggle in the app, and must win in both
+     directions, so it comes after.
+   If you change a value here, change it in both.
    ─────────────────────────────────────────────────────────────────────────── */
 
 @media (prefers-color-scheme: dark) {
@@ -395,20 +395,20 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ALIASLAAG — de namen die de app al gebruikte, nu wijzend naar Meridian.
+   ALIAS LAYER: the names the app already used, now pointing to Meridian.
 
-   Elf­duizend regels frontend noemen --brand, --pos, --surface-2 enzovoort;
-   die worden scherm voor scherm opgeruimd. Tot die tijd wijst elke oude naam
-   hierheen, zodat de kleuren in één keer kloppen en er geen enkele pagina
-   halverwege tussen twee paletten hangt.
+   Eleven thousand lines of frontend mention --brand, --pos, --surface-2 and so
+   on; they are cleaned up screen by screen. Until then every old name points
+   here, so the colours are right in one go and no page hangs halfway between
+   two palettes.
 
-   Twee dingen verhuizen van betekenis, en dat is het punt van dit ontwerp:
-   · --brand was groen en betekende óók "omhoog". Nu is het sage en
-     betekent het alleen nog "merk" — één accentmoment per scherm.
-   · --pos/--neg zijn groen en rood. Meridian had hier olijf en bordeaux, juist
-     zodat merk en verlies niet op elkaar zouden lijken; sinds 2026-08-15 wint
-     leesbaarheid op de telefoon het van die scheiding. Zie de kop van dit
-     bestand voor de afweging en hoe je het terugdraait.
+   Two things change meaning, and that is the point of this design:
+   · --brand was green and also meant "up". Now it is sage and means only
+     "brand": one accent moment per screen.
+   · --pos/--neg are green and red. Meridian had olive and burgundy here,
+     precisely so that brand and loss would not look alike; since 2026-08-15
+     readability on the phone wins over that separation. See the head of this
+     file for the trade-off and how to revert it.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -434,7 +434,7 @@
   --info:      var(--chart-5);
   --info-tint: var(--n-100);
 
-  /* Categorisch palet: Meridians zes, in vaste volgorde, nooit gecycled. */
+  /* Categorical palette: Meridian's six, in a fixed order, never cycled. */
   --c1: var(--chart-1);
   --c2: var(--chart-4);
   --c3: var(--chart-5);
@@ -446,9 +446,9 @@
   --radius-sm: var(--radius-md);
   --shadow:    var(--shadow-2);
 
-  /* Tailwind kan geen var() door zijn /50-opaciteitsmodifier halen — die vorm
-     wil rgb(R G B / a). Deze drietallen zijn dus echte getallen, en moeten met
-     de hand meebewegen met de ladder hierboven. */
+  /* Tailwind cannot pass a var() through its /50 opacity modifier: that form
+     wants rgb(R G B / a). So these triples are real numbers, and must be kept
+     in step with the ladder above by hand. */
   --ink-rgb: 20 18 14;   /* --n-900 */
   --pos-rgb: 21 127 60;  /* --moss-500 */
   --neg-rgb: 200 30 38;  /* --oxblood-500 */
@@ -472,12 +472,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BASIS
+   BASE
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* iOS Safari blaast tekst op in liggende stand tenzij dit vastgezet wordt; de
-   layout is op de CSS-pixel gebouwd en mag niet onder ons vandaan herschaald
-   worden. */
+/* iOS Safari inflates text in landscape unless this is pinned; the layout is
+   built on the CSS pixel and must not be rescaled from under us. */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -494,14 +493,13 @@ body {
   font-feature-settings: var(--num-tabular);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Eén lang ononderbroken woord (een ISIN, een fondsnaam zonder streepjes) is
-     wat een blok breder duwt dan een scherm van 390px en de hele pagina
-     zijwaarts laat scrollen. Breek binnen een woord alleen als het echt niet
-     past. */
+  /* One long unbroken word (an ISIN, a fund name without hyphens) is what
+     pushes a block wider than a 390px screen and makes the whole page scroll
+     sideways. Break inside a word only when it really does not fit. */
   overflow-wrap: break-word;
 }
 
-/* Meridians eigen koptekstmaten, voor koppen zonder Tailwind-klasse. */
+/* Meridian's own heading sizes, for headings without a Tailwind class. */
 h1,
 h2,
 h3,
@@ -515,7 +513,7 @@ p {
   text-wrap: pretty;
 }
 
-/* Focus is altijd zichtbaar: 1px inktomlijning op 2px afstand. */
+/* Focus is always visible: a 1px ink outline at 2px distance. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -533,8 +531,8 @@ summary:focus-visible,
   color: var(--n-900);
 }
 
-/* Aanraken: weg met de grijze flits en de 300 ms wachttijd voor
-   dubbeltik-zoomen, die elke tik op een telefoon een tel te laat laat voelen. */
+/* Touch: no grey flash and no 300 ms wait for double-tap zoom, which makes
+   every tap on a phone feel a beat late. */
 button,
 a,
 summary,
@@ -545,23 +543,23 @@ label,
 }
 
 @media (max-width: 639px) {
-  /* iOS zoomt de hele pagina in zodra een veld onder de 16px staat, en laat je
-     daarna ingezoomd achter. Alles onder `sm` krijgt 16px, ongeacht de
-     utility-klasse erop. */
+  /* iOS zooms the whole page in as soon as a field is below 16px, and leaves
+     you zoomed in afterwards. Everything below `sm` gets 16px, whatever
+     utility class is on it. */
   input,
   select,
   textarea {
     font-size: 16px;
   }
 
-  /* Een kale regel van 14px is geen raakvlak dat een duim betrouwbaar treft. */
+  /* A bare 14px line is not a target a thumb hits reliably. */
   summary {
     padding-block: 0.375rem;
   }
 }
 
-/* Een horizontale rail die op een telefoon een scrollbalk toont, verliest een
-   rij pixels en oogt kapot; de inhoud zelf is de aanwijzing dat er meer is. */
+/* A horizontal rail that shows a scrollbar on a phone loses a row of pixels
+   and looks broken; the content itself is the hint that there is more. */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -570,8 +568,8 @@ label,
   display: none;
 }
 
-/* De kaart bestaat nog, maar alleen waar een rand echt iets begrenst:
-   dialogen, zwevende lagen. Haarlijn vóór schaduw, ruimte vóór haarlijn. */
+/* The card still exists, but only where a border really bounds something:
+   dialogs, floating layers. Hairline before shadow, space before hairline. */
 .card {
   background: var(--surface-card);
   border: 1px solid var(--border-hairline);
@@ -579,14 +577,14 @@ label,
   padding: var(--gutter-card);
 }
 
-/* De displayletter: heldengetallen en koppen. Nergens anders. */
+/* The display face: hero numbers and headings. Nowhere else. */
 .font-display {
   font-family: var(--font-display);
 }
 
-/* Een verwijzing in lopende tekst. Inkt met een haarlijn eronder, sage bij
-   aanwijzen — niet sage in rust. Anders staan er op één scherm zes
-   accentmomenten, en dan is er geen accent meer. */
+/* A link in running text. Ink with a hairline underneath, sage on hover, not
+   sage at rest. Otherwise one screen has six accent moments, and then there
+   is no accent any more. */
 .ds-link {
   color: var(--text-link);
   border-bottom: 1px solid var(--border-strong);
@@ -598,36 +596,35 @@ label,
   border-bottom-color: var(--sage-300);
 }
 
-/* De legenda van de verdelingsbalk krijgt bredere kolommen dan het handoff-
-   pakket voorschrijft: "Consument (cycl.)" met zijn percentage past niet in de
-   140px die Meridian voor Engelse labels koos. Een app-aanpassing, dus hier en
-   niet in ds.css — dat bestand moet één op één overneembaar blijven. */
+/* The legend of the allocation bar gets wider columns than the handoff
+   package prescribes: "Consument (cycl.)" with its percentage does not fit in
+   the 140px Meridian chose for English labels. An app adjustment, so here and
+   not in ds.css: that file must stay copyable one to one. */
 .ds-alloc__legend {
   grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
 }
 
-/* De kop van een sectie mag afbreken. Meridians schermen hebben rechts hooguit
-   een periodeschakelaar van vier knoppen; deze app heeft er zeven (1D t/m
-   Alles), en die passen op een telefoon niet naast het label. Zonder deze regel
-   duwen ze de pagina zijwaarts in plaats van naar een tweede regel te zakken. */
+/* A section head may wrap. Meridian's screens have at most a period switch of
+   four buttons on the right; this app has seven (1D to All), and on a phone
+   they do not fit next to the label. Without this rule they push the page
+   sideways instead of dropping to a second line. */
 .ds-section__head {
   flex-wrap: wrap;
 }
 
-/* ── Twee soorten streep, en het verschil moet te zien zijn ──────────────
-   Een streep onder een sectiekop zegt "hier begint een nieuw onderwerp"; een
-   streep tussen twee regels zegt "hier begint de volgende regel". Op een breed
-   scherm hoefde dat verschil niet groot te zijn — de zijkolom stond in zijn
-   eigen kolom achter een verticale haarlijn, en dat scheidde de onderwerpen al.
-   Op een telefoon valt die kolom weg en staat alles onder elkaar; toen bleken
-   de twee soorten streep op het oog identiek, en las een rijscheiding als het
-   begin van een nieuw onderwerp.
+/* ── Two kinds of rule, and the difference must be visible ──────────────
+   A rule under a section head says "a new topic starts here"; a rule between
+   two rows says "the next row starts here". On a wide screen that difference
+   did not need to be large: the side column sat in its own column behind a
+   vertical hairline, and that already separated the topics. On a phone that
+   column goes away and everything stacks; then the two kinds of rule turned
+   out to look identical, and a row divider read as the start of a new topic.
 
-   Vandaar deze twee regels:
-     · elk onderwerp krijgt op een smal scherm de inktstreep, ook de secties die
-       breed als "quiet" (haarlijn) getekend worden;
-     · een rijscheiding bínnen een sectie is een stap lichter dan de haarlijn.
-   Eén donkere streep is dus altijd een nieuw onderwerp. */
+   Hence these two rules:
+     · on a narrow screen every topic gets the ink rule, including the sections
+       drawn as "quiet" (hairline) when wide;
+     · a row divider inside a section is one step lighter than the hairline.
+   So one dark rule is always a new topic. */
 
 @media (max-width: 1023px) {
   .ds-section--quiet .ds-section__head {
@@ -635,8 +632,8 @@ label,
   }
 }
 
-/* De rijscheiding zelf. Eén naam in plaats van een los borderTop op twintig
-   plekken, zodat de conventie op één plaats staat en niet uit elkaar loopt. */
+/* The row divider itself. One name instead of a loose borderTop in twenty
+   places, so the convention lives in one place and does not drift apart. */
 .row-rule {
   border-top: 1px solid var(--border-subtle);
 }
@@ -645,35 +642,35 @@ label,
   border-top: 0;
 }
 
-/* Het heldengetal schaalt mee onder sm. Meridian zet --fs-hero vast op 68px,
-   maar dat is een maat voor een breed scherm: "€148.401,00" is op 68px ruim
-   430px breed en valt op een telefoon van 390px van het scherm af. 13vw houdt
-   hem op elk toestel op één regel en blijft op een tablet gewoon 68. */
+/* The hero number scales below sm. Meridian fixes --fs-hero at 68px, but that
+   is a size for a wide screen: "€148.401,00" at 68px is well over 430px wide
+   and falls off a 390px phone screen. 13vw keeps it on one line on every
+   device and stays 68 on a tablet. */
 @media (max-width: 639px) {
   .ds-hero {
     font-size: min(var(--fs-hero), 13vw);
   }
 }
 
-/* Elk cijfer lijnt uit, cijfer voor cijfer. */
+/* Every number lines up, digit by digit. */
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: var(--num-tabular);
 }
 
-/* Brede tabellen scrollen zichzelf in plaats van de pagina — wat vooral op de
-   telefoon telt waarvoor deze app gebouwd is. */
+/* Wide tables scroll themselves instead of the page, which matters most on the
+   phone this app is built for. */
 .table-scroll {
   overflow-x: auto;
-  /* Momentum-scrollen op iOS, en een veeg die het einde van de tabel bereikt
-     mag het gebaar niet doorgeven aan de pagina (of aan de terug-navigatie van
-     de browser). */
+  /* Momentum scrolling on iOS, and a swipe that reaches the end of the table
+     must not pass the gesture on to the page (or to the browser's back
+     navigation). */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
 }
 
-/* Meridians tabel: tekst links, elk getal rechts en tabellarisch, één haarlijn
-   per rij. Geen zebra, geen verticale lijnen, geen gekleurde cellen. */
+/* Meridian's table: text left, every number right-aligned and tabular, one
+   hairline per row. No zebra, no vertical lines, no coloured cells. */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -712,16 +709,16 @@ label,
 .data-table td:last-child {
   padding-right: 0;
 }
-/* Getallen rechts uitgelijnd, zodat cijfers kolomsgewijs uitlijnen. */
+/* Numbers right-aligned, so digits line up per column. */
 .data-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 639px) {
-  /* Dichter op elkaar op een telefoon: deze tabellen zijn 8 tot 11 kolommen
-     breed en worden zijwaarts scrollend gelezen, dus elke millimeter padding
-     is een kolom waarvoor je moet vegen. */
+  /* Denser on a phone: these tables are 8 to 11 columns wide and are read by
+     scrolling sideways, so every millimetre of padding is a column you have
+     to swipe for. */
   .data-table {
     font-size: var(--fs-xs);
   }
@@ -729,10 +726,10 @@ label,
   .data-table td {
     padding: var(--sp-3) var(--sp-4);
   }
-  /* De productnaam is veruit de breedste cel en erft de nowrap van de tabel,
-     dus een fondsnaam van 45 tekens duwde elk cijfer anderhalve veeg naar
-     rechts. Alleen die kolom breekt af — de getallen blijven elk op één regel,
-     en het eerste staat nu samen met de naam in beeld. */
+  /* The product name is by far the widest cell and inherits the table's
+     nowrap, so a 45-character fund name pushed every number one and a half
+     swipes to the right. Only that column wraps: the numbers each stay on one
+     line, and the first one is now in view together with the name. */
   .data-table th:first-child,
   .data-table td:first-child {
     white-space: normal;
@@ -748,9 +745,9 @@ label,
   }
 }
 
-/* ── hartslagzones (training) ─────────────────────────────────────────────
-   Zacht, van koel naar warm: Z1 blauwgrijs, Z2 salie, Z3 zand, Z4 abrikoos,
-   Z5 zacht rood. Zelfde volgorde in elke grafiek en op de kaart. */
+/* ── heart-rate zones (training) ─────────────────────────────────────────────
+   Soft, from cool to warm: Z1 blue-grey, Z2 sage, Z3 sand, Z4 apricot,
+   Z5 soft red. Same order in every chart and on the map. */
 :root {
   --zone-1: #a9bccb;
   --zone-2: #8fc09f;
@@ -775,12 +772,12 @@ label,
   --zone-5: #cf6d71;
 }
 
-/* ── kaarttegels (Leaflet, OpenStreetMap) ─────────────────────────────────
-   OSM-tegels zijn fel. Licht: grotendeels grijs, iets lichter en minder
-   contrast, zodat het zachte thema blijft en spoor en zonekleuren eruit
-   springen. Donker: omgekeerd en terug-gedraaid in tint (water blijft
-   blauwachtig), daarna gedempt. Het filter staat op de tegellaag zelf
-   (className van L.tileLayer), dus nooit op lijnen, stippen of tooltips. */
+/* ── map tiles (Leaflet, OpenStreetMap) ─────────────────────────────────
+   OSM tiles are bright. Light: mostly grey, a bit lighter and less contrast,
+   so the soft theme holds and the track and zone colours stand out. Dark:
+   inverted and rotated back in hue (water stays bluish), then muted. The
+   filter sits on the tile layer itself (className of L.tileLayer), so never
+   on lines, dots or tooltips. */
 .map-tiles {
   filter: grayscale(0.65) brightness(1.06) contrast(0.88);
 }
@@ -788,5 +785,5 @@ label,
   filter: invert(1) hue-rotate(180deg) grayscale(0.7) brightness(0.82) contrast(0.88);
 }
 
-/* Leaflet's eigen lichtgrijze achtergrond flitst anders op in het donkere thema terwijl de tegels laden. */
+/* Otherwise Leaflet's own light grey background flashes in the dark theme while the tiles load. */
 .leaflet-container { background: var(--surface-sunken); }

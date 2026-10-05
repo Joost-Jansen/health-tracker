@@ -1,17 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Meridians componentenlaag, letterlijk overgenomen uit
+   Meridian's component layer, copied verbatim from
    design_handoff_meridian_redesign/system/components/components.css.
 
-   Het handoff-pakket noemt dit expliciet "ship this as-is": elk .ds-*-component
-   in components/ds/ rendert precies deze klassen. Pas hier niets aan zonder het
-   ook in het handoff-pakket te doen — anders lopen de twee uit elkaar en is de
-   volgende versie van het ontwerp niet meer over te nemen.
+   The handoff package explicitly says "ship this as-is": every .ds-* component
+   in components/ds/ renders exactly these classes. Change nothing here without
+   also doing it in the handoff package, otherwise the two drift apart and the
+   next version of the design can no longer be taken over.
 
-   Regels van de laag:
-     · haarlijn vóór schaduw, ruimte vóór haarlijn
-     · hover = één stap warmer/donkerder vlak, nooit een kleurwissel
-     · press = het vlak wordt nog één stap donkerder, geen schaal, geen schaduw
-     · focus-visible = 1px inktomlijning op 2px afstand (staat in globals.css)
+   Rules of the layer:
+     · hairline before shadow, space before hairline
+     · hover = one step warmer/darker surface, never a colour change
+     · press = the surface gets one more step darker, no scale, no shadow
+     · focus-visible = 1px ink outline at 2px distance (lives in globals.css)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 
@@ -345,25 +345,25 @@
 .ds-sidebar--ink .ds-navitem--active .ds-navitem__icon { color: var(--sage-300); }
 .ds-sidebar--ink .ds-navitem__trail { color: var(--text-on-ink-muted); }
 .ds-sidebar--ink .ds-badge--quiet { background: var(--surface-ink-active); color: #b7c8be; }
-/* Het beeldmerk op de rail. De s leest van `color`, dus die moet hier gezet
-   worden — anders pakt hij de tekstkleur van de pagina en verdwijnt hij in het
-   diep groen. De t krijgt dezelfde sage als een actief menu-icoon: die tint
-   staat in beide thema's vast, en dat is precies wat een rail nodig heeft die
-   ook in de lichte modus donker blijft. */
+/* The logomark on the rail. The s reads from `color`, so it must be set here,
+   otherwise it takes the page's text colour and disappears into the deep
+   green. The t gets the same sage as an active menu icon: that tint is fixed
+   in both themes, which is exactly what a rail needs that stays dark in light
+   mode too. */
 .ds-sidebar--ink .ds-sidebar__logo { color: var(--text-on-ink); --logo-accent: var(--sage-300); }
 .ds-topbar--flush { border-bottom: 0; }
 
-/* Het uitschuifpaneel op een telefoon.
+/* The slide-out panel on a phone.
  *
- * Hij staat altijd in de DOM, ook dicht — anders kan hij de vinger niet volgen
- * zodra je vanaf de linkerrand naar binnen veegt. `visibility` doet het
- * verbergen (en niet `display`), want dat haalt de links uit de tabvolgorde en
- * uit de schermlezer zonder de overgang te breken; bij het sluiten wacht het
- * verbergen met een vertraging tot het paneel uit beeld is geschoven.
+ * It is always in the DOM, closed too, otherwise it cannot follow the finger
+ * as soon as you swipe in from the left edge. `visibility` does the hiding
+ * (not `display`), because that takes the links out of the tab order and out
+ * of the screen reader without breaking the transition; when closing, the
+ * hiding waits with a delay until the panel has slid out of view.
  *
- * Openen mag iets langer duren dan sluiten, en remt af (--ease-entrance);
- * sluiten trekt op (--ease-exit). Bij "beperk beweging" zet globals.css alle
- * duren op 0 en klapt hij dus gewoon om. */
+ * Opening may take a little longer than closing, and decelerates
+ * (--ease-entrance); closing accelerates (--ease-exit). With "reduce motion"
+ * globals.css sets all durations to 0, so it simply flips. */
 .ds-navdrawer {
   position: fixed; inset: 0; z-index: 50;
   visibility: hidden;
@@ -389,8 +389,8 @@
 }
 .ds-navdrawer--open .ds-navdrawer__panel { transition: transform var(--dur-slow) var(--ease-entrance); transform: translate3d(0, 0, 0); }
 
-/* Zolang de vinger op het scherm staat is er geen overgang: het paneel hoort
-   exact onder de vinger te zitten, niet er 320ms achteraan te lopen. */
+/* While the finger is on the screen there is no transition: the panel belongs
+   exactly under the finger, not 320ms behind it. */
 .ds-navdrawer--dragging { visibility: visible; transition: none; }
 .ds-navdrawer--dragging .ds-navdrawer__panel,
 .ds-navdrawer--dragging .ds-navdrawer__scrim { transition: none; }

@@ -1,5 +1,5 @@
-// Doelzone als gekleurd etiket in de zonekleuren (--zone-1..5). Een bereik (Z2-Z3) krijgt een verloop van de
-// eerste naar de laatste zone.
+// Target zone as a coloured label in the zone colours (--zone-1..5). A range (Z2-Z3) gets a gradient from the
+// first to the last zone.
 
 import { useT } from "@/lib/i18n";
 

@@ -1,8 +1,8 @@
 "use client";
 
-// Schema-editor (T24): een nieuw schema maken of het actieve aanpassen met een formulier in plaats van een tabel
-// plakken. Sessies per week gegroepeerd en altijd op datum; per sessie datum, sport, soort, km of minuten,
-// doelzone, een eigen rondje en een omschrijving. Opslaan via POST /api/plans of PATCH + PUT .../sessions.
+// Plan editor (T24): create a new plan or change the active one with a form instead of pasting a table.
+// Sessions grouped per week and always by date; per session date, sport, kind, km or minutes,
+// target zone, one of your own routes and a description. Saved via POST /api/plans or PATCH + PUT .../sessions.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -177,11 +177,11 @@ export default function PlanEditor({
   onCancel,
   onPaste,
 }: {
-  /** Leeg = nieuw schema. */
+  /** Empty = new plan. */
   plan?: Plan | null;
   onSaved: () => void;
   onCancel?: () => void;
-  /** Naar "plakken uit tabel" (alleen bij een nieuw schema). */
+  /** To "paste from table" (only for a new plan). */
   onPaste?: () => void;
 }) {
   const t = useT();
@@ -222,7 +222,7 @@ export default function PlanEditor({
   }, [dirty]);
 
   const errors = validate(meta, rows, t);
-  // Getallen meteen controleren, ontbrekende titel of datum pas na de eerste keer opslaan.
+  // Check numbers right away, a missing title or date only after the first save attempt.
   const shown: Errors = tried ? errors : { meta: {}, rows: Object.fromEntries(Object.entries(errors.rows).map(([k, v]) => [k, { km: v.km, min: v.min }])) };
 
   const sorted = [...rows].sort(byDate);

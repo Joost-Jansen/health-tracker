@@ -1,8 +1,8 @@
 "use client";
 
-// "Controleer je rondjes": paren die waarschijnlijk hetzelfde rondje zijn (ander startpunt, extra lus, deels een
-// andere weg) maar niet zeker genoeg om ze zelf samen te voegen. Per paar beide sporen op één kaart in twee kleuren
-// en twee knoppen. Ingeklapt met een telletje, zodat het niet opdringt. Niets te vragen: niets te zien.
+// "Check your routes": pairs that are probably the same route (different start, extra loop, partly a
+// different road) but not certain enough to merge them ourselves. Per pair both tracks on one map in two colours
+// and two buttons. Collapsed with a count, so it does not push itself forward. Nothing to ask: nothing to see.
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
@@ -15,7 +15,7 @@ import type { RouteCandidate, RouteCandidateResult, RouteCandidateSide, RouteSpo
 
 const RoutesMap = dynamic(() => import("@/components/map/RoutesMap"), { ssr: false });
 
-// zelfde volgorde als RoutesMap kleurt: eerste lijn --chart-1, tweede --chart-4
+// same order as RoutesMap colours: first line --chart-1, second --chart-4
 const COLOURS = ["var(--chart-1)", "var(--chart-4)"];
 const SHOWN = 3;
 

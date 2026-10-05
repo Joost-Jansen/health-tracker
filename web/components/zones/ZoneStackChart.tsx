@@ -1,21 +1,21 @@
 "use client";
 
-// Eén staaf per week of maand, altijd 100% hoog, opgedeeld in de vijf zones
-// (Z1 onderaan). Zo zie je de verdeling verschuiven, los van hoeveel je trainde.
-// Zelfde opzet als charts/Bars: divs in plaats van svg en een afleesregel
-// bóven de grafiek in plaats van een zwevende tooltip, zodat niets verspringt
-// of van een telefoonscherm valt. Bars zelf toont één bedrag per staaf; hier
-// moeten per staaf vijf aandelen plus uren in de regel, vandaar een eigen
-// component.
+// One bar per week or month, always 100% high, split into the five zones
+// (Z1 at the bottom). That shows the distribution shifting, regardless of how much you trained.
+// Same set-up as charts/Bars: divs instead of svg and a readout line
+// above the chart instead of a floating tooltip, so nothing jumps
+// or falls off a phone screen. Bars itself shows one amount per bar; here
+// each bar needs five shares plus hours in the line, hence a component of
+// its own.
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
 import { ZONE_COLOUR, ZONES, type ZoneHistoryItem } from "@/lib/training";
 
 export type ZoneStackBar = ZoneHistoryItem & {
-  /** Kort label onder de staaf. */
+  /** Short label under the bar. */
   short: string;
-  /** De lopende periode: nog niet af, iets lichter getekend. */
+  /** The current period: not finished yet, drawn a bit lighter. */
   partial?: boolean;
 };
 
@@ -34,8 +34,8 @@ export default function ZoneStackChart({
   const f = useFormat();
   const [active, setActive] = useState<number | null>(null);
   const shown = active !== null ? bars[active] : null;
-  // Hoeveel labels passen er op deze breedte? Een label ("25 mei") is ~45 px; op een telefoon met 27 weken
-  // liepen ze anders in elkaar ("25 mei15 jun").
+  // How many labels fit at this width? A label ("25 mei") is ~45 px; on a phone with 27 weeks
+  // they otherwise ran into each other ("25 mei15 jun").
   const row = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
@@ -89,7 +89,7 @@ export default function ZoneStackChart({
             className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
           >
             {bar.total_s > 0 ? (
-              // Z5 bovenaan, Z1 tegen de basislijn.
+              // Z5 at the top, Z1 against the baseline.
               [...ZONES].reverse().map((z) =>
                 bar.pct[z] > 0 ? (
                   <span
@@ -111,8 +111,8 @@ export default function ZoneStackChart({
         ))}
       </div>
 
-      {/* Flex in plaats van text-center: een label breder dan zijn staaf steekt dan aan beide kanten even ver uit
-          (tekst loopt altijd naar rechts over), en het eerste en laatste label blijven binnen de kaart. */}
+      {/* Flex instead of text-center: a label wider than its bar then sticks out equally on both sides
+          (text always overflows to the right), and the first and last label stay inside the card. */}
       <div ref={row} aria-hidden="true" className="mt-1.5 flex gap-[3px]">
         {bars.map((bar, i) => {
           const label = (bars.length - 1 - i) % every === 0;

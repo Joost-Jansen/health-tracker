@@ -1,5 +1,5 @@
-// Kleine sportglyphs in dezelfde lijnstijl als components/icons.tsx (streek 1,5, currentColor), en een rond
-// badgetje in de sportkleur voor in de weekkaarten.
+// Small sport glyphs in the same line style as components/icons.tsx (stroke 1.5, currentColor), and a round
+// badge in the sport colour for the week cards.
 
 import type { SVGProps } from "react";
 import { useT } from "@/lib/i18n";
@@ -53,7 +53,7 @@ export function SportGlyph({ sport, ...props }: { sport: string } & P) {
   return <Svg {...props}>{GLYPH[sport] ?? <circle cx="12" cy="12" r="5" />}</Svg>;
 }
 
-/** Rond badgetje: zachte sportkleur als vlak, de glyph in de volle kleur. */
+/** Round badge: soft sport colour as the surface, the glyph in the full colour. */
 export function SportBadge({ sport, size = 30 }: { sport: string; size?: number }) {
   const t = useT();
   const c = sportColour(sport);

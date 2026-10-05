@@ -1,7 +1,7 @@
 "use client";
 
-// Kop van het actieve schema: titel en doel, aftellen naar de wedstrijd, voortgang, en de notities als markdown
-// (lange notities ingeklapt met "meer").
+// Head of the active plan: title and goal, countdown to the race, progress, and the notes as markdown
+// (long notes collapsed with "more").
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Markdown from "@/components/log/Markdown";

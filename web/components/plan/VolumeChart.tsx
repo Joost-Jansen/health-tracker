@@ -1,8 +1,8 @@
 "use client";
 
-// Kilometers per week van het schema: de geplande week als lichte staaf, wat er gedaan is als volle staaf erin.
-// Zo is de opbouw of taper in één oogopslag te zien, en hoe goed je hem volgt. Per sport, want 50 km fietsen en
-// 10 km lopen tellen niet op tot iets zinnigs.
+// Kilometres per week of the plan: the planned week as a light bar, what was done as a solid bar inside it.
+// That shows the build-up or taper at a glance, and how well you follow it. Per sport, because 50 km cycling and
+// 10 km running do not add up to anything meaningful.
 
 import { useMemo, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
@@ -27,7 +27,7 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
 
   const rows = weeks.map((w) => {
     const v = kmBySport(w.sessions)[sport] ?? { planned: 0, done: 0 };
-    // De wedstrijd zelf apart: anders lijkt de raceweek de zwaarste van het schema en is de taper niet te zien.
+    // The race itself separately: otherwise race week looks like the heaviest of the plan and the taper is invisible.
     const raceKm = w.sessions.filter((s) => s.sport === sport && RACE.test(s.kind ?? "")).reduce((t, s) => t + (s.distance_km ?? 0), 0);
     const started = w.monday <= today;
     return { ...w, ...v, raceKm, started, current: today >= w.monday && today <= w.days[6].date, race: !!raceDate && raceDate >= w.monday && raceDate <= w.days[6].date };

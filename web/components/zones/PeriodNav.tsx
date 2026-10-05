@@ -1,5 +1,5 @@
-// ‹ periode › met "Nu" om terug te springen. Offset 0 is de lopende week of
-// maand; verder dan nu kan niet, dus › staat daar uit.
+// ‹ period › with "Nu" (now) to jump back. Offset 0 is the current week or
+// month; beyond now is not possible, so › is disabled there.
 
 import { Button, IconButton } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";

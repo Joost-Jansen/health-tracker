@@ -1,9 +1,9 @@
 "use client";
 
-// Een overzichtsbalk van de hele geschiedenis met het gekozen venster erin:
-// sleep het venster om te verschuiven, sleep een rand om in of uit te zoomen,
-// tik ernaast om het venster daarheen te zetten. Het nieuwe venster gaat pas bij
-// het loslaten naar de pagina, zodat niet elke pixel alle grafieken opnieuw tekent.
+// An overview bar of the whole history with the chosen window in it:
+// drag the window to pan, drag an edge to zoom in or out,
+// tap next to it to move the window there. The new window only goes to the page
+// on release, so not every pixel redraws all charts.
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "@/lib/i18n";
@@ -24,7 +24,7 @@ export default function RangeBrush({
   last: string;
   window: DateWindow;
   onChange: (w: DateWindow) => void;
-  /** Een reeks als silhouet onder de balk, bijvoorbeeld de fitheid. */
+  /** A series as a silhouette under the bar, for example fitness. */
   points?: DayPoint[];
 }) {
   const t = useT();
@@ -78,7 +78,7 @@ export default function RangeBrush({
     if (Math.abs(px - ax) <= HANDLE) mode = "a";
     else if (Math.abs(px - bx) <= HANDLE) mode = "b";
     else if (px < ax || px > bx) {
-      // Ernaast getikt: het venster met dezelfde breedte daar neerzetten en meteen meeslepen.
+      // Tapped next to it: put the window with the same width there and drag it right away.
       const half = (r.b - r.a) / 2;
       r0 = clampRange({ a: dayAt(px) - half, b: dayAt(px) + half }, lo, hi);
       setDrag(r0);
@@ -129,7 +129,7 @@ export default function RangeBrush({
         <svg width="100%" height={H} viewBox={`0 0 ${w} ${H}`} className="block overflow-visible">
           <rect x="0" y="0" width={w} height={plotH} rx="4" fill="var(--surface-inset)" />
           {silhouette && <path d={silhouette} fill="var(--chart-band)" stroke="var(--chart-1)" strokeOpacity="0.6" strokeWidth="1" />}
-          {/* Buiten het venster gedimd, binnen helder met een salie rand. */}
+          {/* Dimmed outside the window, bright inside with a sage border. */}
           <rect x="0" y="0" width={Math.max(ax, 0)} height={plotH} fill="var(--surface-page)" fillOpacity="0.55" />
           <rect x={bx} y="0" width={Math.max(w - bx, 0)} height={plotH} fill="var(--surface-page)" fillOpacity="0.55" />
           <rect x={ax} y="0.5" width={Math.max(bx - ax, 1)} height={plotH - 1} rx="3" fill="none" stroke="var(--sage-500)" strokeWidth="1.5" />

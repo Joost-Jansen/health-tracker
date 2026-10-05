@@ -1,11 +1,11 @@
 "use client";
 
-// Records per afstand: het beste ooit (uit een split of een wedstrijd), met een PR-label als het onlangs
-// verbeterde, en per afstand een trapje over de gekozen periode van de tijdbalk.
+// Records per distance: the best ever (from a split or a race), with a PR label when it improved
+// recently, and per distance a step line over the period chosen in the time bar.
 //
-// Waarom geen gewone lijngrafiek meer? Records verbeteren zelden, dus over een paar maanden waren het vier vlakke
-// lijnen. Hier staat per afstand: waar het record aan het begin van de periode stond, elke verbetering als bolletje
-// op zijn datum, en in woorden hoe vaak het in deze periode verbeterde.
+// Why no plain line chart any more? Records rarely improve, so over a few months they were four flat
+// lines. Here, per distance: where the record stood at the start of the period, every improvement as a dot
+// on its date, and in words how often it improved in this period.
 
 import Link from "next/link";
 import { dayNumber, type DateWindow } from "@/lib/timeline";
@@ -34,7 +34,7 @@ function Steps({ rows, window: w, colour }: { rows: RecordRowPlus[]; window: Dat
   if (levels.length === 0) return <div className="h-[30px] rounded" style={{ background: "var(--surface-inset)" }} aria-hidden />;
   const max = Math.max(...levels.map((r) => r.seconds));
   const min = Math.min(...levels.map((r) => r.seconds));
-  // Sneller staat hoger; zonder verbetering een vlakke lijn in het midden.
+  // Faster is higher; without improvement a flat line in the middle.
   const y = (s: number) => (max === min ? H / 2 : PAD_Y + ((s - min) / (max - min)) * (H - 2 * PAD_Y));
   const x = (d: string) => Math.min(100, Math.max(0, ((dayNumber(d) - lo) / span) * 100));
   const segs: { x1: number; x2: number; y1: number; y2: number }[] = [];

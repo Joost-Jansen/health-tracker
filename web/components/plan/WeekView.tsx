@@ -1,7 +1,7 @@
 "use client";
 
-// Eén week van het schema: zeven dagen onder elkaar, per dag de sessies gestapeld (twee trainingen op één dag
-// staan onder één datum), lege dagen als smalle rustregel. Afgelopen weken zijn ingeklapt tot hun kopregel.
+// One week of the plan: seven days stacked, per day the sessions stacked (two workouts on one day
+// sit under one date), empty days as a narrow rest row. Past weeks are collapsed to their head line.
 
 import Link from "next/link";
 import { Tag } from "@/components/ds";
@@ -22,7 +22,7 @@ function amount(s: PlanSession, f: Format) {
   return null;
 }
 
-/** Alleen wat afwijkt van "gepland" krijgt een etiket; vandaag staat al boven de dag. */
+/** Only what differs from "planned" gets a label; today is already shown above the day. */
 function StatusTag({ s }: { s: PlanSession }) {
   const t = useT();
   if (s.status !== "gedaan" && s.status !== "gemist") return null;
@@ -177,7 +177,7 @@ function DayRow({ date, sessions, today }: { date: string; sessions: PlanSession
   );
 }
 
-/** Strookje met één blokje per sessie in de kleur van de status: in één oogopslag hoe de week loopt. */
+/** A strip with one block per session in the colour of its status: how the week is going at a glance. */
 function Strip({ sessions }: { sessions: PlanSession[] }) {
   const items = sessions.filter((s) => s.sport !== "rest");
   const colour: Record<string, string> = {

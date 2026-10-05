@@ -1,9 +1,9 @@
 "use client";
 
-// Het gedeelde tijdvenster van een pagina: een periode (4W … Alles) of een
-// eigen van-tot. Staat in de adresbalk (?periode=3M, of ?van=…&tot=…) zodat een
-// link of een herlaadbeurt hetzelfde laat zien, en in localStorage zodat de
-// pagina de laatste keuze onthoudt als je er via het menu terugkomt.
+// A page's shared time window: a period (4W … All) or a custom from-to. Lives
+// in the address bar (?periode=3M, or ?van=…&tot=…) so a link or a reload shows
+// the same, and in localStorage so the page remembers the last choice when you
+// come back via the menu.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CUSTOM, DEFAULT_PERIOD, PERIODS, clampRange, dayNumber, periodWindow, toRange, toWindow, type DateWindow } from "@/lib/timeline";
@@ -19,7 +19,7 @@ function readStored(key: string): State | null {
     if (s.custom && ISO.test(s.custom.from) && ISO.test(s.custom.to)) return { period: CUSTOM, custom: s.custom, preset: PERIODS.includes(s.preset) ? s.preset : DEFAULT_PERIOD };
     if (PERIODS.includes(s.period)) return { period: s.period, custom: null, preset: s.period };
   } catch {
-    /* geen opslag: standaard */
+    /* no storage: default */
   }
   return null;
 }
@@ -28,7 +28,7 @@ export function useTimeRange(first: string, last: string, key = "trends", initia
   const [state, setState] = useState<State>({ period: initial, custom: null, preset: initial });
   const [ready, setReady] = useState(false);
 
-  // Pas na het laden lezen: de pagina wordt vooraf als statische html gebouwd, zonder adresbalk.
+  // Read only after loading: the page is prebuilt as static html, without an address bar.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const van = q.get("van");
@@ -50,7 +50,7 @@ export function useTimeRange(first: string, last: string, key = "trends", initia
     try {
       localStorage.setItem(`timerange:${key}`, JSON.stringify(state));
     } catch {
-      /* privévenster */
+      /* private window */
     }
     const url = new URL(window.location.href);
     url.searchParams.delete("periode");
@@ -66,7 +66,7 @@ export function useTimeRange(first: string, last: string, key = "trends", initia
   }, [state, ready, key, initial]);
 
   const window_ = useMemo<DateWindow>(() => {
-    // Zolang de data er niet is, is er geen venster (en geen datum om mee te rekenen).
+    // As long as the data is not there, there is no window (and no date to calculate with).
     if (!first || !last) return { from: "", to: "" };
     if (!state.custom) return periodWindow(state.period === CUSTOM ? state.preset : state.period, first, last);
     const r = clampRange(toRange(state.custom), dayNumber(first), dayNumber(last));
@@ -80,7 +80,7 @@ export function useTimeRange(first: string, last: string, key = "trends", initia
       setState((s) => {
         const preset = s.custom ? s.preset : s.period;
         const p = periodWindow(preset, first, last);
-        // Terug op precies het venster van de periode: dan is het weer die periode, geen "eigen".
+        // Back on exactly the period's window: then it is that period again, not "custom".
         if (p.from === w.from && p.to === w.to) return { period: preset, custom: null, preset };
         return { period: CUSTOM, custom: w, preset };
       });

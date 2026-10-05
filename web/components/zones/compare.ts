@@ -1,7 +1,7 @@
-// Eén periode tegen het gemiddelde van de X perioden ervoor. Het gemiddelde
-// aandeel is tijdgewogen (alle zoneseconden opgeteld / alle seconden), zodat een
-// week met twintig minuten niet even zwaar telt als een week met acht uur.
-// Gemiddelde uren zijn per periode, lege perioden tellen mee als nul.
+// One period against the average of the X periods before it. The average
+// share is time-weighted (all zone seconds summed / all seconds), so a
+// week with twenty minutes does not count as much as a week with eight hours.
+// Average hours are per period, empty periods count as zero.
 
 import type { Format } from "@/lib/i18n";
 import { ZONES, type Zone, type ZoneHistoryItem } from "@/lib/training";
@@ -17,9 +17,9 @@ export type ZoneCompareRow = {
 
 export type ZoneComparison = {
   target: ZoneHistoryItem;
-  /** Hoeveel vergelijkingsperioden er echt zijn (minder dan X als de geschiedenis korter is). */
+  /** How many comparison periods there really are (fewer than X when the history is shorter). */
   periods: number;
-  /** Daarvan met hartslagdata. */
+  /** Of those, with heart-rate data. */
   withData: number;
   rows: ZoneCompareRow[];
   total: { seconds: number; avgSeconds: number };
@@ -52,7 +52,7 @@ export function compareZones(items: ZoneHistoryItem[], x: number, which: "curren
 
 export const fmtPct = (v: number | null) => (v == null ? "–" : `${Math.round(v)}%`);
 
-/** "+3,2 pp" / "−1,0 pp": procentpunten met een echt minteken. */
+/** "+3,2 pp" / "−1,0 pp": percentage points with a real minus sign. */
 export function fmtPp(v: number | null, f?: Format): string {
   if (v == null) return "–";
   const r = Math.round(v * 10) / 10;

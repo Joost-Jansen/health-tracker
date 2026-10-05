@@ -1,13 +1,13 @@
 "use client";
 
-// De tijdbalk van Trends: altijd in beeld
-// (plakt onder de bovenbalk), links de periodes, rechts "Aanpassen" met een
-// paneel voor een eigen van-tot, schuif- en zoomknoppen en een overzicht van de
-// hele geschiedenis om het venster in te slepen.
+// The time bar of Trends: always in view
+// (sticks under the top bar), the periods on the left, on the right "Aanpassen" (adjust) with a
+// panel for a custom from-to, pan and zoom buttons and an overview of the
+// whole history to drag the window in.
 //
-// Het paneel gaat alleen open met een klik of tik op "Aanpassen" (niet bij
-// eroverheen gaan, dan schoof het onverwacht over de grafieken) en dicht met
-// dezelfde knop, een klik ernaast of Escape.
+// The panel only opens with a click or tap on "Aanpassen" (not on hover, which
+// made it slide over the charts unexpectedly) and closes with the same
+// button, a click next to it or Escape.
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, Input, Tabs } from "@/components/ds";
@@ -17,7 +17,7 @@ import { PERIODS, fmtWindow, moveWindow, windowDays, type DayPoint } from "@/lib
 import { useLocale, useT } from "@/lib/i18n";
 
 
-/** Hoogte van de vaste bovenbalk (`.ds-topbar` in app/ds.css: height 60px). De tijdbalk plakt eronder. */
+/** Height of the fixed top bar (`.ds-topbar` in app/ds.css: height 60px). The time bar sticks below it. */
 export const TOPBAR_HEIGHT = 60;
 
 export default function TimeFilterBar({
@@ -30,7 +30,7 @@ export default function TimeFilterBar({
   range: TimeRange;
   first: string;
   last: string;
-  /** Silhouet in het overzicht, bijvoorbeeld de fitheid per dag. */
+  /** Silhouette in the overview, for example fitness per day. */
   overview?: DayPoint[];
   label?: string;
 }) {
@@ -48,7 +48,7 @@ export default function TimeFilterBar({
   const { window: w, period, custom, choose, change, reset } = range;
   const valid = w.from <= w.to && w.from >= first && w.to <= last;
 
-  // Een haarlijn onder de balk zodra hij plakt; daarvoor staat hij gewoon in de pagina.
+  // A hairline under the bar as soon as it sticks; before that it sits plainly in the page.
   useEffect(() => {
     let frame = 0;
     const check = () => {
@@ -137,7 +137,7 @@ export default function TimeFilterBar({
           </button>
         </div>
 
-        {/* Op een telefoon past het venster niet naast de periodes: een eigen regel eronder. */}
+        {/* On a phone the window does not fit next to the periods: a line of its own below. */}
         <div className="-mt-1 flex pb-2 sm:hidden">{current}</div>
 
         <div

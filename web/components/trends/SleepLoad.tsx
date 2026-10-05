@@ -1,9 +1,9 @@
 "use client";
 
-// Slaap en rusthartslag tegen belasting, binnen het venster van de tijdbalk: twee spreidingsdiagrammen met per dag
-// (belasting van die dag tegen de nacht erna) of per week (opgetelde belasting tegen het weekgemiddelde) één punt,
-// een gestippelde kleinste-kwadratenlijn en in woorden het verschil tussen de zwaarste en de lichtste helft.
-// Bewust neutraal: een verband is geen oorzaak.
+// Sleep and resting heart rate against load, within the time bar's window: two scatter plots with one point per day
+// (that day's load against the night after) or per week (summed load against the weekly average),
+// a dotted least-squares line and in words the difference between the heaviest and the lightest half.
+// Deliberately neutral: a correlation is not a cause.
 
 import { useLayoutEffect, useMemo, useState } from "react";
 import { Tabs } from "@/components/ds";
@@ -46,7 +46,7 @@ function points(form: FormRow[], recovery: RecoveryDay[], w: DateWindow, mode: "
   const weeks = new Map<string, { load: number; days: number; sleep: number[]; rhr: number[] }>();
   for (const f of form) {
     const wk = mondayOf(f.date);
-    if (wk < w.from || wk > w.to || wk >= thisWeek) continue; // hele weken in het venster
+    if (wk < w.from || wk > w.to || wk >= thisWeek) continue; // whole weeks in the window
     const cell = weeks.get(wk) ?? { load: 0, days: 0, sleep: [], rhr: [] };
     cell.load += f.load;
     cell.days += 1;
@@ -65,7 +65,7 @@ function points(form: FormRow[], recovery: RecoveryDay[], w: DateWindow, mode: "
     }));
 }
 
-/** Gemiddelde van `key` in de zwaarste en de lichtste helft (op belasting). */
+/** Average of `key` in the heaviest and the lightest half (by load). */
 function halves(pts: Point[], key: "sleep" | "rhr"): [number, number] | null {
   const xs = pts.filter((p) => p[key] != null).sort((a, b) => a.load - b.load);
   if (xs.length < MIN_POINTS) return null;

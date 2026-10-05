@@ -1,14 +1,14 @@
-// Gedeelde hulpjes voor de Schema-pagina en de schema-editor (T24): datums in de eigen tijdzone, weken en dagen,
-// de wedstrijd uit het schema, kleuren per sport en status.
+// Shared helpers for the Plan page and the plan editor (T24): dates in the local time zone, weeks and days,
+// the race from the plan, colours per sport and status.
 
 import type { Format } from "@/lib/i18n";
 import type { PlanSession, SessionStatus } from "@/lib/training";
 
-/** Wat de API als sport accepteert (api/plans.py SPORTS). */
+/** What the API accepts as a sport (api/plans.py SPORTS). */
 export const PLAN_SPORTS = ["run", "ride", "swim", "strength_training", "rest"] as const;
 export type PlanSport = (typeof PLAN_SPORTS)[number];
 
-/** Dezelfde sportkleuren als op Trends. */
+/** The same sport colours as on Trends. */
 export const SPORT_COLOUR: Record<string, string> = {
   run: "var(--chart-1)",
   ride: "var(--chart-4)",
@@ -18,10 +18,10 @@ export const SPORT_COLOUR: Record<string, string> = {
 };
 export const sportColour = (s: string) => SPORT_COLOUR[s] ?? "var(--chart-6)";
 
-/** Zones die de API begrijpt (parse_zone): één zone of een bereik. */
+/** Zones the API understands (parse_zone): one zone or a range. */
 export const ZONE_OPTIONS = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z1-Z2", "Z2-Z3", "Z3-Z4", "Z4-Z5"];
 
-/** Kleur per status; de namen staan in lib/i18n (plan.statuses), soorten training als suggestie in plan.kinds. */
+/** Colour per status; the names are in lib/i18n (plan.statuses), kinds of workout as suggestions in plan.kinds. */
 export const STATUS_TONE: Record<SessionStatus, "gain" | "loss" | "brand" | "neutral"> = {
   gedaan: "gain",
   gemist: "loss",
@@ -32,7 +32,7 @@ export const STATUS_TONE: Record<SessionStatus, "gain" | "loss" | "brand" | "neu
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** YYYY-MM-DD in de tijdzone van de browser (niet UTC: om 00:30 is het al de nieuwe dag). */
+/** YYYY-MM-DD in the browser's time zone (not UTC: at 00:30 it is already the new day). */
 export function isoLocal(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
@@ -49,7 +49,7 @@ export function addDays(day: string, n: number): string {
   return isoLocal(d);
 }
 
-/** Maandag van de week van `day`. */
+/** Monday of the week of `day`. */
 export function weekOf(day: string): string {
   const d = parseIso(day);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -69,7 +69,7 @@ export function fmtWeekRange(monday: string, f: Format): string {
 
 const MONTHS: Record<string, number> = { jan: 1, feb: 2, mrt: 3, mar: 3, apr: 4, mei: 5, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, okt: 10, oct: 10, nov: 11, dec: 12 };
 
-/** Datum uit vrije tekst: 2026-10-18, 18-10-2026, 18/10 of 18 okt (2026). */
+/** Date from free text: 2026-10-18, 18-10-2026, 18/10 or 18 okt (2026). */
 export function findDate(text: string, year: number): { iso: string; match: string } | null {
   let m = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) return { iso: `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`, match: m[0] };
@@ -83,7 +83,7 @@ export function findDate(text: string, year: number): { iso: string; match: stri
   return null;
 }
 
-/** Wedstrijdnaam en datum uit het vrije veld `race` ("Marathon, 2026-10-18"). */
+/** Race name and date from the free field `race` ("Marathon, 2026-10-18"). */
 export function splitRace(race: string | null | undefined, year = new Date().getFullYear()): { name: string; date: string | null } {
   const text = (race ?? "").trim();
   if (!text) return { name: "", date: null };
@@ -93,15 +93,15 @@ export function splitRace(race: string | null | undefined, year = new Date().get
   return { name, date: found.iso };
 }
 
-/** Terug naar één veld, zoals agents het ook schrijven. */
+/** Back to one field, the way agents write it too. */
 export function joinRace(name: string, date: string): string {
   return [name.trim(), date].filter(Boolean).join(", ");
 }
 
 const RACE_KIND = /wedstrijd|race|marathon|triathlon/i;
 
-/** De wedstrijd van het schema: datum uit het race-veld, anders de laatste sessie van het soort wedstrijd (naam leeg:
- *  de pagina zegt dan "de wedstrijd" in de eigen taal). */
+/** The plan's race: date from the race field, otherwise the last session of kind race (empty name:
+ *  the page then says "the race" in the user's language). */
 export function planRace(race: string | null | undefined, sessions: PlanSession[]): { name: string; date: string | null } {
   const year = sessions[0] ? parseIso(sessions[0].date).getFullYear() : new Date().getFullYear();
   const r = splitRace(race, year);
@@ -110,11 +110,11 @@ export function planRace(race: string | null | undefined, sessions: PlanSession[
   return { name: r.name, date: s?.date ?? null };
 }
 
-/** `outside`: voor de eerste of na de laatste sessie van het schema (geen rustdag, het schema loopt dan niet). */
+/** `outside`: before the first or after the last session of the plan (not a rest day, the plan is not running then). */
 export type Day = { date: string; sessions: PlanSession[]; outside?: boolean };
 export type Week = { monday: string; days: Day[]; sessions: PlanSession[] };
 
-/** Alle weken van het schema, elke week met zeven dagen (ook lege), sessies per dag in volgorde. */
+/** All weeks of the plan, every week with seven days (empty ones too), sessions per day in order. */
 export function buildWeeks(sessions: PlanSession[]): Week[] {
   if (!sessions.length) return [];
   const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
@@ -131,7 +131,7 @@ export function buildWeeks(sessions: PlanSession[]): Week[] {
   return weeks;
 }
 
-/** Kilometers per sport, gepland en gedaan. Sessies zonder afstand tellen niet mee. */
+/** Kilometres per sport, planned and done. Sessions without a distance do not count. */
 export function kmBySport(sessions: PlanSession[]): Record<string, { planned: number; done: number }> {
   const out: Record<string, { planned: number; done: number }> = {};
   for (const s of sessions) {

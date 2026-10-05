@@ -1,8 +1,8 @@
 "use client";
 
-// Trends: tijd per hartslagzone over tijd. Bovenaan de verdeling per week of
-// maand binnen de gekozen periode van de tijdbalk, eronder de lopende of de
-// vorige periode tegen het gemiddelde van de X perioden daarvoor.
+// Trends: time per heart-rate zone over time. At the top the distribution per week or
+// month within the period chosen in the time bar, below it the current or the
+// previous period against the average of the X periods before.
 
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -17,12 +17,12 @@ import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
 
 const CHOICES: Record<ZonePeriod, number[]> = { week: [4, 8, 12, 26], month: [3, 6, 12] };
 const DEFAULT_X: Record<ZonePeriod, number> = { week: 4, month: 3 };
-// Eén keer de hele beschikbare geschiedenis ophalen (de API-grens), dan hoeven de tijdbalk
-// en de keuze van X niets opnieuw te laden.
+// Fetch the whole available history once (the API limit), then the time bar
+// and the choice of X do not need to reload anything.
 const COUNT: Record<ZonePeriod, number> = { week: 104, month: 36 };
 const FALLBACK_SHOWN = 12;
 
-// Twee rijen in één grid (zie gebruik), zodat beide balken op dezelfde x beginnen.
+// Two rows in one grid (see usage), so both bars start at the same x.
 function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: string }) {
   const t = useT();
   return (
@@ -36,7 +36,7 @@ function MiniBar({ pct, label }: { pct: Record<Zone, number> | null; label: stri
   );
 }
 
-/** `sport`: het sportfilter van de pagina ("all" of één sport). Dan volgt de kaart dat en toont geen eigen keuze. */
+/** `sport`: the page's sport filter ("all" or one sport). Then the card follows it and shows no choice of its own. */
 export default function ZonesOverTime({ window: win, sport: pageSport }: { window?: { from: string; to: string }; sport?: string }) {
   const t = useT();
   const f = useFormat();
@@ -63,7 +63,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
   const bars = useMemo<ZoneStackBar[]>(() => {
     if (!h) return [];
     const last = h.items[h.items.length - 1];
-    // De perioden die de gekozen tijdspanne raken; zonder tijdbalk de laatste 12.
+    // The periods that touch the chosen time span; without a time bar the last 12.
     const items = win?.from && win?.to
       ? h.items.filter((it) => it.end >= win.from && it.start <= win.to)
       : h.items.slice(-FALLBACK_SHOWN);
@@ -110,7 +110,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
       ) : !h ? (
         <p className="py-6 text-center text-sm text-ink-muted">{z.loadFailed}</p>
       ) : !h.items.some((it) => it.total_s > 0) ? (
-        // Nog nergens hartslagdata (nieuw account, of deze sport nooit met hartslag): geen lege staven en een tabel vol streepjes.
+        // No heart-rate data anywhere yet (new account, or this sport never with heart rate): no empty bars and a table full of dashes.
         <p className="py-6 text-center text-sm text-ink-muted">{z.noHrYet(sport === "all" ? null : sport)}</p>
       ) : (
         <div className={`transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>

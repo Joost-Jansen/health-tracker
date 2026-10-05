@@ -1,7 +1,7 @@
 "use client";
 
-// "Plakken uit tabel": een schema uit een markdowntabel of CSV (zoals een agent of spreadsheet hem maakt). De
-// tweede route naast de editor; eerst controleren, dan opslaan als actief schema.
+// "Paste from table": a plan from a markdown table or CSV (as an agent or a spreadsheet makes it). The
+// second route next to the editor; check first, then save as the active plan.
 
 import { useState } from "react";
 import { Button, Tag } from "@/components/ds";

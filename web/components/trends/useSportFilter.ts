@@ -1,8 +1,8 @@
 "use client";
 
-// Het sportfilter van Trends: "all" of één sport. Staat in de adresbalk (?sport=run), zodat een link of een
-// herlaadbeurt hetzelfde laat zien. Raakt alleen zijn eigen parameter, dus het tijdvenster (?periode, ?van, ?tot)
-// blijft staan.
+// The sport filter of Trends: "all" or one sport. Lives in the address bar (?sport=run), so a link or a
+// reload shows the same. Touches only its own parameter, so the time window (?periode, ?van, ?tot)
+// stays.
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ const VALID = /^[a-z_]{1,40}$/;
 export function useSportFilter() {
   const [sport, setSport] = useState(ALL_SPORTS);
 
-  // Pas na het laden lezen: de pagina wordt vooraf als statische html gebouwd, zonder adresbalk.
+  // Read only after loading: the page is prebuilt as static html, without an address bar.
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get(PARAM);
     if (value && VALID.test(value)) setSport(value);

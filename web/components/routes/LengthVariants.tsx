@@ -1,4 +1,4 @@
-// "3 varianten: 38, 42 en 47 km": de lengtevarianten van één rondje. Niets bij één variant.
+// "3 variants: 38, 42 and 47 km": the length variants of one route. Nothing with one variant.
 
 import { useFormat, useT } from "@/lib/i18n";
 import type { RouteLengthVariant } from "@/lib/training";

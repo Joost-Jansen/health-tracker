@@ -1,5 +1,7 @@
 // Types and formatting for training data. Times as 1:05 (h:mm), pace as 5:20/km.
 
+import { SPORTS, effortKind } from "@/lib/sports";
+
 export const ZONES = ["Z1", "Z2", "Z3", "Z4", "Z5"] as const;
 export type Zone = (typeof ZONES)[number];
 export type ZoneSeconds = Record<Zone, number>;
@@ -18,16 +20,8 @@ export const EASY_TARGET = 80;
 export const EASY_LOW = 75;
 export const easyPct = (pct: Record<Zone, number>) => pct.Z1 + pct.Z2;
 
-export const SPORT_LABEL: Record<string, string> = {
-  all: "Alle sporten",
-  run: "Hardlopen",
-  ride: "Fietsen",
-  swim: "Zwemmen",
-  walking: "Wandelen",
-  strength_training: "Kracht",
-  breathwork: "Ademwerk",
-  resort_skiing: "Skiën",
-};
+/** Dutch sport names (lib/sports.ts); the site takes its names from lib/i18n (t.sport) in the user's language. */
+export const SPORT_LABEL: Record<string, string> = Object.fromEntries(Object.entries(SPORTS).map(([k, v]) => [k, v.nl]));
 
 export const sportLabel = (s: string) => SPORT_LABEL[s] ?? s.replace(/_/g, " ");
 
@@ -119,13 +113,14 @@ export function fmtSpeed(seconds?: number, km?: number): string {
   return `${((km / seconds) * 3600).toFixed(1).replace(".", ",")} km/u`;
 }
 
-/** Pace for running, speed for cycling, per 100 m for swimming. */
+/** Pace on foot, speed for cycling and most other sports, per 100 m for swimming (lib/sports.ts effortKind). */
 export function fmtIntensity(a: { sport: string; moving_time_s?: number; distance_km?: number }): string {
-  if (a.sport === "ride") return fmtSpeed(a.moving_time_s, a.distance_km);
-  if (a.sport === "swim") {
+  const kind = effortKind(a.sport);
+  if (kind === "speed") return fmtSpeed(a.moving_time_s, a.distance_km);
+  if (kind === "swim" || kind === "row") {
     if (!a.moving_time_s || !a.distance_km) return "–";
-    const s = Math.round(a.moving_time_s / (a.distance_km * 10));
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}/100m`;
+    const s = Math.round(a.moving_time_s / (a.distance_km * (kind === "swim" ? 10 : 2)));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}/${kind === "swim" ? "100m" : "500m"}`;
   }
   return fmtPace(a.moving_time_s, a.distance_km);
 }

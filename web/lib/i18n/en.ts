@@ -2,6 +2,7 @@
 // is a type error. The health and performance explanations (T) come from texts.en.ts, with Dutch as fallback for a
 // key that is not translated yet (npm run check:i18n reports those).
 
+import { SPORTS as SPORT_CATALOG, lowerName } from "@/lib/sports";
 import { T } from "@/lib/texts";
 import { makeFormat } from "./format";
 import type { Messages } from "./nl";
@@ -9,19 +10,9 @@ import { textsEn, type DeepPartial } from "./texts.en";
 
 const f = makeFormat("en");
 
-const SPORTS: Record<string, string> = {
-  all: "All sports",
-  run: "Running",
-  ride: "Cycling",
-  swim: "Swimming",
-  walking: "Walking",
-  strength_training: "Strength",
-  breathwork: "Breathwork",
-  resort_skiing: "Skiing",
-  rest: "Rest",
-};
+const SPORTS: Record<string, string> = Object.fromEntries(Object.entries(SPORT_CATALOG).map(([k, v]) => [k, v.en]));
 const sport = (s: string) => SPORTS[s] ?? s.replace(/_/g, " ");
-const lower = (s: string) => sport(s).toLowerCase();
+const lower = (s: string) => lowerName(sport(s));
 
 /** `base` with every key of `over` that is set; keeps Dutch for what has no translation yet. */
 export function withFallback<X>(base: X, over: DeepPartial<X> | undefined): X {

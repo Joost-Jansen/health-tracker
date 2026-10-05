@@ -12,6 +12,8 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from tools.sports import garmin_sport, strava_sport
+
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
 FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit")}
@@ -28,17 +30,6 @@ SCALAR_FIELDS = (
     "avg_cadence_spm",
 )
 
-STRAVA_SPORTS = {
-    "Run": "run", "TrailRun": "run", "VirtualRun": "run",
-    "Ride": "ride", "VirtualRide": "ride", "GravelRide": "ride", "MountainBikeRide": "ride", "EBikeRide": "ride",
-    "Swim": "swim",
-}
-GARMIN_SPORTS = {
-    "running": "run", "trail_running": "run", "treadmill_running": "run", "track_running": "run", "virtual_run": "run",
-    "cycling": "ride", "road_biking": "ride", "indoor_cycling": "ride", "virtual_ride": "ride",
-    "gravel_cycling": "ride", "mountain_biking": "ride",
-    "lap_swimming": "swim", "open_water_swimming": "swim", "swimming": "swim",
-}
 STRAVA_STREAM_KEYS = {
     "time": "time", "latlng": "latlng", "heartrate": "heartrate", "velocity_smooth": "velocity",
     "altitude": "altitude", "cadence": "cadence", "distance": "distance", "watts": "watts",
@@ -63,7 +54,7 @@ def _drop_none(d: dict) -> dict:
 
 
 def from_strava(activity: dict, streams: dict | None) -> dict:
-    sport = STRAVA_SPORTS.get(activity.get("sport_type") or activity.get("type"), (activity.get("sport_type") or "other").lower())
+    sport = strava_sport(activity.get("sport_type") or activity.get("type"))
     cadence = activity.get("average_cadence")
     if cadence is not None and sport == "run":
         cadence *= 2
@@ -88,8 +79,33 @@ def from_strava(activity: dict, streams: dict | None) -> dict:
     return _drop_none(record)
 
 
+def _elapsed_s(activity: dict) -> float | None:
+    """Garmin's activity list has given `elapsedDuration` in milliseconds next to `duration` in seconds."""
+    elapsed, duration = activity.get("elapsedDuration"), activity.get("duration")
+    if elapsed and duration and elapsed > duration * 10:
+        return elapsed / 1000
+    return elapsed or duration
+
+
+def garmin_summary(detail: dict) -> dict:
+    """An activity from Garmin's detail endpoint (get_activity: summaryDTO, activityTypeDTO), as the activity list
+    gives it, so from_garmin reads both. Multisport legs only come this way."""
+    s = detail.get("summaryDTO") or {}
+    clock = lambda v: v.replace("T", " ").split(".")[0] if v else v  # noqa: E731  "2021-04-11T12:36:16.0"
+    return {
+        **s,
+        "activityId": detail["activityId"],
+        "activityName": detail.get("activityName"),
+        "activityType": detail.get("activityTypeDTO") or {},
+        "parentId": detail.get("parentId"),
+        "startTimeLocal": clock(s.get("startTimeLocal")),
+        "startTimeGMT": clock(s.get("startTimeGMT")),
+        "averageRunningCadenceInStepsPerMinute": s.get("averageRunCadence"),
+        "averageBikingCadenceInRevPerMinute": s.get("averageBikeCadence"),
+    }
+
+
 def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None, streams: dict | None = None) -> dict:
-    type_key = (activity.get("activityType") or {}).get("typeKey", "other")
     laps = []
     for lap in (splits or {}).get("lapDTOs", []):
         km = (lap.get("distance") or 0) / 1000
@@ -108,11 +124,11 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
     record = {
         "start_utc": activity["startTimeGMT"].replace(" ", "T") + "Z",
         "start_local": activity["startTimeLocal"].replace(" ", "T"),
-        "sport": GARMIN_SPORTS.get(type_key, type_key),
+        "sport": garmin_sport(activity.get("activityType")),
         "name": activity.get("activityName"),
         "distance_km": _round((activity.get("distance") or 0) / 1000, 2),
         "moving_time_s": _round(activity.get("movingDuration") or activity.get("duration")),
-        "elapsed_time_s": _round(activity.get("elapsedDuration") or activity.get("duration")),
+        "elapsed_time_s": _round(_elapsed_s(activity)),
         "elevation_gain_m": activity.get("elevationGain"),
         "avg_hr": _round(activity.get("averageHR")),
         "max_hr": _round(activity.get("maxHR")),
@@ -180,6 +196,16 @@ def _find_match(root: Path, record: dict) -> Path | None:
             if abs((_parse_utc(existing["start_utc"]) - start).total_seconds()) <= MATCH_WINDOW_S:
                 return path
     return None
+
+
+def delete_activity_by_source(root: Path, source: str, source_id, day: str) -> None:
+    """Remove the activity file that `source` sent as `source_id`, started around `day`."""
+    d = date.fromisoformat(day)
+    for offset in (0, -1, 1):
+        x = d + timedelta(days=offset)
+        for path in _activities_dir(root).glob(f"{x.year}/{x.isoformat()}_*.json"):
+            if str(json.loads(path.read_text()).get("sources", {}).get(source, {}).get("id")) == str(source_id):
+                path.unlink()
 
 
 def _merge(existing: dict, incoming: dict) -> dict:

@@ -1,6 +1,7 @@
 // Numbers, units, dates and plurals per locale. Dutch: 5,3 km, 28,4 km/u, "4 okt 2026". English (en-GB): 5.3 km,
 // 28.4 km/h, "4 Oct 2026". Times (1:05, 5:08/km) look the same in both.
 
+import { effortKind } from "@/lib/sports";
 import { INTL, type Locale } from "./locale";
 
 export type Forms = { one: string; other: string };
@@ -75,11 +76,13 @@ export function makeFormat(locale: Locale) {
     clock,
     /** "5:08/km". */
     pace: (sPerKm?: number | null) => (sPerKm ? `${clock(sPerKm)}/km` : "–"),
-    /** Pace for running, speed for cycling, per 100 m for swimming. */
+    /** Pace on foot, per 100 m for swimming, per 500 m for rowing, speed for the rest (lib/sports.ts effortKind). */
     intensity: (a: Intensity) => {
       if (!a.moving_time_s || !a.distance_km) return "–";
-      if (a.sport === "ride") return f.kmh((a.distance_km / a.moving_time_s) * 3600);
-      if (a.sport === "swim") return `${clock(Math.round(a.moving_time_s / (a.distance_km * 10)))}/100m`;
+      const kind = effortKind(a.sport);
+      if (kind === "speed") return f.kmh((a.distance_km / a.moving_time_s) * 3600);
+      if (kind === "swim") return `${clock(Math.round(a.moving_time_s / (a.distance_km * 10)))}/100m`;
+      if (kind === "row") return `${clock(Math.round(a.moving_time_s / (a.distance_km * 2)))}/500m`;
       return f.pace(Math.round(a.moving_time_s / a.distance_km));
     },
     /** "4 okt 2026" / "4 Oct 2026". */

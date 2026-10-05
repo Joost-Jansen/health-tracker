@@ -133,7 +133,32 @@ def test_schema_3_turns_stored_dutch_values_into_english(tmp_path):
     assert db.get_plan(s, old)["status"] == "finished" and db.active_plan(s)["id"] == new
     assert sorted(r["name"] for r in db.load_routes(s)) == ["40.0 km bike route (f1)", "6.0 km loop (r1)", "Park"]
     assert db.get_setting(s, "onboarding")["visited"] == ["trends", "routes", "history"]
-    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION == 3
+    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION
+
+
+def test_schema_4_recomputes_the_sport_from_the_raw_type(tmp_path):
+    e = db.connect(f"sqlite:///{tmp_path / 'v3.db'}")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+    raw = lambda key, parent: {"garmin": {"id": 1, "raw": {"activityType": {"typeKey": key, "parentTypeId": parent}}}}  # noqa: E731
+    rows = {  # what schema 3 stored: Garmin's key when it was not in the old table
+        "a": ("2026-09-01T08:00:00", "street_running", raw("street_running", 1)),
+        "b": ("2026-09-02T08:00:00", "tennis_v2", raw("tennis_v2", 219)),
+        "c": ("2026-09-03T08:00:00", "ride", raw("e_bike_fitness", 2)),
+        "d": ("2026-09-04T08:00:00", "walk", {"strava": {"id": 2, "raw": {"sport_type": "Walk"}}}),
+        "e": ("2026-09-05T08:00:00", "yoga", {}),
+        "f": ("2026-09-06T08:00:00", "walk", {"wahoo": {"fields": {}}}),
+    }
+    with e.begin() as c:
+        for aid, (start, sport, sources) in rows.items():
+            data = {"start_local": start, "start_utc": start + "Z", "sport": sport, "sources": sources}
+            c.execute(db.activities.insert().values(user_id=1, id=aid, start_local=start, start_utc=start + "Z", sport=sport, data=data))
+        c.execute(db.app_settings.update().where(db.app_settings.c.key == "schema_version").values(value=3))
+    db.create_schema(e)
+    got = {a["id"]: a["sport"] for a in db.load_activities(s)}
+    assert got == {"a": "run", "b": "tennis", "c": "e_bike", "d": "walking", "e": "yoga", "f": "walking"}
+    with e.connect() as c:
+        assert dict(c.execute(db.select(db.activities.c.id, db.activities.c.sport)).all()) == got
 
 
 @pytest.mark.skipif(not os.environ.get("TEST_POSTGRES_URL"), reason="set TEST_POSTGRES_URL to run against Postgres")

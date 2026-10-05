@@ -3,24 +3,15 @@
 // f.plural, numbers and dates via f (lib/i18n/format.ts). The explanations about health and performance are in
 // lib/texts.ts (T) and come in here as `texts`.
 
+import { SPORTS as SPORT_CATALOG, lowerName } from "@/lib/sports";
 import { T } from "@/lib/texts";
 import { makeFormat } from "./format";
 
 const f = makeFormat("nl");
 
-const SPORTS: Record<string, string> = {
-  all: "Alle sporten",
-  run: "Hardlopen",
-  ride: "Fietsen",
-  swim: "Zwemmen",
-  walking: "Wandelen",
-  strength_training: "Kracht",
-  breathwork: "Ademwerk",
-  resort_skiing: "Skiën",
-  rest: "Rust",
-};
+const SPORTS: Record<string, string> = Object.fromEntries(Object.entries(SPORT_CATALOG).map(([k, v]) => [k, v.nl]));
 const sport = (s: string) => SPORTS[s] ?? s.replace(/_/g, " ");
-const lower = (s: string) => sport(s).toLowerCase();
+const lower = (s: string) => lowerName(sport(s));
 
 export const nl = {
   common: {

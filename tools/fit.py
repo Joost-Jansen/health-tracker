@@ -7,6 +7,8 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from tools.sports import fit_sport
+
 DEG_PER_SEMICIRCLE = 180 / 2**31
 # stream name -> FIT fields, first one present wins
 FIELDS = {
@@ -19,9 +21,14 @@ FIELDS = {
 }
 
 
-def streams_from_records(records) -> dict:
-    """Streams aligned on `time`; `latlng` only holds the records that have a position."""
-    records = [r for r in records if r.get("timestamp") is not None]
+def _utc(t: datetime) -> datetime:
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def streams_from_records(records, start: datetime | None = None, end: datetime | None = None) -> dict:
+    """Streams aligned on `time`; `latlng` only holds the records that have a position. With `start` and `end` (UTC)
+    only the records in that window."""
+    records = [r for r in records if r.get("timestamp") is not None and (start is None or start <= _utc(r["timestamp"]) <= end)]
     if not records:
         return {}
     t0 = records[0]["timestamp"]
@@ -40,8 +47,9 @@ def streams_from_records(records) -> dict:
     return streams
 
 
-def read_fit_streams(data: bytes) -> dict:
-    """Streams from the zip Garmin returns for an ORIGINAL download (or a bare .fit)."""
+def read_fit_streams(data: bytes, start: datetime | None = None, end: datetime | None = None) -> dict:
+    """Streams from the zip Garmin returns for an ORIGINAL download (or a bare .fit). With `start` and `end` (UTC) only
+    the records in that window: one leg of a multisport activity, whose legs share the parent's file."""
     import fitdecode
 
     if data[:2] == b"PK":
@@ -62,11 +70,9 @@ def read_fit_streams(data: bytes) -> dict:
                     records.append({f.name: f.value for f in frame.fields})
     except fitdecode.FitError as err:
         raise ValueError(f"unreadable FIT file: {err}") from err
-    return streams_from_records(records)
+    return streams_from_records(records, start, end)
 
 
-# FIT sport -> ours (the FIT profile's own names; sub_sport only to tell indoor from outdoor)
-FIT_SPORTS = {"running": "run", "cycling": "ride", "swimming": "swim", "walking": "walk", "hiking": "hike"}
 FIT_EPOCH = datetime(1989, 12, 31, tzinfo=timezone.utc)
 LOCAL_TZ = ZoneInfo("Europe/Amsterdam")  # only when the file carries no local time of its own
 
@@ -139,7 +145,7 @@ def read_fit_activity(data: bytes) -> dict:
     sub = str(session.get("sub_sport") or "").lower()
     return {
         "manufacturer": str(file_id.get("manufacturer") or "").lower(),
-        "sport": FIT_SPORTS.get(sport_raw, sport_raw or "other"),
+        "sport": fit_sport(sport_raw, sub),
         "indoor": "indoor" in sub or "virtual" in sub or "treadmill" in sub,
         "start_utc": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "start_local": start_local.strftime("%Y-%m-%dT%H:%M:%S"),

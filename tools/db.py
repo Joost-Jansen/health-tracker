@@ -43,9 +43,10 @@ from sqlalchemy import (
 from sqlalchemy.engine import Engine
 
 from tools.routes import english_default_name
+from tools.sports import sport_of
 from tools.store import activity_id, merge, prepare, same_start
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -298,8 +299,19 @@ def _migrate_v3(conn) -> None:
             conn.execute(update(routes).where(routes.c.user_id == row["user_id"], routes.c.id == row["id"]).values(data=data))
 
 
+def _migrate_v4(conn) -> None:
+    """The sport of every stored activity again from its raw Garmin or Strava type (tools/sports.py): running,
+    cycling and swimming variants that had their own code before, and Garmin's `_v2`/`_ws` suffixes."""
+    for row in conn.execute(select(activities.c.user_id, activities.c.id, activities.c.sport, activities.c.data)).mappings().all():
+        sport = sport_of(row["data"] or {}) or {"walk": "walking", "hike": "hiking"}.get(row["sport"])  # FIT uploads before v4
+        if sport and sport != row["sport"]:
+            data = {**row["data"], "sport": sport}
+            conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(sport=sport, data=data))
+
+
 def create_schema(engine: Engine) -> dict | None:
-    """Create missing tables; migrate a single-user (v1) database to multi-user and Dutch stored values to English (v3).
+    """Create missing tables; migrate a single-user (v1) database to multi-user, Dutch stored values to English (v3)
+    and stored sports to the codes of tools/sports.py (v4).
     Returns the v1 migration counts or None."""
     with engine.begin() as conn:
         tables = set(inspect(conn).get_table_names())
@@ -310,6 +322,8 @@ def create_schema(engine: Engine) -> dict | None:
         version = conn.execute(select(app_settings.c.value).where(app_settings.c.key == "schema_version")).scalar_one_or_none()
         if version is None or int(version) < 3:
             _migrate_v3(conn)
+        if version is None or int(version) < 4:
+            _migrate_v4(conn)
         if version != SCHEMA_VERSION:
             conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
@@ -506,6 +520,20 @@ def upsert_activity(s: Scope, record: dict) -> str:
             conn.execute(delete(streams).where(streams.c.user_id == uid, streams.c.activity_id == aid))
             conn.execute(insert(streams).values(user_id=uid, activity_id=aid, data=new_streams))
     return aid
+
+
+def delete_activity_by_source(s: Scope, source: str, source_id, day: str) -> None:
+    """Remove the activity (with its streams) that `source` sent as `source_id`, started around `day`."""
+    d = date.fromisoformat(day)
+    lo, hi = (d - timedelta(days=1)).isoformat(), (d + timedelta(days=2)).isoformat()
+    with s.engine.begin() as conn:
+        rows = conn.execute(
+            select(activities.c.id, activities.c.data).where(activities.c.user_id == s.user_id, activities.c.start_local >= lo, activities.c.start_local < hi)
+        ).all()
+        for aid, data in rows:
+            if str(((data or {}).get("sources") or {}).get(source, {}).get("id")) == str(source_id):
+                conn.execute(delete(streams).where(streams.c.user_id == s.user_id, streams.c.activity_id == aid))
+                conn.execute(delete(activities).where(activities.c.user_id == s.user_id, activities.c.id == aid))
 
 
 def set_derived(s: Scope, aid: str, **fields) -> None:

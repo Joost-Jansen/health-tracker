@@ -239,7 +239,7 @@ export const T = {
     loading: "Laden…",
     loadError: "Kon de trends niet laden.",
 
-    periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "Dit jaar", "1J": "1J", Alles: "Alles", Eigen: "Eigen" } as Record<string, string>,
+    periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "YTD", "1J": "1J", Alles: "Alles", Eigen: "Eigen" } as Record<string, string>,
     timeFilter: {
       group: "Periode voor alle grafieken",
       adjust: "Aanpassen",

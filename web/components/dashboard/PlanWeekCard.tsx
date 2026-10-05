@@ -1,5 +1,5 @@
-// Schema deze week: per sport gepland tegenover gedaan, hoeveel sessies gedaan, gemist en te gaan, en bovenaan het
-// aftellen naar de eerstvolgende wedstrijd van het schema. Alleen met een actief schema.
+// Plan this week: per sport planned against done, how many sessions done, missed and to go, and at the top the
+// countdown to the plan's next race. Only with an active plan.
 
 import Card from "@/components/Card";
 import InfoPopover from "@/components/InfoPopover";
@@ -27,7 +27,7 @@ function Countdown({ race }: { race: NextRace }) {
   );
 }
 
-/** Kilometers als het schema afstanden heeft, anders de tijd. */
+/** Kilometres when the plan has distances, otherwise the time. */
 function SportRow({ sport, row }: { sport: string; row: PlanWeekSport }) {
   const tt = useT();
   const t = tt.texts.vandaag.planWeek;

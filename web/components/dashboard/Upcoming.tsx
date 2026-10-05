@@ -1,4 +1,4 @@
-// De volgende sessies van het actieve schema.
+// The next sessions of the active plan.
 
 import Card from "@/components/Card";
 import { useFormat, useT } from "@/lib/i18n";

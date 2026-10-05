@@ -1,7 +1,7 @@
 "use client";
 
-// Alle routes over elkaar: dunne, half doorzichtige lijnen. Waar je vaak loopt wordt de lijn vanzelf dik
-// en verzadigd. Op canvas, want honderden polylines als svg maken de kaart traag.
+// All routes on top of each other: thin, half-transparent lines. Where you run often the line becomes thick
+// and saturated by itself. On canvas, because hundreds of polylines as svg make the map slow.
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
@@ -27,7 +27,7 @@ export default function HeatMap({ tracks, height = 520 }: { tracks: [number, num
       const renderer = Lf.canvas();
       for (const t of tracks) Lf.polyline(t, { color: colour, weight: 2.5, opacity: 0.28, renderer, interactive: false }).addTo(m);
 
-      // Inzoomen op het gebied waar de meeste routes starten (thuis), niet op alle vakanties samen.
+      // Zoom in on the area where most routes start (home), not on all holidays together.
       const starts = tracks.map((t) => t[0]);
       const key = (p: [number, number]) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
       const counts = new Map<string, number>();

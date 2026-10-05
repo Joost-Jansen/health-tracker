@@ -1,7 +1,7 @@
 "use client";
 
-// Licht of donker zoals de pagina hem nu toont (data-theme of de systeemvoorkeur), en een
-// CSS-token als echte kleur. Leaflet tekent svg-attributen; daar werkt var(--zone-1) niet in.
+// Light or dark as the page currently shows it (data-theme or the system preference), and a
+// CSS token as a real colour. Leaflet draws svg attributes; var(--zone-1) does not work in those.
 
 import { useEffect, useState } from "react";
 
@@ -34,9 +34,9 @@ export function cssVar(name: string, fallback = "#888"): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
-// OpenStreetMap-standaardtegels: geen API-sleutel nodig (CARTO vraagt die buiten localhost). De
-// tegels zijn fel van zichzelf; de klassen `map-tiles` en `map-tiles--dark` in globals.css maken ze
-// zacht (licht) of keren ze om (donker). Het filter zit op de tegellaag, niet op lijnen en stippen.
+// OpenStreetMap standard tiles: no API key needed (CARTO asks for one outside localhost). The
+// tiles are bright by themselves; the classes `map-tiles` and `map-tiles--dark` in globals.css make them
+// soft (light) or invert them (dark). The filter sits on the tile layer, not on lines and dots.
 export function tileLayerFor(dark: boolean) {
   return {
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",

@@ -1,8 +1,8 @@
 "use client";
 
-// De route van één activiteit op OpenStreetMap, gekleurd per hartslagzone. Een donkere of lichte rand
-// onder de lijn houdt de zachte zonekleuren leesbaar op elke ondergrond. `cursor` (0..1) zet een stip
-// op de plek waar je in de grafiek aanwijst.
+// The route of one activity on OpenStreetMap, coloured per heart-rate zone. A dark or light casing
+// under the line keeps the soft zone colours readable on any background. `cursor` (0..1) puts a dot
+// at the spot you point at in the chart.
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";

@@ -1,7 +1,7 @@
 "use client";
 
-// Doelen of profiel: lezen als opgemaakte tekst, bewerken als markdown. Agents lezen en schrijven hetzelfde
-// document via de API, dus wat je hier vastlegt is wat de coach de volgende sessie ziet.
+// Goals or profile: read as formatted text, edit as markdown. Agents read and write the same
+// document via the API, so what you record here is what the coach sees in the next session.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

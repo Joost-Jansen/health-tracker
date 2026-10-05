@@ -1,7 +1,7 @@
 "use client";
 
-// Log of analyses: nieuwste eerst, per maand, met zoeken en een formulier voor een nieuwe entry.
-// Wie het schreef (joost of agent) staat erbij.
+// Log or analyses: newest first, per month, with search and a form for a new entry.
+// Who wrote it (the user or an agent) is shown with it.
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

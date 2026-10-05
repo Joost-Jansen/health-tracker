@@ -1,8 +1,8 @@
 "use client";
 
-// De uitleg per stap, één keer geschreven: de rondleiding, de checklist op Vandaag en Help tonen dezelfde tekst
-// Wat over de gebruiker gaat (aantal trainingen, max hartslag, wanneer gekoppeld) komt uit de onboarding-status; de
-// teksten uit lib/i18n (onboarding) en de uitleg over gezondheid en prestaties uit lib/texts.ts (t.texts).
+// The explanation per step, written once: the tour, the checklist on Vandaag and Help show the same text.
+// What is about the user (number of workouts, max heart rate, when connected) comes from the onboarding status; the
+// texts from lib/i18n (onboarding) and the explanations about health and performance from lib/texts.ts (t.texts).
 
 import Link from "next/link";
 import type { Format, Messages } from "@/lib/i18n";
@@ -15,7 +15,7 @@ export function A({ href, children, onClick }: { href: string; children: React.R
   return <Link href={href} onClick={onClick} className="underline underline-offset-4">{children}</Link>;
 }
 
-/** Een vinkje: groen als gedaan, een stip als het nog moet. */
+/** A check mark: green when done, a dot when still to do. */
 export function Check({ done, size = 20 }: { done: boolean; size?: number }) {
   return (
     <span aria-hidden className="grid flex-none place-items-center rounded-full text-[11px] font-semibold"
@@ -29,7 +29,7 @@ export function Check({ done, size = 20 }: { done: boolean; size?: number }) {
   );
 }
 
-/** Eén regel van een checklist. */
+/** One row of a checklist. */
 export function CheckRow({ done, title, optional, children, action }: {
   done: boolean; title: string; optional?: boolean; children?: React.ReactNode; action?: React.ReactNode;
 }) {
@@ -50,7 +50,7 @@ export function CheckRow({ done, title, optional, children, action }: {
   );
 }
 
-/** Wat een stap nu zegt: wat er al is, of wat je moet doen. Kort, voor een checklist. */
+/** What a step says now: what is already there, or what you need to do. Short, for a checklist. */
 export function stepSummary(id: StepId, o: Onboarding, t: Messages, f: Format): React.ReactNode {
   const st = o.status;
   const s = t.onboarding.summary;
@@ -87,7 +87,7 @@ export function stepSummary(id: StepId, o: Onboarding, t: Messages, f: Format): 
   }
 }
 
-/** De langere uitleg per stap, voor de rondleiding en de handleiding: een inleiding en aandachtspunten. */
+/** The longer explanation per step, for the tour and the guide: an introduction and points of attention. */
 export function stepExplain(id: StepId, o: Onboarding | null, t: Messages): { intro: React.ReactNode; bullets: React.ReactNode[] } {
   const ex = t.onboarding.explain;
   const T = t.texts.onboarding;

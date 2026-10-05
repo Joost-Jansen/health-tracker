@@ -1,10 +1,10 @@
 "use client";
 
-// Eén regel boven een pagina die nog leeg is: waar je begint. Alleen zolang er
-// nog geen trainingen zijn, met een tekst die past bij waar je staat (niet gekoppeld, eerste sync bezig, wacht op sync).
-// Niet op Vandaag: daar staat de checklist. Weg te klikken; dat wordt bij je account bewaard.
+// One line above a page that is still empty: where to start. Only while there
+// are no workouts yet, with a text that fits where you are (not connected, first sync running, waiting for sync).
+// Not on Vandaag: the checklist is there. Can be dismissed; that is stored with your account.
 //
-// Ook hier: welke pagina's van de stap "Rondkijken" je al bekeken hebt (useRecordVisit).
+// Also here: which pages of the "Rondkijken" (look around) step you have already seen (useRecordVisit).
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
@@ -47,7 +47,7 @@ export default function StartBanner({ enabled }: { enabled: boolean }) {
   );
 }
 
-/** Onthoudt welke pagina's van de stap Rondkijken je hebt geopend (hooguit één keer per pagina). */
+/** Remembers which pages of the Rondkijken step you have opened (at most once per page). */
 export function useRecordVisit(pathname: string, enabled: boolean) {
   const q = useOnboarding(enabled);
   const set = useSetOnboarding();

@@ -1,5 +1,5 @@
-// Laatste activiteiten: een run in stukken (minder dan 30 minuten pauze) is één regel met "N delen", wedstrijden
-// krijgen een label (zelfde herkenning als Trends).
+// Latest activities: a run in pieces (less than 30 minutes break) is one row with "N parts", races
+// get a label (same detection as Trends).
 
 import Card from "@/components/Card";
 import { SportBadge } from "@/components/plan/SportIcon";

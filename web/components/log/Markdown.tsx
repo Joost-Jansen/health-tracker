@@ -1,7 +1,7 @@
 "use client";
 
-// Markdown uit het logboek, de analyses en de doelen. Ruwe HTML in de tekst wordt getoond als tekst, niet
-// uitgevoerd: agents schrijven hier ook in.
+// Markdown from the log, the analyses and the goals. Raw HTML in the text is shown as text, not
+// executed: agents write here too.
 
 import { useMemo } from "react";
 import { Marked } from "marked";

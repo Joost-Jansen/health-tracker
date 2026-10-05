@@ -1,10 +1,10 @@
 "use client";
 
-// Eén of meer routes op de kaart, elk in een eigen grafiekkleur met een lichte of donkere rand, en een
-// stip op het startpunt. Voor een rondje, of voor een combinatie als "2× park + rondje brug".
-// Varianten (de andere keren op hetzelfde rondje) liggen er dun en licht onder, zodat de gemiddelde
-// route opvalt en afwijkingen zichtbaar blijven. `interactive={false}` maakt er een vast plaatje van
-// voor een kaartje in een raster: niet slepen of zoomen, een klik gaat naar de link eromheen.
+// One or more routes on the map, each in its own chart colour with a light or dark casing, and a
+// dot at the start. For one route, or for a combination like "2× park + bridge loop".
+// Variants (the other runs on the same route) lie thin and light underneath, so the typical
+// route stands out and deviations stay visible. `interactive={false}` makes it a fixed picture
+// for a small map in a grid: no dragging or zooming, a click goes to the link around it.
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
@@ -48,7 +48,7 @@ export default function RoutesMap({ lines, height = 340, interactive = true }: {
       const start = drawn[0].points[0];
       const dot = Lf.circleMarker(start, { radius: interactive ? 6 : 4, color: casing, weight: 2, fillColor: cssVar("--n-800", "#1f2a26"), fillOpacity: 1, interactive }).addTo(m);
       if (interactive) dot.bindTooltip(t.common.start);
-      // inzoomen op de hoofdroute; varianten die ver uitwijken (een stuk uit de stad) vallen dan deels buiten beeld
+      // zoom in on the main route; variants that stray far (a stretch out of town) then fall partly out of view
       m.fitBounds(Lf.latLngBounds(drawn.flatMap((l) => l.points)), { padding: interactive ? [16, 16] : [8, 8] });
     })();
     return () => {

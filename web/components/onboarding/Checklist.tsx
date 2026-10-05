@@ -1,8 +1,8 @@
 "use client";
 
-// De checklist "Aan de slag": elke stap met een vinkje uit je eigen data. Op Vandaag als kaart (vervangt de oude
-// welkomstkaart) zolang de rondleiding niet klaar is, of zolang er nog geen trainingen zijn en je hem niet hebt
-// verborgen; in Help altijd, als lijst.
+// The "Aan de slag" (getting started) checklist: every step with a check mark from your own data. On Vandaag as a
+// card (replaces the old welcome card) while the tour is not done, or while there are no workouts yet and you have
+// not hidden it; in Help always, as a list.
 
 import Link from "next/link";
 import Card from "@/components/Card";
@@ -26,7 +26,7 @@ export function Progress({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** De stappen als lijst. `only`: alleen de verplichte of alleen de optionele. */
+/** The steps as a list. `only`: only the required or only the optional ones. */
 export function StepList({ o, only, links = true }: { o: Onboarding; only?: "required" | "optional"; links?: boolean }) {
   const t = useT();
   const f = useFormat();
@@ -50,7 +50,7 @@ export function countSteps(o: Onboarding) {
   return { done: steps.filter((s) => o.steps[s.id]).length, total: steps.length };
 }
 
-/** De kaart op Vandaag. Toont zichzelf alleen als hij nodig is. */
+/** The card on Vandaag. Shows itself only when it is needed. */
 export default function OnboardingCard() {
   const t = useT();
   const q = useOnboarding();

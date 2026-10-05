@@ -1,5 +1,5 @@
-// Klaar voor vandaag? Het oordeel uit afgelopen nacht en de vorm. De API geeft codes en getallen
-// (api/readiness.py); de zinnen komen uit T.vandaag.readiness.
+// Ready for today? The verdict from last night and the form. The API gives codes and numbers
+// (api/readiness.py); the sentences come from T.vandaag.readiness.
 
 import Card from "@/components/Card";
 import { useT } from "@/lib/i18n";
@@ -18,7 +18,7 @@ export default function ReadinessCard({ r, className = "" }: { r: Readiness; cla
   const t = T.vandaag.readiness;
   const advice = r.verdict === "onbekend" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
   const text = r.no_night ? `${advice} ${t.noNight}` : advice;
-  // zonder nachtdata is er weinig te zeggen: compact, zodat de kaart niet groter oogt dan wat hij weet
+  // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;
   return (
     <Card title={t.title} className={className}>

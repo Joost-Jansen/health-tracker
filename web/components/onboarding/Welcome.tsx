@@ -1,15 +1,15 @@
 "use client";
 
-// De rondleiding van de eerste keer:
+// The first-time tour:
 //
-//   1. Hoe wil je health-tracker gebruiken? Alleen de site, of ook met Claude als coach (dan komt de stap
-//      "Claude koppelen" erbij). Later te veranderen onder Help.
-//   2. De stappen: Garmin koppelen, eerste sync, zones, profiel, rondkijken, (Claude), doelen en schema. Elke stap
-//      zegt uit je eigen data of hij al gedaan is, en vinkt vanzelf af (ook tijdens de eerste sync).
-//   3. Terug kan altijd, vooruit met Volgende; een stap komt vrij als je bij de vorige was.
+//   1. How do you want to use health-tracker? The site only, or also with Claude as coach (then the step
+//      "connect Claude" is added). Can be changed later under Help.
+//   2. The steps: connect Garmin, first sync, zones, profile, look around, (Claude), goals and plan. Every step
+//      says from your own data whether it is done, and ticks itself off (also during the first sync).
+//   3. Back is always possible, forward with Next; a step unlocks once you have been to the previous one.
 //
-// Stuurt een stap je ergens heen (Koppelingen, Zones), dan pauzeert de rondleiding en ga je verder met het knopje
-// rechtsonder. Waar je bent staat bij je account (api/onboarding.py), dus ook op een ander apparaat.
+// If a step sends you somewhere (Connections, Zones), the tour pauses and you continue with the button
+// bottom right. Where you are is stored with your account (api/onboarding.py), so also on another device.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -39,7 +39,7 @@ function readPaused(): boolean {
   try { return sessionStorage.getItem(PAUSED_KEY) === "1"; } catch { return false; }
 }
 function writePaused(v: boolean) {
-  try { if (v) sessionStorage.setItem(PAUSED_KEY, "1"); else sessionStorage.removeItem(PAUSED_KEY); } catch { /* geen opslag */ }
+  try { if (v) sessionStorage.setItem(PAUSED_KEY, "1"); else sessionStorage.removeItem(PAUSED_KEY); } catch { /* no storage */}
 }
 
 export default function Welcome({ enabled }: { enabled: boolean }) {
@@ -51,13 +51,13 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
   const set = useSetOnboarding();
   const [choice, setChoice] = useState<Choice | null>(null);
   const [choosing, setChoosing] = useState(false);
-  const [step, setStep] = useState<number | null>(null); // 0 = eerste stap na de keuze
+  const [step, setStep] = useState<number | null>(null); // 0 = first step after the choice
   const [reached, setReached] = useState(0);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => setPaused(readPaused()), []);
 
-  // "Rondleiding opnieuw" in Help zet de stap terug op 0: begin dan vooraan.
+  // "Rondleiding opnieuw" (restart tour) in Help sets the step back to 0: then start at the beginning.
   const serverStep = q.data?.step ?? 0;
   const done = q.data?.done ?? true;
   useEffect(() => {

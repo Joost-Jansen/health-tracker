@@ -1,19 +1,19 @@
-// Belasting: de laatste week (vermoeidheid, 7 dagen) tegenover wat je gewend bent (fitheid, 42 dagen), met drie zachte
-// banden. Getallen en band komen uit api/dashboard.py load_indicator; de zinnen uit T.vandaag.load.
+// Load: the last week (fatigue, 7 days) against what you are used to (fitness, 42 days), with three soft
+// bands. Numbers and band come from api/dashboard.py load_indicator; the sentences from T.vandaag.load.
 
 import Card from "@/components/Card";
 import InfoPopover from "@/components/InfoPopover";
 import { useFormat, useT } from "@/lib/i18n";
 import type { LoadIndicator } from "@/lib/training";
 
-// De schaal van de balk; waarden daarbuiten staan op de rand.
+// The scale of the bar; values outside it sit on the edge.
 const MIN = 0.4;
 const MAX = 1.8;
 const BAND_COLOUR = { low: "var(--zone-1)", build: "var(--zone-2)", high: "var(--zone-4)", unknown: "var(--text-faint)" };
 
 const pos = (v: number) => `${((Math.min(MAX, Math.max(MIN, v)) - MIN) / (MAX - MIN)) * 100}%`;
 
-/** `wide`: de kaart staat alleen in zijn rij; dan staat de balk naast de uitleg in plaats van eronder. */
+/** `wide`: the card is alone in its row; then the bar sits next to the explanation instead of below it. */
 export default function LoadCard({ load, wide = false, className = "" }: { load: LoadIndicator; wide?: boolean; className?: string }) {
   const t = useT().texts.vandaag.load;
   const f = useFormat();

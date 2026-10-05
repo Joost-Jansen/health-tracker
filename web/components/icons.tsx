@@ -1,13 +1,13 @@
-// De lijnenset — alleen streken, nergens een emoji. De streek volgt
-// currentColor, zodat de tekstkleur eromheen ze meekleurt.
+// The line set: strokes only, never an emoji. The stroke follows
+// currentColor, so the surrounding text colour colours them too.
 //
-// Streekdikte 1,5 en niet 2: Meridian schrijft dat voor, en de reden is te zien
-// zodra je een icoon naast een regel tekst zet — op 2 is de glyph zwaarder dan
-// de letters ernaast en trekt hij de aandacht naar zich toe in plaats van het
-// label te ondersteunen. Iconen zitten in --text-faint; alleen de actieve
-// navigatieglyph krijgt terracotta.
+// Stroke width 1.5 and not 2: Meridian prescribes it, and the reason shows
+// as soon as you put an icon next to a line of text: at 2 the glyph is heavier
+// than the letters next to it and draws attention to itself instead of
+// supporting the label. Icons sit in --text-faint; only the active
+// navigation glyph gets terracotta.
 //
-// Maten: 16 in chroom, 15 in een knop, 22 in een lege staat.
+// Sizes: 16 in chrome, 15 in a button, 22 in an empty state.
 
 import type { SVGProps } from "react";
 
@@ -167,10 +167,10 @@ export function InfoIcon(props: IconProps) {
   );
 }
 
-// De vraagtekenvariant. Dezelfde cirkel op dezelfde straal als InfoIcon, want
-// de twee staan nooit ver uit elkaar: de "i" hoort bij één getal, de "?" bij
-// een heel scherm. Alleen wat erin staat verschilt, en dat is precies het
-// verschil in reikwijdte dat de gebruiker moet kunnen zien.
+// The question-mark variant. The same circle at the same radius as InfoIcon,
+// because the two are never far apart: the "i" belongs to one number, the "?"
+// to a whole screen. Only what is inside differs, and that is exactly the
+// difference in scope the user must be able to see.
 export function HelpIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -215,8 +215,8 @@ export function SearchIcon(props: IconProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Navigatie: één glyph per bestemming in de zijbalk, en de hamburger die hem
-// op een telefoon openvouwt.
+// Navigation: one glyph per destination in the sidebar, and the hamburger that
+// unfolds it on a phone.
 // ---------------------------------------------------------------------------
 
 export function MenuIcon(props: IconProps) {
@@ -227,7 +227,7 @@ export function MenuIcon(props: IconProps) {
   );
 }
 
-/** Vandaag — het overzicht van vlakken. */
+/** Today: the overview of panels. */
 export function LayoutIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -239,7 +239,7 @@ export function LayoutIcon(props: IconProps) {
   );
 }
 
-/** Portefeuille — een lijst posities. */
+/** Portfolio: a list of positions. */
 export function ListIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -249,7 +249,7 @@ export function ListIcon(props: IconProps) {
   );
 }
 
-/** Rendement — een lijn die klimt. */
+/** Return: a line that climbs. */
 export function ChartLineIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -259,7 +259,7 @@ export function ChartLineIcon(props: IconProps) {
   );
 }
 
-/** Spreiding — de verdelingsbalk zelf, in het klein. */
+/** Allocation: the allocation bar itself, in miniature. */
 export function SegmentsIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -270,7 +270,7 @@ export function SegmentsIcon(props: IconProps) {
   );
 }
 
-/** Dividend — geld dat binnenkomt zonder dat je iets verkoopt. */
+/** Dividend: money that comes in without selling anything. */
 export function CoinsIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -290,7 +290,7 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
-/** Rekeningen — een portemonnee: geld dat niet in effecten zit. */
+/** Accounts: a wallet, money that is not in securities. */
 export function WalletIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -301,7 +301,7 @@ export function WalletIcon(props: IconProps) {
   );
 }
 
-/** Uitgaven — een labeltje: waar het geld heen ging. */
+/** Spending: a tag, where the money went. */
 export function TagIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -311,7 +311,7 @@ export function TagIcon(props: IconProps) {
   );
 }
 
-/** Vermogen — een lijn die stijgt, met de vlakken eronder. */
+/** Net worth: a rising line, with the areas beneath it. */
 export function GrowthIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -322,7 +322,7 @@ export function GrowthIcon(props: IconProps) {
   );
 }
 
-/** Hardlopen, fietsen, zwemmen en de trainingsbestemmingen. */
+/** Running, cycling, swimming and the training destinations. */
 export function HeartPulseIcon(props: IconProps) {
   return (
     <Icon {...props}>

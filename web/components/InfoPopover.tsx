@@ -24,7 +24,7 @@ export default function InfoPopover({
   label,
   children,
 }: {
-  /** What the button announces to a screen reader, e.g. "Uitleg transactiekosten". */
+  /** What the button announces to a screen reader, e.g. "Explanation of transaction costs". */
   label: string;
   children: React.ReactNode;
 }) {
@@ -96,14 +96,14 @@ export default function InfoPopover({
             left: pos.left,
             width: pos.width,
             background: "var(--surface-card)",
-            // Haarlijn én schaduw: dit zweeft écht boven de pagina, en dat is
-            // precies waar dit ontwerp een schaduw wel toestaat.
+            // Hairline and shadow: this really floats above the page, and that is
+            // exactly where this design does allow a shadow.
             boxShadow: "inset 0 0 0 1px var(--border-hairline), var(--shadow-3)",
-            // Het paneel hangt in de DOM ónder zijn trigger, en die trigger
-            // staat nu ook naast een sectiekopje — 11px kapitaaltjes met 0,11em
-            // spatiëring. Zonder deze drie regels erft een hele uitleg dat, en
-            // dan staat er een alinea IN KAPITALEN MET GATEN ERTUSSEN. Fixed
-            // positioning haalt hem wel uit de flow, niet uit de overerving.
+            // The panel hangs in the DOM below its trigger, and that trigger now
+            // also sits next to a section heading: 11px small caps with 0.11em
+            // letter spacing. Without these three rules a whole explanation inherits
+            // that, and you get a paragraph IN CAPITALS WITH GAPS IN BETWEEN. Fixed
+            // positioning takes it out of the flow, not out of inheritance.
             textTransform: "none",
             letterSpacing: "normal",
             fontFamily: "var(--font-sans)",

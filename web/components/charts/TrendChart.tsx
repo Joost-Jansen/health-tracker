@@ -1,12 +1,12 @@
 "use client";
 
-// Eén reeks over tijd met een gestippelde trendlijn (kleinste kwadraten) en in de kop: de laatste waarde,
-// de verandering volgens de trend en de piek, alle drie over het zichtbare venster. `lowerIsBetter` voor
-// tempo en rust-HR: dan is de piek het minimum, staat sneller hoger in de grafiek en kleurt een daling groen.
+// One series over time with a dotted trend line (least squares) and in the head: the last value, the
+// change according to the trend and the peak, all three over the visible window. `lowerIsBetter` for
+// pace and resting HR: then the peak is the minimum, faster is higher in the chart and a drop is green.
 //
-// Tekent met TimeChart: een echte tijdas, aanwijzen met dradenkruis, schuiven en zoomen, en desgewenst een
-// voortschrijdend gemiddelde. Met `window` volgt hij het gedeelde venster van de pagina (Trends); zonder
-// toont hij de hele reeks en zoomt hij alleen lokaal (Rondjes).
+// Draws with TimeChart: a real time axis, pointing with a crosshair, panning and zooming, and optionally a
+// moving average. With `window` it follows the page's shared window (Trends); without it, it shows the
+// whole series and zooms only locally (Routes).
 
 import ChartHeadline from "@/components/charts/ChartHeadline";
 import TimeChart, { type ChartMarker, type MaOption } from "@/components/charts/TimeChart";
@@ -50,9 +50,9 @@ export default function TrendChart({
   maOptions?: MaOption[];
   maDefault?: number;
   storageKey?: string;
-  /** Waarden zijn seconden: as op ronde klokwaarden. */
+  /** Values are seconds: axis on round clock values. */
   clock?: boolean;
-  /** Verticale markeringen (ruitjes), bijvoorbeeld runs die niet meetellen. */
+  /** Vertical markers (diamonds), for example runs that do not count. */
   markers?: ChartMarker[];
 }) {
   const tc = useT().charts;

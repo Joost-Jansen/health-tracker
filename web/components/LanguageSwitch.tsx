@@ -1,7 +1,7 @@
 "use client";
 
-// Nederlands / English. Op de login- en registratiepagina alleen voor dit apparaat; onder Instellingen ook bij je
-// account bewaard (`save`), zodat een ander apparaat dezelfde taal krijgt.
+// Nederlands / English. On the login and registration pages only for this device; under Settings also stored
+// with your account (`save`), so another device gets the same language.
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";

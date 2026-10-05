@@ -1,28 +1,28 @@
 "use client";
 
-// Meerdere lijnen over tijd, met een gedeelde tijdas en een aanwijslijn die alle
-// séries op dezelfde dag tegelijk laat zien.
+// Several lines over time, with a shared time axis and a pointer line that shows
+// all series on the same day at once.
 //
-// Meridians grafiekregels, en waarom ze zo zijn:
-//   · geen kader en geen y-as-lijn — de data is de held, niet de doos eromheen;
-//   · drie stippellijnen in --data-grid in plaats van vijf doorgetrokken;
-//   · de y-labels rechts, waar je oog na het lezen van de lijn tóch al is;
-//   · elke serie draagt haar naam aan het eind van haar eigen lijn, in haar
-//     eigen kleur — dat scheelt een legendablok en je hoeft nergens heen te
-//     kijken om te weten welke lijn welke is;
-//   · vlakvulling alleen bij één serie: twee gevulde vormen vechten;
-//   · aanwijzen geeft een stippelcursor, één stip per serie en één stille
-//     aflezing. Geen dradenkruis, geen omkaderde tooltip.
+// Meridian's chart rules, and why they are so:
+//   · no frame and no y-axis line: the data is the hero, not the box around it;
+//   · three dotted lines in --data-grid instead of five solid ones;
+//   · the y labels on the right, where your eye already is after reading the line;
+//   · every series carries its name at the end of its own line, in its own
+//     colour: that saves a legend block and you need not look anywhere else
+//     to know which line is which;
+//   · area fill only with one series: two filled shapes fight;
+//   · pointing gives a dotted cursor, one dot per series and one quiet
+//     readout. No crosshair, no boxed tooltip.
 //
-// De séries hoeven niet dezelfde dagen te hebben — een benchmark die later
-// begint krijgt een kortere lijn in plaats van een geëxtrapoleerde. De x-as is
-// de vereniging van alle datums, en per serie wordt er alleen getekend waar hij
-// een punt heeft.
+// The series need not have the same days: a benchmark that starts later
+// gets a shorter line instead of an extrapolated one. The x axis is the
+// union of all dates, and each series is drawn only where it has a
+// point.
 //
-// De viewBox is bewust níet uitgerekt (geen preserveAspectRatio="none"): de
-// breedte wordt gemeten en de viewBox volgt hem, zodat <text> in de svg mag
-// staan zonder mee te vervormen. Dat is precies wat de naamlabels aan het eind
-// van elke lijn mogelijk maakt.
+// The viewBox is deliberately not stretched (no preserveAspectRatio="none"): the
+// width is measured and the viewBox follows it, so <text> can live in the svg
+// without being distorted. That is exactly what makes the name labels at the end
+// of each line possible.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { niceTicks } from "@/lib/chartScale";
@@ -37,11 +37,11 @@ export type LineSeries = {
   colour: string;
   dash?: "solid" | "dashed" | "dotted";
   width?: number;
-  /** Vlakvulling onder de lijn. Alleen zinvol bij één serie. */
+  /** Area fill under the line. Only makes sense with one series. */
   fill?: boolean;
 };
 
-// Rechts een goot voor de y-labels, onderaan een regel voor de datums.
+// A gutter on the right for the y labels, a line at the bottom for the dates.
 const PAD = { top: 14, right: 52, bottom: 20 };
 
 const DASH: Record<string, string | undefined> = {
@@ -62,17 +62,17 @@ export default function LineChart({
   xFormat,
 }: {
   series: LineSeries[];
-  /** Stippellijn op deze waarde, bijvoorbeeld 100 (index) of 0 (%). */
+  /** Dotted line at this value, for example 100 (index) or 0 (%). */
   baseline?: number;
   format: (v: number) => string;
   height?: number;
-  /** Namen aan het eind van elke lijn in plaats van een legenda. */
+  /** Names at the end of each line instead of a legend. */
   endLabels?: boolean;
   gridLines?: number;
   ariaLabel: string;
   className?: string;
-  /** Hoe een datum op de as en in de aflezing staat; standaard "1 sep". Per
-   *  jaar of over een jaargrens hoort het jaartal erbij. */
+  /** How a date appears on the axis and in the readout; "1 Sep" by default. Per
+   *  year or across a year boundary the year belongs with it. */
   xFormat?: (d: string) => string;
 }) {
   const f = useFormat();
@@ -81,8 +81,8 @@ export default function LineChart({
   const [w, setW] = useState(720);
   const [hover, setHover] = useState<number | null>(null);
 
-  // useLayoutEffect: de eerste meting moet vóór de eerste schildering gebeuren,
-  // anders tekent de grafiek één frame op de standaardbreedte en springt daarna.
+  // useLayoutEffect: the first measurement must happen before the first paint,
+  // otherwise the chart draws one frame at the default width and then jumps.
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -105,8 +105,8 @@ export default function LineChart({
     return { dates, index, lo, hi };
   }, [series, baseline]);
 
-  // Vlakvulling alleen als er één lijn staat — Meridians regel, hier afgedwongen
-  // in plaats van bij elke aanroeper opnieuw onthouden.
+  // Area fill only when there is one line: Meridian's rule, enforced here
+  // instead of remembered again by every caller.
   const single = series.length === 1;
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function LineChart({
   const x = (i: number) => (i / (dates.length - 1)) * plotW;
   const y = (v: number) => PAD.top + (1 - (v - lo) / span) * plotH;
 
-  // Ronde waarden (0, 25, 50 …) in plaats van gelijke delen van het bereik, die als 21 en −9 op de as kwamen.
+  // Round values (0, 25, 50 …) instead of equal parts of the range, which showed up on the axis as 21 and −9.
   const nice = niceTicks(lo, hi, gridLines);
   const ticks = nice.length ? nice : Array.from({ length: gridLines }, (_, i) => lo + (span * (i + 1)) / (gridLines + 1));
 
@@ -133,11 +133,11 @@ export default function LineChart({
     setHover(Math.round(frac * (dates.length - 1)));
   }
 
-  // De naamlabels aan het eind van elke lijn, uit elkaar geduwd waar ze op
-  // elkaar zouden vallen. Met vier indexen die op vrijwel dezelfde hoogte
-  // eindigen — precies waar een vergelijking om draait — stapelen ze anders tot
-  // één onleesbare vlek. Van boven naar beneden doorlopen en elk label minstens
-  // LABEL_GAP onder het vorige zetten.
+  // The name labels at the end of each line, pushed apart where they would
+  // overlap. With four indexes ending at almost the same height (exactly
+  // what a comparison is about) they would otherwise pile up into one
+  // unreadable blot. Walk from top to bottom and put every label at least
+  // LABEL_GAP below the previous one.
   const LABEL_GAP = 13;
   const endLabelRows = series
     .filter((s) => s.points.length >= 2)
@@ -151,9 +151,9 @@ export default function LineChart({
       };
     })
     .sort((a, b) => a.y - b.y)
-    // Een reduce en geen map: elk label moet onder het *aangepaste* label ervoor
-    // komen, niet onder waar dat oorspronkelijk stond — anders schuift bij drie
-    // botsingen alleen de tweede op en liggen de derde en vierde er weer bovenop.
+    // A reduce and not a map: every label must go below the *adjusted* label before
+    // it, not below where that one originally was; otherwise with three collisions
+    // only the second moves and the third and fourth lie on top of it again.
     .reduce<{ label: string; colour: string; x: number; y: number }[]>((acc, r) => {
       const floor = acc.length === 0 ? 10 : acc[acc.length - 1].y + LABEL_GAP;
       acc.push({ ...r, y: Math.max(r.y, floor) });
@@ -161,9 +161,9 @@ export default function LineChart({
     }, []);
 
   const hoveredDate = hover !== null ? dates[hover] : null;
-  // Wat elke serie op de aangewezen dag stond. Een serie zonder punt op die dag
-  // (nog niet begonnen, of een beursvrije dag) valt weg in plaats van op nul te
-  // worden gezet.
+  // What each series stood at on the pointed day. A series without a point on that
+  // day (not started yet, or a market holiday) is left out instead of being set
+  // to zero.
   const readings =
     hoveredDate === null
       ? []
@@ -172,8 +172,8 @@ export default function LineChart({
           .filter((r): r is { s: LineSeries; point: LinePoint } => r.point !== undefined);
 
   return (
-    // Aanwijzen met een vinger is voor iOS niet te onderscheiden van tekst
-    // willen selecteren. Alleen de grafiek zelf, niets eromheen.
+    // To iOS, pointing with a finger cannot be told apart from wanting to
+    // select text. Only the chart itself, nothing around it.
     <div
       ref={box}
       className={`ds-chart select-none ${className}`}
@@ -303,8 +303,8 @@ export default function LineChart({
         <div
           className="ds-chart__tip"
           aria-live="polite"
-          // Binnen de grafiek gehouden: tegen de rand zou de aflezing er half
-          // buiten hangen.
+          // Kept inside the chart: at the edge the readout would hang half
+          // outside it.
           style={{
             left: Math.min(Math.max(x(hover), 60), plotW - 60),
             top: Math.max(y(readings[0].point.v) - 10, 22),

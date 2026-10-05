@@ -1,4 +1,4 @@
-// Eén horizontale balk per sport: de tijd per hartslagzone naast elkaar, met eronder % en uren.
+// One horizontal bar per sport: the time per heart-rate zone side by side, with % and hours below.
 
 import { useFormat, useT } from "@/lib/i18n";
 import { ZONE_COLOUR, ZONES, zoneRanges, type ZoneShare } from "@/lib/training";

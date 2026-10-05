@@ -1,8 +1,8 @@
 "use client";
 
-// Hartslag, tempo en hoogte tijdens één activiteit, onder elkaar op dezelfde tijdas. De hartslag staat
-// op de zonekleuren als achtergrondbanden, zodat je ziet in welke zone je zat zonder te rekenen.
-// Aanwijzen geeft één cursor door alle drie de panelen en meldt de positie (0..1) aan de kaart.
+// Heart rate, pace and altitude during one activity, stacked on the same time axis. The heart rate sits
+// on the zone colours as background bands, so you see which zone you were in without calculating.
+// Pointing gives one cursor through all three panels and reports the position (0..1) to the map.
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
@@ -14,8 +14,8 @@ type Panel = {
   values: (number | null)[];
   colour: string;
   format: (v: number) => string;
-  invert?: boolean; // tempo: sneller (kleiner) staat hoger
-  bands?: number[]; // zonegrenzen voor de hartslag
+  invert?: boolean; // pace: faster (smaller) is higher
+  bands?: number[]; // zone bounds for the heart rate
   fill?: boolean;
   height: number;
 };
@@ -121,7 +121,7 @@ export default function StreamChart({
     >
       {panels.map((p) => {
         const vals = p.values.filter((v): v is number => v != null).sort((a, b) => a - b);
-        // 2%-98% zodat één GPS-uitschieter de schaal niet platdrukt
+        // 2%-98% so one GPS outlier does not flatten the scale
         let lo = quantile(vals, 0.02);
         let hi = quantile(vals, 0.98);
         if (p.bands) {

@@ -1,10 +1,10 @@
-// De kaart van het cockpit-ontwerp: titel links, optioneel een actie of een
-// "meer →"-link rechts, inhoud eronder.
+// The card of the cockpit design: title on the left, optionally an action or a
+// "more →" link on the right, content below.
 //
-// Stond eerder als lokale kopie in zowel app/(app)/dashboard/page.tsx als
-// app/(app)/nieuws/page.tsx. Bij de derde pagina (Herbalanceren) is dat één
-// kopie te veel: dan gaat de padding of de titelgrootte op één plek schuiven en
-// op de andere niet.
+// Used to be a local copy in both app/(app)/dashboard/page.tsx and
+// app/(app)/nieuws/page.tsx. With the third page (Herbalanceren) that is one
+// copy too many: then the padding or the title size shifts in one place and
+// not in the other.
 
 import Link from "next/link";
 
@@ -19,7 +19,7 @@ export default function Card({
   title?: string;
   more?: string;
   moreHref?: string;
-  /** Krijgt de plek rechts van de titel; gaat vóór `more`/`moreHref`. */
+  /** Gets the spot to the right of the title; goes before `more`/`moreHref`. */
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -27,19 +27,19 @@ export default function Card({
   return (
     <section className={`rounded border border-border bg-surface p-4 sm:p-[18px] ${className}`}>
       {(title || action || (more && moreHref)) && (
-        // flex-wrap zodat een actie die te breed is naast de titel eronder
-        // valt in plaats van hem samen te drukken — het periodebalkje van de
-        // Waardeontwikkeling-kaart is zeven knoppen en past nooit op een
-        // telefoon naast de titel.
+        // flex-wrap so an action too wide to sit next to the title drops below
+        // it instead of squeezing it: the period bar of the
+        // Waardeontwikkeling card is seven buttons and never fits next to the
+        // title on a phone.
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-x-2.5 gap-y-2.5">
           {title && <h2 className="text-[13.5px] font-semibold tracking-[0.01em]">{title}</h2>}
           {action ??
             (more && moreHref && (
               <Link
                 href={moreHref}
-                // py-1 met een compenserende -my-1: een regel tekst van 12px is
-                // een raakvlak van 15px hoog, en dat is er geen. De negatieve
-                // marge houdt de kophoogte precies zoals het ontwerp hem heeft.
+                // py-1 with a compensating -my-1: a 12px line of text is a hit area
+                // 15px high, and that is not one. The negative margin keeps the
+                // head height exactly as the design has it.
                 className="-my-1 inline-block whitespace-nowrap py-1 text-xs font-semibold text-brand hover:underline"
               >
                 {more} →
@@ -52,7 +52,7 @@ export default function Card({
   );
 }
 
-/** Het kleine kapitaaltjes-labeltje boven een groot getal. */
+/** The small small-caps label above a big number. */
 export function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">

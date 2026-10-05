@@ -1,27 +1,27 @@
 "use client";
 
-// Een grafiek op een echte tijdas: lijnen, trappen (records) of gestapelde
-// weekstaven, met een voortschrijdend gemiddelde, een trendlijn en de piek.
+// A chart on a real time axis: lines, steps (records) or stacked weekly
+// bars, with a moving average, a trend line and the peak.
 //
-// Waarom een nieuwe naast LineChart? LineChart zet de punten op hun volgnummer,
-// niet op hun datum: een week zonder data kromp daar tot niets, en twee
-// grafieken over dezelfde periode liepen niet gelijk. Hier is x een dagnummer,
-// dus elke grafiek op Trends deelt dezelfde as en hetzelfde venster.
+// Why a new one next to LineChart? LineChart places points by their index,
+// not by their date: a week without data shrank to nothing there, and two
+// charts over the same period did not line up. Here x is a day number,
+// so every chart on Trends shares the same axis and the same window.
 //
-// Bediening, op elk apparaat hetzelfde idee:
-//   · aanwijzen (muis of één vinger) zet een dradenkruis op het dichtstbijzijnde
-//     punt en leest elke reeks op die dag af;
-//   · slepen met de muis verschuift, Ctrl/⌘ + scrollen of knijpen op het
-//     trackpad zoomt rond de muis, zijwaarts scrollen verschuift;
-//   · twee vingers knijpen en schuiven op een telefoon;
-//   · pijltjes lezen af, Shift + pijltjes verschuiven, + en − zoomen;
-//   · dubbelklikken zet het venster terug.
-// Tijdens het gebaar beweegt alleen deze grafiek; bij het loslaten gaat het
-// nieuwe venster via `onWindow` naar de pagina, zodat alle grafieken meegaan
-// zonder dat er bij elke muisbeweging tien grafieken opnieuw tekenen.
+// Controls, the same idea on every device:
+//   · pointing (mouse or one finger) puts a crosshair on the nearest
+//     point and reads every series on that day;
+//   · dragging with the mouse pans, Ctrl/⌘ + scroll or pinching on the
+//     trackpad zooms around the mouse, scrolling sideways pans;
+//   · two fingers pinch and pan on a phone;
+//   · arrow keys read out, Shift + arrows pan, + and − zoom;
+//   · double-click resets the window.
+// During the gesture only this chart moves; on release the new window goes to
+// the page via `onWindow`, so all charts follow without ten charts redrawing on
+// every mouse movement.
 //
-// De viewBox volgt de gemeten breedte (zoals LineChart), dus <text> mag in de
-// svg staan zonder te vervormen.
+// The viewBox follows the measured width (like LineChart), so <text> can live
+// in the svg without being distorted.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tabs } from "@/components/ds";
@@ -53,19 +53,19 @@ export type ChartSeries = {
   key: string;
   label: string;
   colour: string;
-  /** Oplopend op datum. */
+  /** Ascending by date. */
   points: DayPoint[];
   kind?: "line" | "step" | "bar";
   dash?: "solid" | "dashed" | "dotted";
   width?: number;
-  /** Krijgt het voortschrijdend gemiddelde als dat aanstaat. Bij staven: het totaal van de stapel. */
+  /** Gets the moving average when that is on. For bars: the total of the stack. */
   ma?: boolean;
-  /** Kleinste-kwadratenlijn over het zichtbare stuk. */
+  /** Least-squares line over the visible part. */
   trend?: boolean;
-  /** Markeer het hoogste (max) of laagste (min) punt in beeld. */
+  /** Mark the highest (max) or lowest (min) point in view. */
   peak?: "max" | "min";
   peakLabel?: string;
-  /** Vlak onder de lijn; alleen bij één lijn. */
+  /** Area under the line; only with one line. */
   fill?: boolean;
 };
 
@@ -80,7 +80,7 @@ const PAD = { top: 18, right: 46, bottom: 22 };
 const DASH: Record<string, string | undefined> = { solid: undefined, dashed: "5 4", dotted: "1 4" };
 const MA_COLOUR_BARS = "var(--chart-2)";
 
-/** Ronde klokwaarden (seconden) voor een tempo- of tijdas: 5 s, 10 s, 15 s, 30 s, 1 min … in plaats van 50 s. */
+/** Round clock values (seconds) for a pace or time axis: 5 s, 10 s, 15 s, 30 s, 1 min … instead of 50 s. */
 function clockTicks(lo: number, hi: number, max: number): number[] {
   const steps = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1800, 3600];
   const count = (st: number) => Math.floor(hi / st) - Math.ceil(lo / st) + 1;
@@ -129,34 +129,34 @@ export default function TimeChart({
   format: (v: number) => string;
   unit?: string;
   height?: number;
-  /** Lager is beter (tempo, rusthartslag): kleinere waarden staan bovenaan. */
+  /** Lower is better (pace, resting heart rate): smaller values are at the top. */
   invert?: boolean;
-  /** Stippellijn op deze waarde, bijvoorbeeld 0 bij vorm. */
+  /** Dotted line at this value, for example 0 for form. */
   baseline?: number;
-  /** Het gedeelde venster van de pagina. Zonder: de hele reeks, lokaal te zoomen. */
+  /** The page's shared window. Without it: the whole series, zoomable locally. */
   window?: DateWindow;
-  /** De grenzen waarbinnen geschoven en gezoomd mag worden. Standaard de data zelf. */
+  /** The bounds within which panning and zooming is allowed. By default the data itself. */
   domain?: DateWindow;
   onWindow?: (w: DateWindow) => void;
-  /** Dubbelklik: terug naar de gekozen periode. */
+  /** Double-click: back to the chosen period. */
   onReset?: () => void;
   maOptions?: MaOption[];
   maDefault?: number;
-  /** Onthoudt de keuze voor het gemiddelde per grafiek (localStorage). */
+  /** Remembers the moving-average choice per chart (localStorage). */
   storageKey?: string;
-  /** Breedte van één staaf in dagen (weekstaven: 7). */
+  /** Width of one bar in days (weekly bars: 7). */
   barDays?: number;
-  /** Verticale markeringen, bijvoorbeeld wedstrijden. */
+  /** Vertical markers, for example races. */
   markers?: ChartMarker[];
-  /** Legenda tonen (en reeksen aan/uit kunnen zetten). Standaard vanaf twee reeksen. */
+  /** Show a legend (and allow toggling series). By default from two series. */
   legend?: boolean;
   totalLabel?: string;
-  /** Waarden zijn seconden (tempo, tijd): ticks op ronde klokwaarden. */
+  /** Values are seconds (pace, time): ticks on round clock values. */
   clock?: boolean;
   empty?: string;
 }) {
-  // Een callback-ref via state: de grafiek kan eerst leeg zijn en pas later een element krijgen,
-  // en dan moeten de meting en de wiel-handler alsnog aanhaken.
+  // A callback ref via state: the chart can be empty at first and only get an element later,
+  // and then the measurement and the wheel handler still have to attach.
   const t = useT();
   const { locale } = useLocale();
   const tc = t.charts;
@@ -181,8 +181,8 @@ export default function TimeChart({
     return () => ro.disconnect();
   }, [el]);
 
-  // De keuze voor het gemiddelde pas na het laden lezen: tijdens het bouwen van
-  // de statische pagina bestaat localStorage niet.
+  // Read the moving-average choice only after loading: while the static page is
+  // being built, localStorage does not exist.
   useEffect(() => {
     setMaDays(readStored(storageKey, maDefault));
   }, [storageKey, maDefault]);
@@ -193,11 +193,11 @@ export default function TimeChart({
     try {
       localStorage.setItem(`chart-ma:${storageKey}`, String(days));
     } catch {
-      /* privévenster: dan onthouden we het niet */
+      /* private window: then we do not remember it */
     }
   };
 
-  // ── Data voorbereiden: dagnummers, stap, gemiddelde. Alleen opnieuw als de data of de keuze verandert.
+  // ── Prepare data: day numbers, step, average. Only again when the data or the choice changes.
   const prepared = useMemo<Prepared[]>(
     () =>
       series.map((s) => {
@@ -210,7 +210,7 @@ export default function TimeChart({
   const shown = useMemo(() => prepared.filter((s) => !hidden.has(s.key) && s.points.length > 0), [prepared, hidden]);
   const bars = shown.filter((s) => s.kind === "bar");
 
-  // Gestapelde staven: per datum de onder- en bovenkant van elk stuk.
+  // Stacked bars: per date the bottom and top of each piece.
   const stack = useMemo(() => {
     const byDay = new Map<number, { total: number; parts: Map<string, [number, number]> }>();
     for (const s of bars) {
@@ -230,7 +230,7 @@ export default function TimeChart({
     return { byDay, days, totals, avg, avgDays: avg.map((p) => dayNumber(p.d)) };
   }, [bars, maDays]);
 
-  // ── Grenzen
+  // ── Bounds
   const extent = useMemo(() => {
     if (domain) {
       const lo = dayNumber(domain.from);
@@ -262,7 +262,7 @@ export default function TimeChart({
   const plotW = Math.max(w - PAD.right, 10);
   const plotH = Math.max(height - PAD.top - PAD.bottom, 10);
 
-  // Refs voor de wiel-handler, die buiten React om aan het element hangt.
+  // Refs for the wheel handler, which hangs on the element outside React.
   const live = useRef({ view, extent, plotW });
   live.current = { view, extent, plotW };
 
@@ -275,8 +275,8 @@ export default function TimeChart({
     [onWindow],
   );
 
-  // Ctrl/⌘ + scrollen (en knijpen op een trackpad, dat de browser als ctrl + wiel meldt) zoomt;
-  // zijwaarts scrollen verschuift. Gewoon scrollen blijft de pagina scrollen.
+  // Ctrl/⌘ + scroll (and pinching on a trackpad, which the browser reports as ctrl + wheel) zooms;
+  // scrolling sideways pans. Plain scrolling keeps scrolling the page.
   useEffect(() => {
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
@@ -305,14 +305,14 @@ export default function TimeChart({
     if (commitTimer.current) clearTimeout(commitTimer.current);
   }, []);
 
-  // ── Schalen
+  // ── Scales
   const a = view?.a ?? 0;
   const b = view?.b ?? 1;
   const span = Math.max(b - a, 1e-6);
   const x = (day: number) => ((day - a) / span) * plotW;
   const dayAt = (px: number) => a + (px / plotW) * span;
 
-  // Indexbereik dat in beeld is, met één buur aan elke kant zodat een lijn de rand haalt.
+  // Index range in view, with one neighbour on each side so a line reaches the edge.
   const visible = (days: number[], extra = 0) => {
     const i0 = Math.max(0, lowerBound(days, a - extra) - 1);
     const i1 = Math.min(days.length - 1, lowerBound(days, b + extra));
@@ -336,8 +336,8 @@ export default function TimeChart({
       const [i0, i1] = s.kind === "step" ? [Math.max(0, lowerBound(s.days, a) - 1), lowerBound(s.days, b + 0.5) - 1] : strictlyVisible(s.days);
       for (let i = i0; i <= i1; i++) if (i >= 0) vals.push(s.points[i].v);
       if (s.trend) {
-        // De uiteinden van de trendlijn kunnen buiten de punten vallen (bij een paar ver uiteenliggende metingen);
-        // zonder ze mee te tellen loopt de stippellijn boven of onder het vlak uit.
+        // The ends of the trend line can fall outside the points (with a few widely spread measurements);
+        // without counting them the dotted line runs out above or below the plot area.
         const [k0, k1] = strictlyVisible(s.days);
         if (k1 >= k0) for (const p of linearTrend(s.points.slice(k0, k1 + 1))) vals.push(p.v);
       }
@@ -360,8 +360,8 @@ export default function TimeChart({
     const pad = hi > lo ? (hi - lo) * 0.08 : Math.max(Math.abs(hi) * 0.05, 1);
     if (!(anyBar && lo === 0)) lo -= pad;
     hi += pad;
-    // Minder ticks als twee labels na het opmaken gelijk worden (55 en 55,5 met een opmaak zonder decimalen
-    // stonden er als "55, 56, 56").
+    // Fewer ticks when two labels become equal after formatting (55 and 55.5 with a format without decimals
+    // showed as "55, 56, 56").
     let max = height < 170 ? 3 : 4;
     let ticks = (clock ? clockTicks : niceTicks)(lo, hi, max);
     while (max > 2 && new Set(ticks.map(format)).size < ticks.length) ticks = (clock ? clockTicks : niceTicks)(lo, hi, --max);
@@ -375,7 +375,7 @@ export default function TimeChart({
   const ySpan = yHi - yLo || 1;
   const y = (v: number) => (invert ? PAD.top + ((v - yLo) / ySpan) * plotH : PAD.top + (1 - (v - yLo) / ySpan) * plotH);
 
-  // ── Paden (alleen het zichtbare stuk; bij slepen en zoomen is dat wat elke frame kost)
+  // ── Paths (only the visible part; when dragging and zooming that is what each frame costs)
   const paths = useMemo(() => {
     if (!view) return [];
     const out: { key: string; d: string; dots: [number, number][]; colour: string; width: number; dash?: string; opacity: number; fill?: string }[] = [];
@@ -427,7 +427,7 @@ export default function TimeChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, stack, view, plotW, plotH, yLo, yHi, invert, extent]);
 
-  // ── Aanwijzen: naar het dichtstbijzijnde punt van een reeks die punten heeft.
+  // ── Pointing: to the nearest point of a series that has points.
   const snap = (day: number): number => {
     let best: number | null = null;
     const consider = (cand: number) => {
@@ -532,7 +532,7 @@ export default function TimeChart({
       e.preventDefault();
       const dir = e.key === "ArrowRight" ? 1 : -1;
       const from = hover ?? view.b;
-      // Een stap verder dan het huidige punt, en dan het dichtstbijzijnde punt daar.
+      // One step beyond the current point, and then the nearest point there.
       const stepDays = Math.max(1, Math.min(...shown.map((s) => (s.kind === "bar" ? barDays : s.step))));
       setHover(snap(Math.min(Math.max(from + dir * stepDays, view.a), view.b)));
       return;
@@ -547,7 +547,7 @@ export default function TimeChart({
     }
   }
 
-  // ── Wat er onder het dradenkruis staat
+  // ── What is under the crosshair
   const hoverIsBar = hover !== null && bars.length > 0 && !shown.some((s) => s.kind !== "bar" && s.kind !== "step");
   const readDay = hover === null ? null : hoverIsBar ? hover - barDays / 2 : hover;
   const solo = series.length === 1;
@@ -562,7 +562,7 @@ export default function TimeChart({
         const j = nearestIndex(s.days, readDay);
         if (j >= 0 && Math.abs(s.days[j] - readDay) <= Math.max(s.step * 0.6, 0.5)) i = j;
       }
-      // Bij één reeks staat de naam al boven de grafiek: dan alleen "waarde" en "gem. 7 d".
+      // With one series the name is already above the chart: then only "value" and "avg. 7 d".
       if (i >= 0) rows.push({ key: s.key, label: solo ? tc.value : s.label, colour: s.colour, value: `${format(s.points[i].v)}${unit}`, at: s.kind === "step" ? undefined : s.days[i] });
       if (s.avg.length) {
         const j = nearestIndex(s.avgDays, readDay);
@@ -586,13 +586,13 @@ export default function TimeChart({
       }
     }
   }
-  // Een markering hoort bij het aangewezen punt als hij binnen een halve stap (of 6px) ligt.
+  // A marker belongs to the pointed point when it lies within half a step (or 6px).
   const halfStepPx = hoverIsBar ? (barDays / 2 / span) * plotW : 6;
   const hoverMarkers = hover === null ? [] : markers.filter((m) => Math.abs(x(dayNumber(m.d)) - x(hover)) <= Math.max(6, halfStepPx));
   const weekly = hoverIsBar || (shown.length > 0 && shown.every((s) => s.kind === "bar" || (s.kind !== "step" && s.step >= 6)));
   const readLabel = readDay === null ? "" : weekly ? tc.weekOf(fmtDate(isoDay(readDay), true, locale)) : fmtWeekday(isoDay(readDay), locale);
 
-  // ── Markeringen: piek, laatste punt, trend
+  // ── Markers: peak, last point, trend
   const extras = useMemo(() => {
     if (!view) return { peaks: [], trends: [], lasts: [] };
     const peaks: { key: string; px: number; py: number; colour: string; text: string }[] = [];

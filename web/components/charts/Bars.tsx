@@ -1,56 +1,56 @@
 "use client";
 
-// Staafjes naast elkaar over een as die je zelf leest: maanden, jaren, of de
-// twaalf kalendermaanden. Eén staaf mag uit meerdere stukken bestaan
-// (ontvangen + nog verwacht), gestapeld.
+// Bars side by side along an axis you read yourself: months, years, or the
+// twelve calendar months. One bar may consist of several pieces
+// (received + still expected), stacked.
 //
-// Divs en geen svg, anders dan LineChart en ValueChart. Die twee rekken één
-// viewBox met preserveAspectRatio="none" over de kaart uit — prima voor een
-// lijn, maar dat vervormt ook de afronding van een staafkop en de breedte van
-// een tussenruimte, en juist die twee dragen hier de betekenis. Flexbox houdt
-// elke staaf even breed en elke ruimte precies 2px, op elk scherm.
+// Divs and not svg, unlike LineChart and ValueChart. Those two stretch one
+// viewBox with preserveAspectRatio="none" across the card: fine for a
+// line, but it also distorts the rounding of a bar top and the width of a
+// gap, and those two carry the meaning here. Flexbox keeps every bar
+// equally wide and every gap exactly 2px, on every screen.
 //
-// De afleesregel staat bóven de grafiek en niet als zwevende tooltip erop. Een
-// tooltip die naast de laatste staaf verschijnt valt op een telefoon van het
-// scherm af, en een die daarvoor terugklapt springt. Deze regel heeft altijd
-// dezelfde hoogte: in rust staat de samenvatting er, met een vinger op een
-// staaf die staaf. Zo beweegt de grafiek niet als je hem aanraakt.
+// The readout line sits above the chart, not as a floating tooltip on it. A
+// tooltip that appears next to the last bar falls off the screen on a phone,
+// and one that flips back for that jumps. This line always has the same
+// height: at rest it shows the summary, with a finger on a bar it shows that
+// bar. So the chart does not move when you touch it.
 
 import { useId, useState } from "react";
 import { useT } from "@/lib/i18n";
 
 export type BarSegment = {
-  /** Uniek binnen de staaf; wordt ook de legendasleutel. */
+  /** Unique within the bar; also becomes the legend key. */
   key: string;
   value: number;
   colour: string;
-  /** Gearceerd in plaats van vol: het stuk is een raming, geen feit. */
+  /** Hatched instead of solid: the piece is an estimate, not a fact. */
   estimate?: boolean;
 };
 
 export type BarDatum = {
   key: string;
-  /** Wat er onder de staaf staat. */
+  /** What is shown under the bar. */
   label: string;
-  /** Wat de afleesregel toont als deze staaf actief is. Default: `label`. */
+  /** What the readout line shows when this bar is active. Default: `label`. */
   title?: string;
   segments: BarSegment[];
-  /** Stille regel achter het bedrag in de afleesregel, bijvoorbeeld "3 betalingen". */
+  /** Quiet text after the amount in the readout line, for example "3 payments". */
   note?: string;
 };
 
 export type BarLegendItem = { key: string; label: string; colour: string; estimate?: boolean };
 
-/** Een gearceerde vulling voor een raming: dezelfde kleur, half zo aanwezig,
- *  met diagonale strepen erdoor. Ook zonder kleur te zien blijft "dit stuk is
- *  geschat" zichtbaar — op een zwart-witprint en voor wie de twee tinten niet
- *  uit elkaar houdt. */
+/** A hatched fill for an estimate: the same colour, half as present, with
+ *  diagonal stripes through it. Even without seeing colour, "this piece is
+ *  estimated" stays visible: on a black-and-white print and for anyone who
+ *  cannot tell the two tints apart. */
 function fill(colour: string, estimate?: boolean): React.CSSProperties {
   if (!estimate) return { background: colour };
-  // De onderlaag moet een ándere kleur zijn dan de strepen, anders is er niets
-  // te zien: de eerste versie legde het verloop over dezelfde kleur, waardoor
-  // de doorzichtige stukken precies die kleur lieten zien en de arcering
-  // wegviel tot een egale tint. Nu zijn de gaten de kaart zelf.
+  // The underlayer must be a different colour from the stripes, otherwise there
+  // is nothing to see: the first version laid the gradient over the same colour,
+  // so the transparent parts showed exactly that colour and the hatching
+  // vanished into a flat tint. Now the gaps are the card itself.
   return {
     background: `repeating-linear-gradient(135deg, ${colour} 0 4px, transparent 4px 8px), var(--surface)`,
   };
@@ -79,21 +79,21 @@ export default function Bars({
   onSelect,
 }: {
   bars: BarDatum[];
-  /** Alleen nodig vanaf twee soorten stukken — bij één zegt de kaarttitel het al. */
+  /** Only needed from two kinds of pieces: with one, the card title already says it. */
   legend?: BarLegendItem[];
   format: (v: number) => string;
-  /** Wat de afleesregel toont zolang je nergens op staat. */
+  /** What the readout line shows while you are not on any bar. */
   summary: React.ReactNode;
-  /** Elke hoeveelste staaf een label krijgt. Bij 24 maanden is dat er niet 24. */
+  /** Every how-manyth bar gets a label. With 24 months that is not 24 labels. */
   labelEvery?: number;
   height?: string;
-  /** Bovengrens aan de breedte van één staaf, in pixels. Zes jaarstaven over
-   *  een breed scherm worden anders blokken van honderd pixels: dat leest als
-   *  een muur en niet als een reeks. Op een telefoon raakt niets deze grens. */
+  /** Upper bound on the width of one bar, in pixels. Otherwise six year bars across
+   *  a wide screen become blocks of a hundred pixels: that reads as a wall, not
+   *  as a series. On a phone nothing reaches this bound. */
   maxBarWidth?: number;
   ariaLabel: string;
   emptyLabel?: string;
-  /** Een klik op een staaf, met zijn `key` — bijvoorbeeld om die maand te kiezen. */
+  /** A click on a bar, with its `key`: for example to pick that month. */
   onSelect?: (key: string) => void;
 }) {
   const t = useT();
@@ -106,16 +106,16 @@ export default function Bars({
   }
 
   const totals = bars.map((b) => b.segments.reduce((sum, s) => sum + s.value, 0));
-  // Nooit tegen 0 schalen — dan wordt elke hoogte NaN. Negatieve totalen (een
-  // teruggedraaide uitkering) krijgen geen staaf maar staan wel in de
-  // afleesregel: de hoogte kan het niet vertellen, het bedrag wel.
+  // Never scale against 0: then every height becomes NaN. Negative totals (a
+  // reversed payout) get no bar but do appear in the readout line: the height
+  // cannot tell it, the amount can.
   const peak = Math.max(...totals, Number.EPSILON);
   const shown = active !== null ? bars[active] : null;
 
   return (
     <div>
-      {/* Vaste hoogte per constructie: twee regels op een telefoon, één vanaf
-          sm — in beide toestanden dezelfde, dus de grafiek eronder blijft staan. */}
+      {/* Fixed height by construction: two lines on a phone, one from sm up,
+          the same in both states, so the chart below stays put. */}
       <div className="mb-2 flex min-h-[34px] flex-col gap-y-0.5 sm:min-h-[20px] sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2.5">
         {shown ? (
           <>
@@ -130,10 +130,10 @@ export default function Bars({
         )}
       </div>
 
-      {/* role="group" en niet role="img": elke staaf is een knop met zijn eigen
-          bedrag in het label, en een img eromheen zou die knoppen juist
-          wegstoppen voor een schermlezer. De grafiek is hier een lijst met
-          waarden, geen plaatje. */}
+      {/* role="group" and not role="img": every bar is a button with its own
+          amount in the label, and an img around it would hide exactly those
+          buttons from a screen reader. The chart here is a list of values,
+          not a picture. */}
       <div
         role="group"
         aria-label={ariaLabel}
@@ -147,17 +147,17 @@ export default function Bars({
             <button
               key={bar.key}
               type="button"
-              // Tabbaar: de afleesregel is de enige plek waar het exacte bedrag
-              // staat, dus hij moet ook zonder muis te bereiken zijn.
+              // Tabbable: the readout line is the only place with the exact amount,
+              // so it must be reachable without a mouse too.
               onFocus={() => setActive(i)}
               onBlur={() => setActive(null)}
               onMouseEnter={() => setActive(i)}
-              // Aanwijzen, niet omschakelen. Een tik geeft de knop eerst focus
-              // — waarmee hij actief wordt — en pas daarna komt de klik; die
-              // zag "staat al aan" en zette hem meteen weer uit. Op een muis
-              // valt dat niet op omdat hover het overneemt, maar op een
-              // telefoon deed geen enkel staafje iets. Loslaten gebeurt met
-              // blur of door de grafiek te verlaten.
+              // Point, do not toggle. A tap first gives the button focus
+              // (which makes it active) and only then comes the click; that
+              // saw "already on" and switched it off again at once. With a mouse
+              // you do not notice because hover takes over, but on a
+              // phone no bar did anything. Releasing happens on
+              // blur or by leaving the chart.
               onClick={() => {
                 setActive(i);
                 onSelect?.(bar.key);
@@ -166,8 +166,8 @@ export default function Bars({
               style={{ maxWidth: maxBarWidth }}
               className="group flex h-full min-w-0 flex-1 flex-col justify-end gap-[2px] rounded-t-[4px] outline-none"
             >
-              {/* Van boven naar beneden tekenen: het laatste stuk in de lijst
-                  hoort onderaan te staan, tegen de basislijn aan. */}
+              {/* Draw from top to bottom: the last piece in the list
+                  belongs at the bottom, against the baseline. */}
               {[...bar.segments].reverse().map((seg, si) => {
                 const share = Math.max(seg.value, 0) / peak;
                 if (share <= 0) return null;
@@ -177,8 +177,8 @@ export default function Bars({
                     aria-hidden="true"
                     className={`block w-full ${si === 0 ? "rounded-t-[4px]" : ""}`}
                     style={{
-                      // Minimaal 2px: een uitkering van 40 cent naast een van
-                      // €60 moet zichtbaar blijven als "er was iets".
+                      // At least 2px: a payout of 40 cents next to one of
+                      // €60 must stay visible as "there was something".
                       height: `max(${(share * 100).toFixed(3)}%, 2px)`,
                       ...fill(seg.colour, seg.estimate),
                       filter: isActive ? "brightness(1.12)" : undefined,
@@ -186,9 +186,9 @@ export default function Bars({
                   />
                 );
               })}
-              {/* Een lege maand heeft geen staaf en dus geen raakvlak. Deze
-                  streep van niks houdt hem aanwijsbaar én laat zien dát hij
-                  leeg is in plaats van te ontbreken. */}
+              {/* An empty month has no bar and so no hit area. This
+                  sliver of nothing keeps it pointable and shows that it is
+                  empty rather than missing. */}
               {total <= 0 && (
                 <span aria-hidden="true" className="block h-[2px] w-full bg-border-strong" />
               )}
@@ -197,10 +197,10 @@ export default function Bars({
         })}
       </div>
 
-      {/* whitespace-nowrap en géén overflow-hidden: bij 24 maanden is een cel
-          een pixel of vijftien breed en brak "mrt" af tot "m rt", twee regels
-          onder elkaar. Het label mag over zijn buren heen steken — met
-          labelEvery staan die toch leeg. */}
+      {/* whitespace-nowrap and no overflow-hidden: with 24 months a cell is
+          about fifteen pixels wide and "mrt" broke into "m rt", two lines
+          stacked. The label may stick out over its neighbours: with
+          labelEvery those are empty anyway. */}
       <div aria-hidden="true" className="mt-1.5 flex justify-center gap-[2px]">
         {bars.map((bar, i) => (
           <span

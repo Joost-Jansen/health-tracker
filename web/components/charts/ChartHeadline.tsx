@@ -1,17 +1,17 @@
 /**
- * De kop van een grafiekkaart: één groot getal, één gekleurde regel, één stille.
+ * The head of a chart card: one big number, one coloured line, one quiet one.
  *
- * Een component en geen drie takken ter plekke, omdat de *vorm* in alle drie de
- * toestanden gelijk moet zijn — in rust, met één vinger op de lijn, en met twee.
- * Dat was hij niet: in rust vielen "rendement …" en "inleg …" op twee regels,
- * terwijl één vinger één kortere regel opleverde — de grafiek sprong dus omhoog
- * zodra je hem aanraakte en weer omlaag zodra je de tweede vinger neerzette.
- * Onder sm zijn de drie stukken nu drie regels per constructie, niet per toeval
- * van wat er past; vanaf sm is het één regel op de gedeelde basislijn.
+ * A component and not three branches in place, because the *shape* must be the
+ * same in all three states: at rest, with one finger on the line, and with two.
+ * It was not: at rest "return …" and "deposits …" fell on two lines, while one
+ * finger produced one shorter line, so the chart jumped up as soon as you
+ * touched it and down again as soon as you put the second finger down.
+ * Below sm the three pieces are now three lines by construction, not by the
+ * chance of what fits; from sm up it is one line on the shared baseline.
  *
- * Stond in de dashboardpagina, waar het is geschreven; de koerskaart op een
- * positiepagina leest op precies dezelfde manier af en heeft dezelfde vaste
- * hoogte nodig.
+ * Lived in the dashboard page, where it was written; the price card on a
+ * position page reads out in exactly the same way and needs the same fixed
+ * height.
  */
 
 export default function ChartHeadline({
@@ -22,13 +22,13 @@ export default function ChartHeadline({
 }: {
   big: React.ReactNode;
   primary: React.ReactNode;
-  /** Tailwind-kleurklasse; per toestand anders, wat de hoogte niet raakt. */
+  /** Tailwind colour class; differs per state, which does not affect the height. */
   primaryTone?: string;
   secondary: React.ReactNode;
 }) {
   return (
-    // 21px in de displayletter: dit is een steunend getal, en die staan in dit
-    // ontwerp op 21 of lager — het heldengetal van het scherm staat elders.
+    // 21px in the display face: this is a supporting number, and in this design
+    // those are 21 or smaller; the screen's hero number is elsewhere.
     <div className="mb-2 flex flex-col gap-y-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
       <span className="num font-display text-[21px] leading-tight tracking-[-0.02em]">{big}</span>
       <span className="flex flex-col gap-y-0.5 sm:contents">

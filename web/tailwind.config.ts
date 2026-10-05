@@ -1,13 +1,13 @@
 import type { Config } from "tailwindcss";
 
-// Elke kleur wijst naar een CSS-variabele uit globals.css, waar het lichte en
-// het donkere thema wonen — Tailwind-klassen blijven themablind. De namen zijn
-// die van de app zelf (surface, ink-muted, pos/neg/warn/info, c1..c6); de
-// aliaslaag in globals.css koppelt ze aan de Meridian-tokens.
+// Every colour points to a CSS variable from globals.css, where the light and
+// the dark theme live, so Tailwind classes stay theme-blind. The names are
+// the app's own (surface, ink-muted, pos/neg/warn/info, c1..c6); the
+// alias layer in globals.css maps them to the Meridian tokens.
 //
-// text/gain/loss/approx staan in de rgb(var(--x-rgb)/<alpha-value>)-vorm omdat
-// pagina's ze met een opaciteitsmodifier gebruiken (text-text/50, bg-gain/10);
-// een kale var() kan geen /50 aannemen.
+// text/gain/loss/approx use the rgb(var(--x-rgb)/<alpha-value>) form because
+// pages use them with an opacity modifier (text-text/50, bg-gain/10);
+// a bare var() cannot take a /50.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
@@ -38,16 +38,16 @@ const config: Config = {
         "warn-tint": "var(--warn-tint)",
         info: "var(--info)",
         "info-tint": "var(--info-tint)",
-        // Gain/loss zijn hetzelfde semantische paar als pos/neg en volgen dus
-        // hetzelfde token — olijf en bordeaux.
+        // Gain/loss are the same semantic pair as pos/neg and so follow the
+        // same token: olive and burgundy.
         gain: "rgb(var(--pos-rgb) / <alpha-value>)",
         loss: "rgb(var(--neg-rgb) / <alpha-value>)",
-        // Kwaliteitsgraden op de Spreiding-tab.
+        // Quality grades on the Spreiding (allocation) tab.
         proxy: "var(--chart-5)",
         approx: "rgb(var(--approx-rgb) / <alpha-value>)",
       },
-      // Meridian stopt bij 10px, behalve pillen. `rounded` (8) is de kaart,
-      // `rounded-md` (6) de knop en het invoerveld, `rounded-xl` (10) de dialoog.
+      // Meridian stops at 10px, except pills. `rounded` (8) is the card,
+      // `rounded-md` (6) the button and the input field, `rounded-xl` (10) the dialog.
       borderRadius: {
         DEFAULT: "var(--radius-lg)",
         xs: "var(--radius-xs)",

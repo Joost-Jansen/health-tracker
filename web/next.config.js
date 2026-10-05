@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
-// Productie: een statische export (web/out) die FastAPI zelf serveert, dus één
-// Railway-service. Tijdens `next dev` bestaat die export niet; dan stuurt een
-// rewrite /api/* door naar de lokale FastAPI op poort 8000.
+// Production: a static export (web/out) that FastAPI serves itself, so one
+// Railway service. During `next dev` that export does not exist; then a
+// rewrite forwards /api/* to the local FastAPI on port 8000.
 const dev = process.env.NODE_ENV === "development";
 
 module.exports = dev

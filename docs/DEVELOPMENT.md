@@ -27,6 +27,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data |
+| `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
 | `tests/` | pytest, one file per module |
 
 ## Working on it
@@ -79,7 +80,7 @@ The site is in Dutch (`nl`, the source) and English (`en`, en-GB formatting: 5.3
 Adding a string: add the key to `nl.ts` and `en.ts`, use `const t = useT()` and `t.area.key` (or `t.area.key(params)`), run
 `npm run check:i18n`. An API text the site shows is a code with params (`ApiError`, see Errors), never a sentence.
 
-Which language: the account's `locale` (`GET /api/me`, set with `PATCH /api/account {locale}` from Instellingen, Account,
+Which language: the account's `locale` (`GET /api/me`, set with `PATCH /api/account {locale}` from Settings, Account,
 or at registration); without one the last choice on this device (localStorage `locale`, also the switch on the login
 page), else the browser language (Dutch browsers Dutch, everything else English). `<html lang>` follows, set before
 the first paint by an inline script in `web/app/layout.tsx`.

@@ -104,3 +104,65 @@ def test_stale_database_tokens_fall_back_to_fresh_env_tokens():
     assert run_db_sync(e, key, env_tokens="fresh", client_factory=factory, today=date(2026, 9, 30), read_streams=streams) == 0
     assert tried == ["stale", "fresh"]
     assert decrypt(db.get_setting(e, "garmin_tokens"), key) == "rotated-fresh"
+
+
+def _detail(aid, key, parent, start, seconds, km, hr, children=()):
+    return {
+        "activityId": aid, "activityName": f"Triathlon - {key}", "parentId": 500 if aid != 500 else None,
+        "activityTypeDTO": {"typeKey": key, "parentTypeId": parent},
+        "metadataDTO": {"childIds": list(children)},
+        "summaryDTO": {"startTimeLocal": f"2026-09-27T{start}.0", "startTimeGMT": f"2026-09-27T{int(start[:2]) - 2:02d}{start[2:]}.0",
+                       "distance": km * 1000, "duration": seconds, "movingDuration": seconds, "elapsedDuration": seconds, "averageHR": hr, "maxHR": hr + 15},
+    }
+
+
+class FakeMultisport(FakeGarmin):
+    """Garmin's list only has the parent (parent: True); the legs and transitions come from the detail endpoint."""
+
+    DETAILS = {
+        500: _detail(500, "multi_sport", 17, "09:00:00", 9000, 51.5, 150, children=(501, 502, 503, 504, 505)),
+        501: _detail(501, "open_water_swimming", 26, "09:00:00", 1800, 1.5, 140),
+        502: _detail(502, "transition_v2", 4, "09:30:00", 120, 0.2, 130),
+        503: _detail(503, "road_biking", 2, "09:32:00", 4500, 40, 150),
+        504: _detail(504, "bikeToRunTransition_v2", 4, "10:47:00", 60, 0.1, 150),
+        505: _detail(505, "running", 17, "10:48:00", 2520, 10, 160),
+    }
+
+    def activities(self, start, end):
+        return [{
+            "activityId": 500, "activityName": "Triathlon", "activityType": {"typeKey": "multi_sport", "parentTypeId": 17},
+            "startTimeLocal": "2026-09-27 09:00:00", "startTimeGMT": "2026-09-27 07:00:00",
+            "distance": 51800.0, "duration": 9000.0, "elapsedDuration": 9000000.0, "averageHR": 150.0, "parent": True,
+        }]
+
+    def activity(self, activity_id):
+        return self.DETAILS[int(activity_id)]
+
+
+def test_a_multisport_activity_is_stored_as_its_legs_without_transitions():
+    e = engine()
+    old = FakeMultisport().activities(None, None)[0]  # how the sync stored it before: one multi_sport activity
+    from tools.store import from_garmin
+
+    db.upsert_activity(e, from_garmin(old, None))
+    assert [a["sport"] for a in db.load_activities(e)] == ["multi_sport"]
+    windows = []
+    state = {"garmin": {"last_activity_day": "2026-09-27", "last_wellness_day": "2026-09-30"}}
+    sync_garmin(DbSink(e), FakeMultisport(), state, today=date(2026, 9, 30), read_streams=lambda data, *w: windows.append(w) or {})
+    acts = db.load_activities(e)
+    assert [(a["sport"], a["distance_km"], a["start_utc"]) for a in acts] == [
+        ("swim", 1.5, "2026-09-27T07:00:00Z"), ("ride", 40.0, "2026-09-27T07:32:00Z"), ("run", 10.0, "2026-09-27T08:48:00Z")]
+    assert all(a["fit_file"] == "garmin-500" for a in acts)  # the legs share the parent's FIT file
+    assert [(w[0].isoformat(), (w[1] - w[0]).seconds) for w in windows] == [
+        ("2026-09-27T07:00:00+00:00", 1800), ("2026-09-27T07:32:00+00:00", 4500), ("2026-09-27T08:48:00+00:00", 2520)]
+
+
+def test_a_multisport_whose_legs_fail_to_load_is_kept_whole():
+    class Broken(FakeMultisport):
+        def activity(self, activity_id):
+            raise RuntimeError("Garmin said 500")
+
+    e = engine()
+    state = {"garmin": {"last_activity_day": "2026-09-27", "last_wellness_day": "2026-09-30"}}
+    sync_garmin(DbSink(e), Broken(), state, today=date(2026, 9, 30), read_streams=lambda data, *w: {})
+    assert [(a["sport"], a["elapsed_time_s"]) for a in db.load_activities(e)] == [("multi_sport", 9000)]

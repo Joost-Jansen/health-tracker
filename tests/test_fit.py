@@ -61,3 +61,9 @@ def test_unreadable_zip_raises_value_error():
         z.writestr("readme.txt", "no fit here")
     with pytest.raises(ValueError):
         read_fit_streams(buf.getvalue())
+
+
+def test_a_window_keeps_one_leg_of_a_multisport_file():
+    records = [rec(0, heart_rate=110), rec(60, heart_rate=150), rec(120, heart_rate=155), rec(180, heart_rate=160)]
+    s = streams_from_records(records, T0 + timedelta(seconds=60), T0 + timedelta(seconds=120))
+    assert s["time"] == [0, 60] and s["heartrate"] == [150, 155]

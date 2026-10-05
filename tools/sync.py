@@ -27,7 +27,8 @@ from tools import db, store
 from tools.derive import derive
 from tools.fit import read_fit_streams
 from tools.secretbox import WrongKey, decrypt, default_key, encrypt
-from tools.store import from_garmin, from_strava, wellness_from_garmin
+from tools.sports import garmin_sport
+from tools.store import from_garmin, from_strava, garmin_summary, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKFILL_DAYS = 90
@@ -64,6 +65,9 @@ class FileSink:
     def upsert_activity(self, record: dict) -> str:
         return str(store.upsert_activity(self.root, record))
 
+    def delete_garmin_activity(self, garmin_id, day: str) -> None:
+        store.delete_activity_by_source(self.root, "garmin", garmin_id, day)
+
     def write_wellness(self, day: str, values: dict) -> None:
         store.write_wellness(self.root, day, values)
 
@@ -90,6 +94,9 @@ class DbSink:
 
     def upsert_activity(self, record: dict) -> str:
         return db.upsert_activity(self.engine, record)
+
+    def delete_garmin_activity(self, garmin_id, day: str) -> None:
+        db.delete_activity_by_source(self.engine, "garmin", garmin_id, day)
 
     def write_wellness(self, day: str, values: dict) -> None:
         db.write_wellness(self.engine, day, values)
@@ -210,6 +217,10 @@ class GarminClient:
     def splits(self, activity_id) -> dict:
         return self._call(self.api.get_activity_splits, str(activity_id))
 
+    def activity(self, activity_id) -> dict:
+        """One activity from the detail endpoint (summaryDTO, metadataDTO.childIds for a multisport)."""
+        return self._call(self.api.get_activity, str(activity_id))
+
     def fit(self, activity_id) -> bytes:
         return self._call(self.api.download_activity, str(activity_id), dl_fmt=self._Garmin.ActivityDownloadFormat.ORIGINAL)
 
@@ -226,6 +237,26 @@ class GarminClient:
 
     def tokens(self) -> str:
         return self.api.client.dumps()
+
+
+def is_multisport(activity: dict) -> bool:
+    return bool(activity.get("parent")) or (activity.get("activityType") or {}).get("typeKey") == "multi_sport"
+
+
+def multisport_legs(client, activity: dict) -> list[dict]:
+    """The legs of a multisport activity (triathlon, brick, swimrun, ...) as Garmin's activity list would give them,
+    without the transitions. The list itself only has the parent; [] when Garmin gives no legs."""
+    if not hasattr(client, "activity"):
+        return []
+    detail = client.activity(activity["activityId"])
+    ids = (detail.get("metadataDTO") or {}).get("childIds") or activity.get("childIds") or []
+    legs = [garmin_summary(client.activity(i)) for i in ids]
+    return [leg for leg in legs if garmin_sport(leg.get("activityType")) != "transition" and leg.get("startTimeGMT")]
+
+
+def _leg_window(leg: dict) -> tuple[datetime, datetime]:
+    start = datetime.fromisoformat(leg["startTimeGMT"].replace(" ", "T")).replace(tzinfo=timezone.utc)
+    return start, start + timedelta(seconds=leg.get("elapsedDuration") or leg.get("duration") or 0)
 
 
 def sync_garmin(target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams) -> int:
@@ -245,12 +276,32 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
             fit = client.fit(activity_id)
             sink.put_fit(activity_id, year, fit)
         fit_rel = sink.fit_key(activity_id, year)
-        try:
-            streams = read_streams(fit)
-        except ValueError as err:
-            print(f"garmin: geen streams voor {activity_id} ({err})")
-            streams = None
-        sink.upsert_activity(from_garmin(activity, client.splits(activity_id), fit_file=fit_rel, streams=streams))
+        legs = []
+        if is_multisport(activity):
+            try:
+                legs = multisport_legs(client, activity)
+            except RateLimited:
+                raise
+            except Exception as err:  # noqa: BLE001  no legs: stored as one multi_sport activity, like before
+                print(f"garmin: onderdelen van multisport {activity_id} niet opgehaald ({err})")
+        if legs:
+            # each leg its own activity, so a triathlon counts as a swim, a ride and a run; the legs share the
+            # parent's FIT file. Before this the parent was stored as one multi_sport activity: that one goes.
+            sink.delete_garmin_activity(activity_id, activity["startTimeLocal"][:10])
+            for leg in legs:
+                try:
+                    streams = read_streams(fit, *_leg_window(leg))
+                except ValueError as err:
+                    print(f"garmin: geen streams voor {leg['activityId']} ({err})")
+                    streams = None
+                sink.upsert_activity(from_garmin(leg, client.splits(leg["activityId"]), fit_file=fit_rel, streams=streams))
+        else:
+            try:
+                streams = read_streams(fit)
+            except ValueError as err:
+                print(f"garmin: geen streams voor {activity_id} ({err})")
+                streams = None
+            sink.upsert_activity(from_garmin(activity, client.splits(activity_id), fit_file=fit_rel, streams=streams))
         g["last_activity_day"] = activity["startTimeLocal"][:10]
         count += 1
     g["last_activity_day"] = today.isoformat()

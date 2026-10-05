@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from datetime import datetime, timezone
 
 DEG_PER_SEMICIRCLE = 180 / 2**31
 # stream name -> FIT fields, first one present wins
@@ -17,9 +18,14 @@ FIELDS = {
 }
 
 
-def streams_from_records(records) -> dict:
-    """Streams aligned on `time`; `latlng` only holds the records that have a position."""
-    records = [r for r in records if r.get("timestamp") is not None]
+def _utc(t: datetime) -> datetime:
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def streams_from_records(records, start: datetime | None = None, end: datetime | None = None) -> dict:
+    """Streams aligned on `time`; `latlng` only holds the records that have a position. With `start` and `end` (UTC)
+    only the records in that window."""
+    records = [r for r in records if r.get("timestamp") is not None and (start is None or start <= _utc(r["timestamp"]) <= end)]
     if not records:
         return {}
     t0 = records[0]["timestamp"]
@@ -38,8 +44,9 @@ def streams_from_records(records) -> dict:
     return streams
 
 
-def read_fit_streams(data: bytes) -> dict:
-    """Streams from the zip Garmin returns for an ORIGINAL download (or a bare .fit)."""
+def read_fit_streams(data: bytes, start: datetime | None = None, end: datetime | None = None) -> dict:
+    """Streams from the zip Garmin returns for an ORIGINAL download (or a bare .fit). With `start` and `end` (UTC) only
+    the records in that window: one leg of a multisport activity, whose legs share the parent's file."""
     import fitdecode
 
     if data[:2] == b"PK":
@@ -60,4 +67,4 @@ def read_fit_streams(data: bytes) -> dict:
                     records.append({f.name: f.value for f in frame.fields})
     except fitdecode.FitError as err:
         raise ValueError(f"unreadable FIT file: {err}") from err
-    return streams_from_records(records)
+    return streams_from_records(records, start, end)

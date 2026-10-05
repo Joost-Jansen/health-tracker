@@ -8,6 +8,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
 import OnboardingCard from "@/components/onboarding/Checklist";
+import EasyShare from "@/components/zones/EasyShare";
 import PeriodNav from "@/components/zones/PeriodNav";
 import LoadCard from "@/components/dashboard/LoadCard";
 import PlanWeekCard from "@/components/dashboard/PlanWeekCard";
@@ -167,6 +168,7 @@ export default function DashboardPage() {
             <p className="text-[13px] text-ink-muted">{zonesCurrent ? m.noHrNow(period) : m.noHrPeriod}</p>
           ) : (
             <div className="flex flex-col gap-5">
+              <EasyShare pct={(multiSport ? zones.all : zones[zoneSports[0]]).pct} />
               {multiSport ? (
                 <>
                   <ZoneBar sport="all" share={zones.all} />

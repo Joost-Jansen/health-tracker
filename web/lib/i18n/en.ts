@@ -883,6 +883,13 @@ export const en: Messages = {
       `The average share is time-weighted over ${n} ${unit} (${withData} with heart-rate data); hours are per ${p} (h:mm).`,
     allSports: "All sports counts each sport with its own zones.",
     pp: "pp",
+    easy: "Easy (Z1–Z2)",
+    easyShort: "Z1–Z2",
+    easyTarget: (n: number) => `aim about ${n}%`,
+    easyLine: (n: number) => `${n}% easy (80/20)`,
+    easyAria: (pct: number, n: number) => `${pct}% of the time in Z1–Z2, aim about ${n}%`,
+    easyMethod:
+      "Share of heart-rate time in Z1 and Z2. The 80/20 rule of thumb for endurance training: about 80% easy, the rest hard. Below 75% is worth a look; races and taper weeks with tempo work push it down.",
   },
 
   trendsPage: {

@@ -12,6 +12,12 @@ export const ZONE_COLOUR: Record<Zone, string> = {
   Z5: "var(--zone-5)",
 };
 
+/** Endurance rule of thumb (80/20): about 80% of the time easy, in Z1-Z2. Below EASY_LOW it deserves a look
+ *  (the same line as the Trends insight easy_share, api/trends.py). */
+export const EASY_TARGET = 80;
+export const EASY_LOW = 75;
+export const easyPct = (pct: Record<Zone, number>) => pct.Z1 + pct.Z2;
+
 export const SPORT_LABEL: Record<string, string> = {
   all: "Alle sporten",
   run: "Hardlopen",

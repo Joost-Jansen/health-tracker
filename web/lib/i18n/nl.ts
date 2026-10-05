@@ -873,6 +873,13 @@ export const nl = {
     avgHoursTitle: (p: "week" | "month") => `Gemiddelde uren per ${p === "week" ? "week" : "maand"}`,
     total: "Totaal",
     runningNote: " loopt nog: het aandeel is al te vergelijken, de uren nog niet.",
+    easy: "Rustig (Z1–Z2)",
+    easyShort: "Z1–Z2",
+    easyTarget: (n: number) => `doel ongeveer ${n}%`,
+    easyLine: (n: number) => `${n}% rustig (80/20)`,
+    easyAria: (pct: number, n: number) => `${pct}% van de tijd in Z1–Z2, doel ongeveer ${n}%`,
+    easyMethod:
+      "Aandeel hartslagtijd in Z1 en Z2. De 80/20-vuistregel voor duurtraining: ongeveer 80% rustig, de rest hard. Onder 75% is het het bekijken waard; wedstrijden en taperweken met tempowerk drukken het omlaag.",
     method: (n: number, unit: string, withData: number, p: "week" | "month") =>
       `Gemiddeld aandeel is tijdgewogen over ${n} ${unit} (${withData} met hartslagdata); uren zijn per ${p === "week" ? "week" : "maand"} (u:mm).`,
     allSports: "Alle sporten telt elke sport met zijn eigen zones.",

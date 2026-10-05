@@ -13,6 +13,7 @@ import { useFormat, useT } from "@/lib/i18n";
 import { periodLabel } from "@/lib/i18n/period";
 import { ZONE_COLOUR, ZONES, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
 import { compareZones, fmtPct, fmtPp } from "./compare";
+import EasyShare from "./EasyShare";
 import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
 
 const CHOICES: Record<ZonePeriod, number[]> = { week: [4, 8, 12, 26], month: [3, 6, 12] };
@@ -82,7 +83,9 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
   const withData = bars.filter((b) => b.total_s > 0);
   const avgOver = (items: typeof bars) => {
     const tot = items.reduce((s, b) => s + b.total_s, 0);
-    return tot ? ZONES.map((z) => `${z} ${Math.round((items.reduce((s, b) => s + b.seconds[z], 0) / tot) * 100)}%`).join(" · ") : "";
+    if (!tot) return "";
+    const share = (z: Zone) => (items.reduce((s, b) => s + b.seconds[z], 0) / tot) * 100;
+    return `${z.easyShort} ${Math.round(share("Z1") + share("Z2"))}% (${ZONES.map((zn) => `${zn} ${Math.round(share(zn))}%`).join(" · ")})`;
   };
   const thisName = (which === "current" ? z.current : z.previous)[period];
   const avgName = z.avgPrev(x, unit(period, x));
@@ -139,6 +142,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                 </label>
               </div>
 
+              {cmp.target.total_s > 0 && <EasyShare pct={cmp.target.pct} className="mb-3" />}
               <div className="mb-3 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5">
                 <MiniBar label={thisName} pct={cmp.target.total_s ? cmp.target.pct : null} />
                 <MiniBar label={avgName} pct={cmp.avgPct} />
@@ -176,6 +180,20 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                         </tr>
                       );
                     })}
+                    {(() => {
+                      const easy = (key: "pct" | "avgPct") => (cmp.rows[0][key] == null ? null : cmp.rows[0][key]! + cmp.rows[1][key]!);
+                      const [now, avg] = [easy("pct"), easy("avgPct")];
+                      return (
+                        <tr className="border-t border-border-strong" title={z.easyMethod}>
+                          <td className="py-1.5 font-medium">{z.easyShort}</td>
+                          <td className="py-1.5 text-right font-medium">{fmtPct(now)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">{fmtPct(avg)}</td>
+                          <td className="py-1.5 text-right">{fmtPp(now != null && avg != null ? now - avg : null, f)}</td>
+                          <td className="py-1.5 text-right">{f.duration(cmp.rows[0].seconds + cmp.rows[1].seconds)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">{f.duration(cmp.rows[0].avgSeconds + cmp.rows[1].avgSeconds)}</td>
+                        </tr>
+                      );
+                    })()}
                     <tr className="border-t border-border-strong">
                       <td className="py-1.5 font-medium">{z.total}</td>
                       <td className="py-1.5" />

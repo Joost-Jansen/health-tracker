@@ -1,16 +1,16 @@
-// Alle uitlegteksten over gezondheid en prestaties, op één plek (T19). Niets hierin gaat over één bepaalde persoon:
-// wat over de gebruiker gaat (zones, max hartslag, welke sporten geschat zijn, waarop een voorspelling is gebaseerd)
-// komt als parameter uit diens eigen instellingen en data. Pagina's halen hun tekst hier, niet uit een eigen string.
-// Dit is de Nederlandse bron; de Engelse versie staat in lib/i18n/texts.en.ts (zelfde sleutels, `npm run check:i18n`).
-// Vertaalde pagina's lezen T via useT().texts in de taal van de gebruiker.
+// All explanations about health and performance, in one place (T19). Nothing here is about one particular person:
+// what is about the user (zones, max heart rate, which sports are estimated, what a prediction is based on)
+// comes as a parameter from their own settings and data. Pages take their text from here, not from a string of their own.
+// This is the Dutch source; the English version is in lib/i18n/texts.en.ts (same keys, `npm run check:i18n`).
+// Translated pages read T via useT().texts in the user's language.
 
 import { fmtClock, fmtDate, sportLabel, type HrFlagReason, type InsightCode, type RecordKey } from "@/lib/training";
 
-/** Getal met decimale komma, zonder ",0" aan het eind. */
+/** Number with a decimal comma, without ",0" at the end. */
 const num = (n: number, digits = 1) => n.toFixed(digits).replace(".", ",").replace(/,0+$/, "");
 const fmtDayNl = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 const RECORD_NAME: Record<RecordKey, string> = { "1k": "1 km", "5k": "5 km", "10k": "10 km", "21k": "halve marathon" };
-/** Een doelafstand in woorden: marathon, halve marathon of "15 km". */
+/** A goal distance in words: marathon, half marathon or "15 km". */
 const goalName = (km: number) => (Math.abs(km - 42.195) < 0.3 ? "marathon" : Math.abs(km - 21.0975) < 0.2 ? "halve marathon" : `${num(km)} km`);
 
 const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`);
@@ -20,7 +20,7 @@ export const T = {
 
   readinessBasis: "Vergelijkt afgelopen nacht met je eigen normaal (rusthartslag, slaap) en je vorm.",
 
-  /** Onder de zonebalken: welke zones zijn een schatting, volgens de eigen zone-instellingen. */
+  /** Under the zone bars: which zones are an estimate, according to the user's own zone settings. */
   zonesFootnote(estimated: string[], set: string[]): string {
     if (!set.length) return "Je hebt nog geen hartslagzones ingesteld (Instellingen, Zones en profiel).";
     const base = "Alle sporten telt elke sport met zijn eigen zones.";
@@ -31,7 +31,7 @@ export const T = {
 
   zoneEstimate: (sport: string) => `Zones voor ${sportLabel(sport).toLowerCase()} zijn een schatting (Instellingen, Zones en profiel).`,
 
-  /** Onder de status als kop ("Fris", "In balans" …), dus zonder die naam te herhalen. */
+  /** Under the status as a heading ("Fris", "In balans" …), so without repeating that name. */
   formStatus: {
     fris: "Er is ruimte voor een zware training of een wedstrijd.",
     "in balans": "Belasting en herstel houden elkaar in evenwicht.",
@@ -41,19 +41,19 @@ export const T = {
 
   formMethod: "Belasting per training = TRIMP uit gemiddelde hartslag, rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
 
-  /** Waarom fitheid min vermoeidheid van vandaag niet precies de vorm is. */
+  /** Why today's fitness minus fatigue is not exactly the form. */
   formTsb: "Vorm = fitheid min vermoeidheid van gisteren: de stand aan het begin van vandaag.",
 
   formChartNote: "Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.",
 
-  /** De data is ouder dan een dag: wat de site sindsdien niet weet. */
+  /** The data is older than a day: what the site does not know since then. */
   syncStale: (days: number) =>
     `De laatste sync is ${days} dagen oud. Trainingen en herstel van daarna ontbreken nog; fitheid, vermoeidheid en vorm blijven staan op de laatst gesyncte dag.`,
 
-  /** Onder Volume deze week: de lopende week is nog niet af. */
+  /** Under this week's volume: the current week is not finished yet. */
   volumeWeek: (through: string) => `Deze week tot en met ${through}; het gemiddelde is over de vier hele weken ervoor.`,
 
-  /** Een wedstrijd over (ongeveer) een recordafstand die sneller was dan de snelste split: het horloge mat de afstand net te kort. */
+  /** A race over (about) a record distance that was faster than the fastest split: the watch measured the distance slightly short. */
   recordRace: "Snelste wedstrijd over deze afstand. Het horloge mat net minder, daardoor staat hij niet bij de splits.",
 
   z2Pace: "Gemiddeld tempo van alle seconden in Z2 per week, alleen losse buitenruns (geen loopband, geen run na zwemmen of fietsen). Sneller bij dezelfde hartslag wijst op een betere aerobe basis.",
@@ -90,7 +90,7 @@ export const T = {
       : `Een rondje is herkend als je minstens ${minCount} keer grotendeels dezelfde wegen liep, waar je ook startte. Dikke lijn: de meest typische keer; dun: de andere keren.`,
   routeTrend: "Trend: efficiëntie (meter per hartslag), mediaan van de laatste 5 keer tegen alle keren daarvoor.",
 
-  /** Rondjes (T20): automatisch herkennen, varianten en de vraag of twee rondjes hetzelfde zijn. */
+  /** Routes (T20): automatic recognition, variants and the question whether two routes are the same. */
   routes: {
     auto: (lastSync?: string | null) =>
       `Rondjes worden na elke sync automatisch herkend${lastSync && lastSync !== "nog nooit" ? ` (laatste sync: ${lastSync})` : ""}.`,
@@ -109,7 +109,7 @@ export const T = {
     variantsHelp: "Hetzelfde rondje in verschillende lengtes, bijvoorbeeld met een extra lus, een omweg of een andere start.",
   },
 
-  /** Schema (T24): uitleg bij de vergelijking van gepland en gedaan. */
+  /** Plan (T24): explanation of the comparison of planned and done. */
   plan: {
     zoneFit: (pct: number, zone: string) => {
       const top = Math.max(...(zone.match(/[1-5]/g) ?? ["5"]).map(Number));
@@ -122,7 +122,7 @@ export const T = {
     volume: "Kilometers per week: gepland tegen gedaan. Sessies zonder afstand (alleen een duur) tellen hier niet mee.",
   },
 
-  /** Onboarding (T23): de uitleg over gezondheid en prestaties in de rondleiding, de checklist en Help. */
+  /** Onboarding (T23): the explanations about health and performance in the tour, the checklist and Help. */
   onboarding: {
     zonesWhy:
       "Alles op de site rekent met je eigen hartslagzones per sport: de tijd per zone, de belasting en je vorm, en de kleuren op de kaart. Een zone is een percentage van je maximale hartslag; de grenzen rekent de site uit.",
@@ -140,7 +140,7 @@ export const T = {
     wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
   },
 
-  /** Vandaag (dashboard). De API geeft codes en getallen; de zinnen staan hier. */
+  /** Vandaag (dashboard). The API gives codes and numbers; the sentences are here. */
   vandaag: {
     readiness: {
       title: "Klaar voor vandaag?",
@@ -150,7 +150,7 @@ export const T = {
         "rustig aan": "Eén of twee signalen wijken af. Train gerust, maar houd het rustig (Z1-Z2) of kort.",
         klaar: "Herstel ziet er normaal uit. Geplande training kan zoals bedoeld.",
       } as Record<string, string>,
-      /** Zonder nachtdata en zonder afwijkende signalen: wat er wel is, is in orde. */
+      /** Without night data and without deviating signals: what is there is fine. */
       unknown: (labels: string[]) => `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
       noNight: "Geen slaap of rusthartslag van afgelopen nacht (horloge niet gedragen of nog niet gesynct).",
       label: { resting_hr: "Rusthartslag", sleep_h: "Slaap", body_battery: "Body Battery", tsb: "Vorm" } as Record<string, string>,
@@ -170,7 +170,7 @@ export const T = {
       },
     },
 
-    /** Belasting: vermoeidheid (7 dagen) tegenover fitheid (42 dagen), zie api/dashboard.py load_indicator. */
+    /** Load: fatigue (7 days) against fitness (42 days), see api/dashboard.py load_indicator. */
     load: {
       title: "Belasting",
       info: "Uitleg belasting",
@@ -189,7 +189,7 @@ export const T = {
         `Vermoeidheid (7 dagen) gedeeld door fitheid (42 dagen). Tussen ${low} en ${high} past de belasting bij wat je gewend bent; die grenzen komen uit sportonderzoek naar trainingsbelasting. Fitheid die meer dan ${rampHigh} per week stijgt, is snelle opbouw. Een richtlijn, geen voorspelling.`,
     },
 
-    /** Schema deze week: gepland tegenover gedaan. */
+    /** Plan this week: planned against done. */
     planWeek: {
       title: "Schema deze week",
       info: "Uitleg schema deze week",
@@ -203,7 +203,7 @@ export const T = {
       method: "Gedaan telt alleen activiteiten die bij een sessie van het schema horen (zelfde sport, zelfde dag).",
     },
 
-    /** Aftellen naar de eerstvolgende wedstrijd van het schema. */
+    /** Countdown to the plan's next race. */
     race: {
       today: "Vandaag",
       days: (n: number): string => (n === 1 ? "dag" : "dagen"),
@@ -229,12 +229,12 @@ export const T = {
       race: "Wedstrijd",
     },
 
-    /** Vorm-kaart als de reeks stopt bij een sync van eergisteren of ouder. */
+    /** Form card when the series stops at a sync from the day before yesterday or older. */
     formStopped: (day: string) =>
       `Stand op ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,
   },
 
-  /** Trends-pagina: tijdbalk, sportfilter, inzichten (codes uit api/trends.py), grafieken en uitleg. */
+  /** Trends page: time bar, sport filter, insights (codes from api/trends.py), charts and explanations. */
   trends: {
     loading: "Laden…",
     loadError: "Kon de trends niet laden.",
@@ -269,7 +269,7 @@ export const T = {
       noGoal: "Zet een wedstrijd of doel met afstand in je schema, dan gaan de inzichten daarover.",
     },
 
-    /** Titel en uitleg per inzichtcode. */
+    /** Title and explanation per insight code. */
     insight(i: InsightCode): { title: string; text: string } {
       switch (i.code) {
         case "record_set": {
@@ -331,7 +331,7 @@ export const T = {
       fatigue: "Vermoeidheid",
       form: "Vorm",
       peak: (v: number, day: string) => `Piek fitheid in periode ${v} op ${day}`,
-      /** De vormreeks stopt bij een sync van eergisteren of ouder. */
+      /** The form series stops at a sync from the day before yesterday or older. */
       stopped: (day: string) =>
         `Fitheid, vermoeidheid en vorm lopen tot ${day}, de laatst gesyncte dag. De dagen daarna tellen niet als rustdagen maar komen mee met de volgende sync.`,
     },

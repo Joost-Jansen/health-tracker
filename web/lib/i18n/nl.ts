@@ -1,7 +1,7 @@
-// Nederlandse teksten van de site: de bron. lib/i18n/en.ts heeft precies dezelfde sleutels (TypeScript en
-// `npm run check:i18n` bewaken dat). Een tekst met getallen of namen is een functie met parameters; meervoud via
-// f.plural, getallen en datums via f (lib/i18n/format.ts). De uitleg over gezondheid en prestaties staat in
-// lib/texts.ts (T) en komt hier binnen als `texts`.
+// Dutch texts of the site: the source. lib/i18n/en.ts has exactly the same keys (TypeScript and
+// `npm run check:i18n` guard that). A text with numbers or names is a function with parameters; plurals via
+// f.plural, numbers and dates via f (lib/i18n/format.ts). The explanations about health and performance are in
+// lib/texts.ts (T) and come in here as `texts`.
 
 import { T } from "@/lib/texts";
 import { makeFormat } from "./format";
@@ -120,7 +120,7 @@ export const nl = {
     haveAccount: "Al een account?",
   },
 
-  /** Foutcodes van de API (api/errors.py), met dezelfde parameters. */
+  /** Error codes of the API (api/errors.py), with the same parameters. */
   errors: {
     not_logged_in: "Niet ingelogd.",
     invalid_agent_token: "Ongeldig agent-token.",
@@ -391,7 +391,7 @@ export const nl = {
     timesDone: (n: number, done: string, last: string) => `${n}× ${done}, laatst ${last}`,
     typical: (typical: string, hr: string) => `typisch ${typical} · ${hr} bpm`,
     best: (effort: string, day: string) => `beste ${effort} (${day})`,
-    /** Een automatische naam ("5.2 km rondje (r3)"). */
+    /** A generated name ("5.2 km rondje (r3)"). */
     defaultName: (km: string, loop: boolean, ride: boolean, id: string) => `${km} km ${ride ? "fiets" : ""}${loop ? "rondje" : "route"} (${id})`,
     back: "← Rondjes",
     notFound: "Rondje niet gevonden.",

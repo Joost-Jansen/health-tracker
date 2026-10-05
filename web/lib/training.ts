@@ -1,4 +1,4 @@
-// Types en opmaak voor trainingsdata. Tijden als 1:05 (u:mm), tempo als 5:20/km.
+// Types and formatting for training data. Times as 1:05 (h:mm), pace as 5:20/km.
 
 export const ZONES = ["Z1", "Z2", "Z3", "Z4", "Z5"] as const;
 export type Zone = (typeof ZONES)[number];
@@ -42,7 +42,7 @@ export type ZoneShare = { seconds: ZoneSeconds; total_s: number; pct: Record<Zon
 export type Volume = { count: number; km: number; seconds: number };
 export type FormRow = { date: string; load: number; ctl: number; atl: number; tsb: number };
 
-/** Acute (ATL) tegenover chronische (CTL) belasting, zie api/dashboard.py load_indicator. */
+/** Acute (ATL) against chronic (CTL) load, see api/dashboard.py load_indicator. */
 export type LoadIndicator = {
   band: "low" | "build" | "high" | "unknown";
   acwr: number | null;
@@ -66,7 +66,7 @@ export type Dashboard = {
     status: string;
     ctl_peak: number;
     ctl_peak_date: string;
-    /** Laatste dag van de reeks: vandaag, of de laatst gesyncte dag als de sync ouder is dan gisteren. */
+    /** Last day of the series: today, or the last synced day when the sync is older than yesterday. */
     until: string;
     stopped_at_sync: boolean;
     load: LoadIndicator;
@@ -76,13 +76,13 @@ export type Dashboard = {
   recovery: { days: ({ date: string } & Record<string, number | string>)[]; baseline_rhr: number | null };
   upcoming: PlanSession[];
   plan_title?: string;
-  /** Alleen met een actief schema. */
+  /** Only with an active plan. */
   plan_week?: PlanWeekSummary;
   race?: NextRace | null;
   readiness?: Readiness | null;
 };
 
-/** Codes en getallen; de tekst komt uit T.vandaag.readiness (api/readiness.py). */
+/** Codes and numbers; the text comes from T.vandaag.readiness (api/readiness.py). */
 export type ReadinessNote = {
   code: "vs_baseline" | "sleep" | "highest" | "form_yesterday";
   params: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number };
@@ -91,7 +91,7 @@ export type ReadinessNote = {
 export type Readiness = {
   verdict: "klaar" | "rustig aan" | "herstel" | "onbekend";
   date: string | null;
-  /** Geen slaap of rusthartslag van afgelopen nacht. */
+  /** No sleep or resting heart rate from last night. */
   no_night: boolean;
   signals: { key: "resting_hr" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
 };
@@ -113,7 +113,7 @@ export function fmtSpeed(seconds?: number, km?: number): string {
   return `${((km / seconds) * 3600).toFixed(1).replace(".", ",")} km/u`;
 }
 
-/** Tempo voor lopen, snelheid voor fietsen, per 100 m voor zwemmen. */
+/** Pace for running, speed for cycling, per 100 m for swimming. */
 export function fmtIntensity(a: { sport: string; moving_time_s?: number; distance_km?: number }): string {
   if (a.sport === "ride") return fmtSpeed(a.moving_time_s, a.distance_km);
   if (a.sport === "swim") {
@@ -135,7 +135,7 @@ export function zoneRanges(bounds: number[]): Record<Zone, string> {
   return { Z1: `< ${b2}`, Z2: `${b2}-${b3 - 1}`, Z3: `${b3}-${b4 - 1}`, Z4: `${b4}-${b5 - 1}`, Z5: `≥ ${b5}` };
 }
 
-// ── Historie (T4) ────────────────────────────────────────────────────────────
+// ── History (T4) ─────────────────────────────────────────────────────────────
 
 export type ActivityListItem = ActivitySummary & { has_gps?: boolean };
 
@@ -206,7 +206,7 @@ export type Trends = {
   insights: Insight[];
 };
 
-// ── Schema (T6) ──────────────────────────────────────────────────────────────
+// ── Plan (T6) ────────────────────────────────────────────────────────────────
 
 export type SessionStatus = "gedaan" | "gemist" | "vandaag" | "gepland" | "rust";
 
@@ -245,9 +245,9 @@ export type Plan = {
 
 export type PlanListItem = Omit<Plan, "sessions" | "weeks">;
 
-// ── Rondjes (T7) ─────────────────────────────────────────────────────────────
+// ── Routes (T7) ──────────────────────────────────────────────────────────────
 
-/** Sporten met vaste rondjes: id-voorvoegsel r (lopen) en f (fietsen). */
+/** Sports with recurring routes: id prefix r (running) and f (cycling). */
 export type RouteSport = "run" | "ride";
 
 export type RouteSummary = {
@@ -260,9 +260,9 @@ export type RouteSummary = {
   runs: number;
   first_run?: string;
   last_run?: string;
-  /** Lopen: mediaan tempo "5:08"; null bij fietsrondjes. */
+  /** Running: median pace "5:08"; null for cycling routes. */
   median_pace?: string | null;
-  /** Fietsen: mediaan snelheid in km/u; null bij looprondjes. */
+  /** Cycling: median speed in km/h; null for running routes. */
   median_speed_kmh?: number | null;
   median_hr?: number;
   start?: [number, number];
@@ -290,11 +290,11 @@ export type RouteOption = {
   tracks: Record<string, [number, number][]>;
 };
 
-// ── Zones over tijd (T16) ────────────────────────────────────────────────────
+// ── Zones over time (T16) ────────────────────────────────────────────────────
 
 export type ZonePeriod = "week" | "month";
 
-/** GET /api/zones?period=&offset= : één week of maand, offset 0 = de huidige (tot nu). */
+/** GET /api/zones?period=&offset= : one week or month, offset 0 = the current one (up to now). */
 export type ZonesForPeriod = {
   period: ZonePeriod;
   offset: number;
@@ -302,18 +302,18 @@ export type ZonesForPeriod = {
   end: string;
   label: string;
   is_current: boolean;
-  /** Per sport plus "all" (som, elke sport met zijn eigen zones); leeg zonder hartslagdata. */
+  /** Per sport plus "all" (sum, every sport with its own zones); empty without heart-rate data. */
   zones: Record<string, ZoneShare>;
   bounds: Record<string, number[]>;
 };
 
 export type ZoneHistoryItem = ZoneShare & { start: string; end: string; label: string };
 
-/** GET /api/zones/history?period=&count=&sport= : oudste eerst, de laatste is de lopende periode. */
+/** GET /api/zones/history?period=&count=&sport= : oldest first, the last is the current period. */
 export type ZoneHistory = {
   period: ZonePeriod;
   sport: string;
-  /** Sporten met hartslagzones in het hele venster, los van het sportfilter. */
+  /** Sports with heart-rate zones in the whole window, regardless of the sport filter. */
   sports: string[];
   items: ZoneHistoryItem[];
 };
@@ -336,12 +336,12 @@ export type AdminUser = {
 export type Invite = { code: string; created_by: number; created_at: string; expires_at: string | null; used_by: number | null; used_at: string | null };
 export type RegistrationMode = "closed" | "invite" | "open";
 
-// ── Rondjes: lengtevarianten en "is dit hetzelfde rondje?" (T20) ─────────────
+// ── Routes: length variants and "is this the same route?" (T20) ─────────────
 
-/** Een lengtevariant binnen een rondje (zelfde rondje met een extra lus, omweg of aanloop). */
+/** A length variant within a route (the same route with an extra loop, detour or run-up). */
 export type RouteLengthVariant = { distance_km: number; runs: number; activity_ids: string[]; last_run: string };
 
-/** GET /api/routes en /api/routes/{id} geven ook `distance_variants`, kortste eerst. */
+/** GET /api/routes and /api/routes/{id} also return `distance_variants`, shortest first. */
 export type RouteWithVariants = RouteSummary & { distance_variants?: RouteLengthVariant[] };
 
 export type RouteCandidateSide = {
@@ -351,14 +351,14 @@ export type RouteCandidateSide = {
   distance_km?: number;
   runs?: number;
   last_run?: string;
-  /** Alleen bij een losse activiteit. */
+  /** Only for a single activity. */
   date?: string;
   track: [number, number][];
 };
 
 export type RouteReasonCode = "same" | "other_start" | "extra_loop" | "partly_other_way";
 
-/** Een open vraag: a is altijd een rondje, b een rondje of een losse activiteit. */
+/** An open question: a is always a route, b a route or a single activity. */
 export type RouteCandidate = {
   sport: RouteSport;
   outcome: "same" | "candidate";
@@ -375,39 +375,39 @@ export type RouteCandidates = { candidates: RouteCandidate[]; last_sync: string 
 /** POST /api/routes/candidates {a, b, same} */
 export type RouteCandidateResult = { applied: boolean; applied_on_next_sync: boolean; route: RouteWithVariants | null; remaining: number };
 
-// ── Vandaag: schema deze week, wedstrijd, laatste activiteiten ───────────────
+// ── Today: plan this week, race, latest activities ───────────────────────────
 
-/** Een sessie van het schema per sport deze week; tijd gepland alleen uit sessies met een duur. */
+/** The plan's sessions per sport this week; planned time only from sessions with a duration. */
 export type PlanWeekSport = { planned_km: number; done_km: number; planned_s: number; done_s: number; sessions: number; done: number };
 
-/** GET /api/dashboard `plan_week`: maandag t/m zondag van het actieve schema (api/dashboard.py plan_week). */
+/** GET /api/dashboard `plan_week`: Monday to Sunday of the active plan (api/dashboard.py plan_week). */
 export type PlanWeekSummary = {
   start: string;
   end: string;
   sports: Record<string, PlanWeekSport>;
-  /** `unsynced`: voorbij, maar na de laatste sync; nog niet bekend of hij gedaan is. */
+  /** `unsynced`: past, but after the last sync; not yet known whether it was done. */
   sessions: { total: number; done: number; missed: number; upcoming: number; unsynced: number };
 };
 
-/** GET /api/dashboard `race`: de eerstvolgende wedstrijd uit het schema; `name` alleen bij de wedstrijd van het schema zelf. */
+/** GET /api/dashboard `race`: the next race from the plan; `name` only for the plan's own race. */
 export type NextRace = { date: string; days: number; name: string | null; distance_km: number | null; sport: string | null };
 
-/** Een item onder Laatste activiteiten: runs met minder dan 30 minuten pauze zijn één item met `parts`. */
+/** An item under latest activities: runs with less than 30 minutes break are one item with `parts`. */
 export type RecentItem = ActivitySummary & { parts?: number; activity_ids?: string[]; race?: boolean };
 
-// ── Trends, uitbreiding (insights als codes, records uit wedstrijden, doel, langste run, polshartslag) ──────────
+// ── Trends, extension (insights as codes, records from races, goal, longest run, wrist heart rate) ──────────
 
 export type RecordKey = "1k" | "5k" | "10k" | "21k";
-/** Een record-rij: uit een split of uit een wedstrijd die het horloge net te kort mat (dan met distance_km). */
+/** A record row: from a split or from a race the watch measured slightly short (then with distance_km). */
 export type RecordRowPlus = RecordRow & { source?: "split" | "race"; distance_km?: number };
 export type RecentRecord = { key: RecordKey; date: string; seconds: number; previous_seconds: number; activity_id: string; source: "split" | "race" };
-/** Het doel uit het actieve schema (api/trends.py goal_from_plan). */
+/** The goal from the active plan (api/trends.py goal_from_plan). */
 export type TrendsGoal = { km: number; seconds: number | null; date: string | null; text: string };
 export type LongestRun = { week: string; date: string; km: number; seconds: number; parts: number; activity_id: string };
 export type HrFlagReason = "low_start" | "flat" | "dropout";
 export type HrFlag = { id: string; date: string; name: string; reasons: HrFlagReason[] };
 
-/** Inzicht als code met getallen; de tekst komt uit lib/texts.ts (T.trends.insight). */
+/** Insight as a code with numbers; the text comes from lib/texts.ts (T.trends.insight). */
 export type InsightCode =
   | { level: Insight["level"]; code: "record_set"; params: { key: RecordKey; seconds: number; previous_seconds: number; date: string; activity_id: string } }
   | { level: Insight["level"]; code: "acwr_high"; params: { atl: number; ctl: number; ratio: number } }
@@ -421,14 +421,14 @@ export type InsightCode =
 
 export type RecoveryDay = { date: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null };
 
-/** GET /api/trends zoals de API hem nu geeft. */
+/** GET /api/trends as the API returns it now. */
 export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recovery_daily"> & {
   insights: InsightCode[];
   records: Record<RecordKey, RecordRowPlus[]>;
   recovery_daily?: RecoveryDay[];
   recent_records?: RecentRecord[];
   goal?: TrendsGoal | null;
-  /** Laatste dag van de vormreeks; na een sync van eergisteren of ouder de laatst gesyncte dag (`stopped_at_sync`). */
+  /** Last day of the form series; after a sync from the day before yesterday or older, the last synced day (`stopped_at_sync`). */
   form_until?: string | null;
   stopped_at_sync?: boolean;
   longest_runs?: LongestRun[];
@@ -436,5 +436,5 @@ export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recove
   rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number; race_short_pct?: number; recent_record_days?: number };
 };
 
-/** ActivitySummary met de vlag voor onbetrouwbare polshartslag (GET /api/activities, als de API die meegeeft). */
+/** ActivitySummary with the flag for unreliable wrist heart rate (GET /api/activities, when the API includes it). */
 export type ActivitySummaryFlags = { hr_flags?: HrFlagReason[] };

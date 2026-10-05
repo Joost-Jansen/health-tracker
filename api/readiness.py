@@ -1,4 +1,4 @@
-"""Klaar voor training? A plain verdict from last night's recovery against the user's own baseline, plus form.
+"""Readiness ("Klaar voor training?"): a plain verdict from last night's recovery against the user's own baseline, plus form.
 
 Signals: resting HR above its 60-day median, short sleep, low Body Battery, very negative form (TSB).
 Not medical advice; the dashboard says so.

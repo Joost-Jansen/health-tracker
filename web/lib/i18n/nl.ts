@@ -410,6 +410,23 @@ export const nl = {
     copy: "kopieer",
     until: (when: string) => `tot ${when}`,
     adminsOnly: "Alleen voor beheerders.",
+    overview: { accounts: "Accounts", admins: "Beheerders", suspended: "Geblokkeerd", storage: "Bestanden", openFeedback: "Open feedback" },
+    storage: "Bestanden",
+    actions: (u: string) => `Acties voor ${u}`,
+    audit: "Recente beheeracties",
+    auditNone: "Nog niets.",
+    auditActions: {
+      make_admin: "maakte beheerder:",
+      remove_admin: "haalde beheerder weg bij",
+      block: "blokkeerde",
+      unblock: "deblokkeerde",
+      reset_password: "zette het wachtwoord opnieuw van",
+      delete_user: "verwijderde",
+      registration: "zette registratie op",
+      invite: "maakte een uitnodigingslink",
+      revoke_invite: "trok een uitnodigingslink in",
+      answer_feedback: "beantwoordde feedback",
+    },
   },
 
   history: {

@@ -153,6 +153,7 @@ def make_router(engine, current_user: Callable) -> APIRouter:
             raise ApiError(422, "feedback_status", options=list(db.FEEDBACK_STATUSES))
         if not db.update_feedback(engine, feedback_id, status=body.status, reply=body.reply):
             raise ApiError(404, "feedback_not_found")
+        db.add_audit(engine, a.username, "answer_feedback", f"#{feedback_id}", body.status)
         return db.get_feedback(engine, feedback_id)
 
     return r

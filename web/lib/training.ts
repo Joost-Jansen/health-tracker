@@ -354,6 +354,7 @@ export type AdminUser = {
   created_at: string;
   last_login_at: string | null;
   activities: number;
+  files_bytes: number;
   last_sync: string | null;
 };
 export type Invite = { code: string; created_by: number; created_at: string; expires_at: string | null; used_by: number | null; used_at: string | null };

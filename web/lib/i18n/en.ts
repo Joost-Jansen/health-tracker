@@ -417,6 +417,23 @@ export const en: Messages = {
     copy: "copy",
     until: (when: string) => `until ${when}`,
     adminsOnly: "Admins only.",
+    overview: { accounts: "Accounts", admins: "Admins", suspended: "Blocked", storage: "Files", openFeedback: "Open feedback" },
+    storage: "Files",
+    actions: (u: string) => `Actions for ${u}`,
+    audit: "Recent admin actions",
+    auditNone: "Nothing yet.",
+    auditActions: {
+      make_admin: "made admin",
+      remove_admin: "removed admin",
+      block: "blocked",
+      unblock: "unblocked",
+      reset_password: "reset password of",
+      delete_user: "deleted",
+      registration: "set registration to",
+      invite: "created an invite link",
+      revoke_invite: "revoked an invite link",
+      answer_feedback: "answered feedback",
+    },
   },
 
   history: {

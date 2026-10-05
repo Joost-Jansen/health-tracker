@@ -280,8 +280,14 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(404, "user_not_found")
         if user_id == a.id and (body.is_admin is False or body.suspended):
             raise ApiError(422, "cannot_demote_self")
-        db.update_user(engine, user_id, **body.model_dump(exclude_none=True))
-        return db.get_user(engine, user_id)
+        changes = body.model_dump(exclude_none=True)
+        db.update_user(engine, user_id, **changes)
+        target = db.get_user(engine, user_id)
+        for key, value in changes.items():
+            action = {"is_admin": "make_admin" if value else "remove_admin", "suspended": "block" if value else "unblock"}.get(key)
+            if action:
+                db.add_audit(engine, a.username, action, target["username"])
+        return target
 
     @r.post("/api/admin/users/{user_id}/reset-password")
     def admin_reset(user_id: int, a: User = Depends(admin)):
@@ -289,6 +295,7 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(404, "user_not_found")
         temporary = secrets.token_urlsafe(9)
         db.update_user(engine, user_id, password_hash=hash_password(temporary))
+        db.add_audit(engine, a.username, "reset_password", db.get_user(engine, user_id)["username"])
         return {"password": temporary}
 
     @r.delete("/api/admin/users/{user_id}")
@@ -302,7 +309,20 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(422, "confirm_username")
         db.delete_user(engine, user_id)
         stores.drop(user_id)
+        db.add_audit(engine, a.username, "delete_user", target["username"])
         return {"ok": True}
+
+    @r.get("/api/admin/overview")
+    def admin_overview(a: User = Depends(admin)):
+        people = db.list_users(engine)
+        return {
+            "accounts": len(people),
+            "admins": sum(1 for u in people if u["is_admin"]),
+            "suspended": sum(1 for u in people if u["suspended"]),
+            "files_bytes": sum(u["files_bytes"] for u in people),
+            "open_feedback": db.count_open_feedback(engine),
+            "audit": db.list_audit(engine),
+        }
 
     @r.get("/api/admin/settings")
     def admin_settings(a: User = Depends(admin)):
@@ -314,6 +334,7 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             if body.registration not in REGISTRATION_MODES:
                 raise ApiError(422, "invalid_registration_mode", options=list(REGISTRATION_MODES))
             db.set_app_setting(engine, "registration", body.registration)
+            db.add_audit(engine, a.username, "registration", detail=body.registration)
         return admin_settings(a)
 
     @r.post("/api/admin/invites")
@@ -321,11 +342,13 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         code = secrets.token_urlsafe(8)
         expires = datetime.now(timezone.utc) + timedelta(days=body.days) if body.days else None
         db.create_invite(engine, code, a.id, expires)
+        db.add_audit(engine, a.username, "invite", detail=f"{body.days} d" if body.days else None)
         return {"code": code, "expires_at": expires.isoformat() if expires else None}
 
     @r.delete("/api/admin/invites/{code}")
     def admin_invite_delete(code: str, a: User = Depends(admin)):
         db.delete_invite(engine, code)
+        db.add_audit(engine, a.username, "revoke_invite")
         return {"ok": True}
 
     return r

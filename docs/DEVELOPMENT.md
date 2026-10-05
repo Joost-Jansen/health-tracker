@@ -132,6 +132,7 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | PATCH | `/api/account` | `{display_name?, locale?: nl\|en}` (site login only); returns the user with `locale` |
 | POST | `/api/account/password` | `{current, new}` |
 | GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
+| GET | `/api/admin/overview` | `{accounts, admins, suspended, files_bytes, open_feedback, audit[]}`: the figures at the top of the admin page and the last 30 admin actions (`admin_audit`) |
 | GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
 | POST/DELETE | `/api/admin/invites`, `/api/admin/invites/{code}` | invite codes (`{days}`) |
 | POST/GET | `/api/feedback` | send `{kind: bug\|idea, message, page?, context?, screenshot?: data URL}` (site login; 20 a day) / your own, with status and reply |

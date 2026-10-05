@@ -199,6 +199,17 @@ routes = Table(
     PrimaryKeyConstraint("user_id", "id"),
 )
 
+admin_audit = Table(
+    # What admins did: who, what, to whom, when. Shown at the bottom of the admin page.
+    "admin_audit",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("actor", String(40), nullable=False),
+    Column("action", String(40), nullable=False),
+    Column("target", String(80)),
+    Column("detail", String(200)),
+    Column("at", DateTime(timezone=True), nullable=False),
+)
 feedback = Table(
     # What users report from the site: something broken or an idea. Read by the admins (settings, MCP).
     "feedback",
@@ -403,8 +414,28 @@ def list_users(engine: Engine) -> list[dict]:
     with engine.connect() as conn:
         rows = conn.execute(select(users).order_by(users.c.id)).mappings().all()
         counts = dict(conn.execute(select(activities.c.user_id, func.count()).group_by(activities.c.user_id)).all())
+        files = dict(conn.execute(select(fit_files.c.user_id, func.sum(func.length(fit_files.c.data))).group_by(fit_files.c.user_id)).all())
         syncs = {uid: v for uid, v in conn.execute(select(settings.c.user_id, settings.c.value).where(settings.c.key == "sync_state")).all()}
-    return [{**_user_row(r), "activities": counts.get(r["id"], 0), "last_sync": (syncs.get(r["id"]) or {}).get("last_sync_local")} for r in rows]
+    return [
+        {**_user_row(r), "activities": counts.get(r["id"], 0), "files_bytes": int(files.get(r["id"]) or 0), "last_sync": (syncs.get(r["id"]) or {}).get("last_sync_local")}
+        for r in rows
+    ]
+
+
+def add_audit(engine: Engine, actor: str, action: str, target: str | None = None, detail: str | None = None) -> None:
+    with engine.begin() as conn:
+        conn.execute(insert(admin_audit).values(actor=actor, action=action, target=target, detail=(detail or None) and detail[:200], at=_now()))
+
+
+def list_audit(engine: Engine, limit: int = 30) -> list[dict]:
+    with engine.connect() as conn:
+        rows = conn.execute(select(admin_audit).order_by(admin_audit.c.id.desc()).limit(limit)).mappings().all()
+    return [{**dict(r), "at": (r["at"] if r["at"].tzinfo else r["at"].replace(tzinfo=timezone.utc)).isoformat()} for r in rows]
+
+
+def count_open_feedback(engine: Engine) -> int:
+    with engine.connect() as conn:
+        return conn.execute(select(func.count()).select_from(feedback).where(feedback.c.status.in_(("new", "planned")))).scalar_one()
 
 
 def count_users(engine: Engine) -> int:

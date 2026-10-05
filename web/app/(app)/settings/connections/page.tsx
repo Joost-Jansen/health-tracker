@@ -16,7 +16,7 @@ type Status = {
 };
 
 /** The Wahoo card. Connecting sends the browser to Wahoo; Wahoo sends it back with ?wahoo=connected|denied|expired|failed. */
-function WahooCard({ s, syncing, garmin, onChange }: { s: Status["wahoo"]; syncing: boolean; garmin: boolean; onChange: () => void }) {
+function WahooCard({ s, syncing, onChange }: { s: Status["wahoo"]; syncing: boolean; onChange: () => void }) {
   const t = useT();
   const m = t.connections.wahoo;
   const f = useFormat();
@@ -83,11 +83,9 @@ function WahooCard({ s, syncing, garmin, onChange }: { s: Status["wahoo"]; synci
               <dd>{s.last_workout_day ? f.day(s.last_workout_day) : t.common.notYet}</dd>
             </dl>
             <div className="flex flex-wrap gap-2">
-              {!garmin && (
-                <Button size="sm" variant="primary" disabled={syncing} onClick={async () => { await api.post("/api/connections/sync"); onChange(); }}>
-                  {syncing ? t.common.busy : t.connections.syncNow}
-                </Button>
-              )}
+              <Button size="sm" variant="primary" disabled={syncing} onClick={async () => { await api.post("/api/connections/sync"); onChange(); }}>
+                {syncing ? t.common.busy : t.connections.syncNow}
+              </Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={disconnect}>{t.connections.disconnect}</Button>
             </div>
           </>
@@ -200,7 +198,7 @@ export default function ConnectionsPage() {
           </div>
         )}
       </Card>
-      <WahooCard s={q.data.wahoo} syncing={g.syncing} garmin={g.connected && g.readable !== false} onChange={refresh} />
+      <WahooCard s={q.data.wahoo} syncing={g.syncing} onChange={refresh} />
       <p className="max-w-prose text-[11.5px] text-ink-muted">
         {t.connections.unofficial}
       </p>

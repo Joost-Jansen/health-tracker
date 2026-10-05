@@ -142,3 +142,12 @@ def test_agent_token_sees_its_own_user(app, anna):
     agent = TestClient(app, headers={"Authorization": f"Bearer {tok}"})
     r = agent.get("/api/onboarding").json()
     assert r["status"]["agents"]["tokens"] == 1 and r["status"]["activities"]["count"] == 0
+
+
+def test_stored_page_ids_survive_the_english_paths(engine, anna):  # noqa: F811
+    # The pages moved to English paths (/routes/, /history/), but the page ids stored per user stay the same, so
+    # onboarding state saved before the rename still counts.
+    me = anna.get("/api/me").json()
+    db.set_setting(db.Scope(engine, me["id"]), "onboarding", {"done": True, "visited": ["dashboard", "trends", "rondjes", "historie"]})
+    r = anna.get("/api/onboarding").json()
+    assert r["visited"] == ["dashboard", "trends", "rondjes", "historie"] and r["steps"]["explore"] is True

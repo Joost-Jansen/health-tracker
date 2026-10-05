@@ -42,7 +42,7 @@ function writePaused(v: boolean) {
   try { if (v) sessionStorage.setItem(PAUSED_KEY, "1"); else sessionStorage.removeItem(PAUSED_KEY); } catch { /* geen opslag */ }
 }
 
-export default function Welkom({ enabled }: { enabled: boolean }) {
+export default function Welcome({ enabled }: { enabled: boolean }) {
   const t = useT();
   const f = useFormat();
   const tr = t.onboarding.tour;
@@ -106,7 +106,7 @@ export default function Welkom({ enabled }: { enabled: boolean }) {
       tour.push({
         key: "goals-plan", title: tr.goalsPlan, ids: ["goals", "plan"], done: o.steps.goals && o.steps.plan,
         intro: <>{ex.intro} {plan.intro}</>, bullets: [...ex.bullets, ...plan.bullets],
-        actions: [{ label: t.onboarding.goTo(t.onboarding.steps.goals.link), href: "/analyses/doelen/" }, { label: t.onboarding.goTo(t.onboarding.steps.plan.link), href: "/plan/" }],
+        actions: [{ label: t.onboarding.goTo(t.onboarding.steps.goals.link), href: "/analyses/goals/" }, { label: t.onboarding.goTo(t.onboarding.steps.plan.link), href: "/plan/" }],
       });
       continue;
     }

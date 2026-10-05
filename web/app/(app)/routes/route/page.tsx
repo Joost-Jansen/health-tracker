@@ -120,7 +120,7 @@ function Detail({ id }: { id: string }) {
               const total = z ? ZONES.reduce((s, k) => s + (z[k] ?? 0), 0) : 0;
               return (
                 <tr key={h.id} className="border-t border-border">
-                  <td className="py-1.5"><Link href={`/historie/activiteit/?id=${encodeURIComponent(h.id)}`} className="hover:underline">{fmtDay(h.date)}</Link></td>
+                  <td className="py-1.5"><Link href={`/history/activity/?id=${encodeURIComponent(h.id)}`} className="hover:underline">{fmtDay(h.date)}</Link></td>
                   <td className="py-1.5">{f.clock(h.moving_time_s)}</td>
                   <td className={`py-1.5 ${r.best?.activity_id === h.id ? "font-semibold" : ""}`}>{fmtEffort(f, sport, h.pace_s_per_km)}</td>
                   <td className="py-1.5">{h.avg_hr ?? "–"}</td>

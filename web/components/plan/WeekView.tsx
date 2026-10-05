@@ -12,8 +12,8 @@ import { type Week, STATUS_TONE, capitalise, fmtWeekRange, kmBySport, parseIso, 
 import { SportBadge, SportGlyph } from "./SportIcon";
 import ZoneChip from "./ZoneChip";
 
-const activityHref = (id: string) => `/historie/activiteit/?id=${encodeURIComponent(id)}`;
-const routeHref = (id: string) => `/rondjes/rondje/?id=${encodeURIComponent(id)}`;
+const activityHref = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
+const routeHref = (id: string) => `/routes/route/?id=${encodeURIComponent(id)}`;
 const RACE = /wedstrijd|race/i;
 
 function amount(s: PlanSession, f: Format) {

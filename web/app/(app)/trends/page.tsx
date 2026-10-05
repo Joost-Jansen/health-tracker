@@ -32,7 +32,7 @@ type RecoveryKey = "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg"
 const MAIN = ["run", "ride", "swim"];
 const SPORT_COLOUR: Record<string, string> = { run: "var(--chart-1)", ride: "var(--chart-4)", swim: "var(--chart-3)" };
 const RECORD_COLOUR: Record<RecordKey, string> = { "1k": "var(--chart-4)", "5k": "var(--chart-1)", "10k": "var(--chart-3)", "21k": "var(--chart-5)" };
-const href = (id: string) => `/historie/activiteit/?id=${encodeURIComponent(id)}`;
+const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 const levelColour = (level: string) => (level === "goed" ? "var(--zone-2)" : level === "let_op" ? "var(--zone-4)" : "var(--zone-1)");
 
 export default function TrendsPage() {

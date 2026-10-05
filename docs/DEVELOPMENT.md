@@ -1,8 +1,8 @@
 # Development
 
 How the code is organised, how to run it, and the rules the code follows. Deployment and environment variables are in
-the README ("Deploy your own"). The UI speaks Dutch and English (see "Languages" below); code, comments and commits are English or Dutch, keep what the file
-already uses.
+the README ("Deploy your own"). The UI speaks Dutch and English (see "Languages" below); code, comments, file and folder
+names and commits are English (Dutch only inside UI texts and the Dutch messages the API returns).
 
 ## Architecture
 
@@ -22,7 +22,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | Path | What |
 |---|---|
 | `api/` | FastAPI app (`create_app` factory), auth, dashboard aggregation |
-| `web/` | Next.js 16 + Tailwind, static export. Own design system, sage theme |
+| `web/` | Next.js 16 + Tailwind, static export. Own design system, sage theme. One folder per page in `web/app/(app)/`; `web/app/(redirects)/` only holds the old Dutch paths (see "Old paths") |
 | `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
@@ -84,6 +84,24 @@ or at registration); without one the last choice on this device (localStorage `l
 page), else the browser language (Dutch browsers Dutch, everything else English). `<html lang>` follows, set before
 the first paint by an inline script in `web/app/layout.tsx`.
 
+## Old paths
+
+The pages moved from Dutch to English paths. The old paths still work: each has a tiny client page in
+`web/app/(redirects)/` that replaces the URL with the new path and keeps the query string and anchor
+(`web/components/Redirect.tsx`). `tests/test_web_routes.py` checks the list below and that every internal link points to
+an existing page. Remove a redirect (and its line in that test) once nobody uses the old URL any more.
+
+| Old | New |
+|---|---|
+| `/historie/`, `/historie/activiteit/?id=` | `/history/`, `/history/activity/?id=` |
+| `/rondjes/`, `/rondjes/rondje/?id=` | `/routes/`, `/routes/route/?id=` |
+| `/instellingen/` (`koppelingen`, `beheer`, `zones`, `agents`) | `/settings/` (`connections`, `admin`, `zones`, `agents`) |
+| `/analyses/doelen/`, `/analyses/profiel/` | `/analyses/goals/`, `/analyses/profile/` |
+| `/help/handleiding/` | `/help/guide/` |
+
+Ids did not change: the onboarding page ids stored per user (`visited`: `rondjes`, `historie`), the nav and catalog keys
+(`nav.items.rondjes`, `nav.tabs.koppelingen`, ...) and the guide's anchors (`#gegevens`) keep their names.
+
 ## API contract
 
 Every route except `/api/health`, `/api/auth/config`, `/api/login`,
@@ -109,7 +127,7 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | POST | `/api/connections/sync` | sync now in the background |
 | GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
 | GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |
-| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|rondjes\|historie}` |
+| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|rondjes\|historie}` (stored page ids; the pages themselves are `/routes/` and `/history/`) |
 
 Sync: `web` runs a daily sync for every connected user after 06:00 Europe/Amsterdam (`api/sync_runner.py`, off with `SYNC_IN_WEB=false`); the optional cron `sync` (`tools/sync.py run_all_users`) does the same.
 

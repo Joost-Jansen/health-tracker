@@ -35,7 +35,7 @@ function RegisterForm() {
     setLoading(true);
     try {
       await api.post("/api/register", { username, password, display_name: displayName || undefined, invite: invite || undefined, locale });
-      router.push("/instellingen/koppelingen/");
+      router.push("/settings/connections/");
     } catch (err) {
       setError(errorText(err, t, t.auth.registerFailed));
     } finally {

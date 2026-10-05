@@ -20,7 +20,7 @@ import { type ActivityDetail, zoneShare } from "@/lib/training";
 
 const ActivityMap = dynamic(() => import("@/components/map/ActivityMap"), { ssr: false, loading: () => <div className="h-[360px] animate-pulse rounded bg-[var(--surface-inset)]" /> });
 
-const href = (id: string) => `/historie/activiteit/?id=${encodeURIComponent(id)}`;
+const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 
 function Stat({ label, value, note }: { label: string; value: React.ReactNode; note?: React.ReactNode }) {
   return (
@@ -100,7 +100,7 @@ function Detail({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
-        <Link href="/historie/" className="text-ink-muted hover:underline">{t.activity.back}</Link>
+        <Link href="/history/" className="text-ink-muted hover:underline">{t.activity.back}</Link>
         <span className="flex gap-4">
           {a.prev_id && <Link href={href(a.prev_id)} className="text-ink-muted hover:underline">{t.activity.prev}</Link>}
           {a.next_id && <Link href={href(a.next_id)} className="text-ink-muted hover:underline">{t.activity.next}</Link>}
@@ -198,7 +198,7 @@ function Detail({ id }: { id: string }) {
       </div>
 
       {a.route && routeRuns.length >= 2 && (
-        <Card title={t.activity.earlier(routeName(a.route.name, a.route.id, t, f))} more={t.nav.items.rondjes} moreHref="/rondjes/">
+        <Card title={t.activity.earlier(routeName(a.route.name, a.route.id, t, f))} more={t.nav.items.rondjes} moreHref="/routes/">
           <LineChart
             ariaLabel={t.activity.paceAria}
             height={170}

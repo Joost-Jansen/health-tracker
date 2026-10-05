@@ -40,7 +40,7 @@ export default function HelpStart() {
           <div>
             <div className="mb-1 flex items-center justify-between gap-2">
               <h3 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">{h.basics}</h3>
-              <ButtonLink href="/help/handleiding/" size="sm" variant="ghost">{h.manual}</ButtonLink>
+              <ButtonLink href="/help/guide/" size="sm" variant="ghost">{h.manual}</ButtonLink>
             </div>
             <StepList o={o} only="required" />
           </div>

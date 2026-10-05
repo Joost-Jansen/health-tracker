@@ -14,7 +14,7 @@ import { findItem, localizeNav, NAV } from "@/lib/nav";
 import { useAccountLocale, useT } from "@/lib/i18n";
 import type { Me } from "@/lib/training";
 import StartBanner, { useRecordVisit } from "@/components/onboarding/StartBanner";
-import Welkom from "@/components/onboarding/Welkom";
+import Welcome from "@/components/onboarding/Welcome";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       {/* De eerste keer: hoe je de site gebruikt, en de stappen die daarbij horen. */}
-      <Welkom enabled />
+      <Welcome enabled />
     </div>
   );
 }

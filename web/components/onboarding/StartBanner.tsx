@@ -12,14 +12,14 @@ import { usePathname } from "next/navigation";
 import { PAGES, useOnboarding, useSetOnboarding, type Onboarding, type Page } from "@/lib/onboarding";
 import { useT, type Messages } from "@/lib/i18n";
 
-const SCREENS = ["/trends/", "/rondjes/", "/historie/", "/plan/"];
+const SCREENS = ["/trends/", "/routes/", "/history/", "/plan/"];
 
 function text(o: Onboarding, t: Messages): { text: string; href: string; link: string } {
   const st = o.status;
   const b = t.onboarding.banner;
-  if (!st.garmin.connected) return { text: b.notConnected, href: "/instellingen/koppelingen/", link: b.connect };
-  if (st.sync.running) return { text: b.syncing, href: "/help/handleiding/#gegevens", link: b.how };
-  return { text: b.waiting, href: "/instellingen/koppelingen/", link: b.toConnections };
+  if (!st.garmin.connected) return { text: b.notConnected, href: "/settings/connections/", link: b.connect };
+  if (st.sync.running) return { text: b.syncing, href: "/help/guide/#gegevens", link: b.how };
+  return { text: b.waiting, href: "/settings/connections/", link: b.toConnections };
 }
 
 export default function StartBanner({ enabled }: { enabled: boolean }) {

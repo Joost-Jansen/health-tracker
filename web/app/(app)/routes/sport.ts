@@ -14,8 +14,8 @@ export const PRESETS: Record<RouteSport, { presets: number[]; minCount: number }
   ride: { presets: [20, 30, 40, 50, 60, 80, 100], minCount: 2 },
 };
 
-export const routeHref = (id: string) => `/rondjes/rondje/?id=${encodeURIComponent(id)}`;
-export const listHref = (sport: RouteSport) => (sport === "ride" ? "/rondjes/?sport=ride" : "/rondjes/");
+export const routeHref = (id: string) => `/routes/route/?id=${encodeURIComponent(id)}`;
+export const listHref = (sport: RouteSport) => (sport === "ride" ? "/routes/?sport=ride" : "/routes/");
 
 export const kmhFromPace = (paceSPerKm?: number | null) => (paceSPerKm ? 3600 / paceSPerKm : null);
 

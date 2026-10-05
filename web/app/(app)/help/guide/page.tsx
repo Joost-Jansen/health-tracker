@@ -49,9 +49,9 @@ export default function Handleiding() {
 
       <Part id="beginnen" title={title("beginnen")}>
         <ol className="list-decimal pl-5">
-          <li>{rich(m.stepGarmin, { b: bold, link: link("/instellingen/koppelingen/") })}{doneNote("garmin", m.doneNote)}</li>
+          <li>{rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}{doneNote("garmin", m.doneNote)}</li>
           <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
-          <li>{rich(m.stepZones, { b: bold, link: link("/instellingen/zones/") })}{doneNote("zones", m.doneNote)}</li>
+          <li>{rich(m.stepZones, { b: bold, link: link("/settings/zones/") })}{doneNote("zones", m.doneNote)}</li>
         </ol>
         <p className="text-xs text-ink-muted">{rich(m.progressAt, { link: link("/help/") })}</p>
       </Part>
@@ -83,7 +83,7 @@ export default function Handleiding() {
           {PAGES.map((p) => <li key={p.id}><A href={p.href}>{t.onboarding.pages[p.id].label}</A>: {t.onboarding.pages[p.id].text}.</li>)}
           <li><A href="/plan/">{t.nav.items.plan}</A>: {m.plan}</li>
           <li><A href="/log/">{t.nav.items.logboek}</A>: {m.log}</li>
-          <li><A href="/instellingen/">{t.nav.items.instellingen}</A>: {m.settings}</li>
+          <li><A href="/settings/">{t.nav.items.instellingen}</A>: {m.settings}</li>
         </ul>
         <p className="text-xs text-ink-muted">{m.smallPrint}</p>
       </Part>

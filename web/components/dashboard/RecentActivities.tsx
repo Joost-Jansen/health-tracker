@@ -11,7 +11,7 @@ export default function RecentActivities({ items }: { items: RecentItem[] }) {
   const t = tt.texts.vandaag.recent;
   const f = useFormat();
   return (
-    <Card title={t.title} more={t.more} moreHref="/historie/">
+    <Card title={t.title} more={t.more} moreHref="/history/">
       {items.length === 0 && <p className="text-[13px] text-ink-muted">{t.empty}</p>}
       <ul className="flex flex-col">
         {items.map((a) => (

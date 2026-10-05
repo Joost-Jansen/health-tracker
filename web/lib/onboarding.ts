@@ -64,13 +64,13 @@ export const CHOICES: Choice[] = ["site", "claude"];
 /** De stappen in de volgorde van de checklist. `optional`: niet nodig om de site te laten werken. Namen en de
  *  naam van de pagina waar je heen gaat staan in lib/i18n (onboarding.steps). */
 export const STEPS: { id: StepId; optional: boolean; href: string; claude?: boolean }[] = [
-  { id: "garmin", optional: false, href: "/instellingen/koppelingen/" },
-  { id: "sync", optional: false, href: "/instellingen/koppelingen/" },
-  { id: "zones", optional: false, href: "/instellingen/zones/" },
-  { id: "profile", optional: true, href: "/instellingen/zones/" },
+  { id: "garmin", optional: false, href: "/settings/connections/" },
+  { id: "sync", optional: false, href: "/settings/connections/" },
+  { id: "zones", optional: false, href: "/settings/zones/" },
+  { id: "profile", optional: true, href: "/settings/zones/" },
   { id: "explore", optional: true, href: "/trends/" },
-  { id: "agent", optional: true, href: "/instellingen/agents/", claude: true },
-  { id: "goals", optional: true, href: "/analyses/doelen/" },
+  { id: "agent", optional: true, href: "/settings/agents/", claude: true },
+  { id: "goals", optional: true, href: "/analyses/goals/" },
   { id: "plan", optional: true, href: "/plan/" },
 ];
 
@@ -84,8 +84,8 @@ export function stepShown(step: { id: StepId; claude?: boolean }, o: Pick<Onboar
 export const PAGES: { id: Page; href: string }[] = [
   { id: "dashboard", href: "/dashboard/" },
   { id: "trends", href: "/trends/" },
-  { id: "rondjes", href: "/rondjes/" },
-  { id: "historie", href: "/historie/" },
+  { id: "rondjes", href: "/routes/" },
+  { id: "historie", href: "/history/" },
 ];
 
 export const PAUSED_KEY = "rondleiding-gepauzeerd";

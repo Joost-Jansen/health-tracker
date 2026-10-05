@@ -19,14 +19,14 @@ export default function HelpClaude() {
   const tags = {
     b: bold,
     code: (x: string) => <code className="font-mono text-[12px]">{x}</code>,
-    link: (x: string) => <A href="/instellingen/agents/">{x}</A>,
+    link: (x: string) => <A href="/settings/agents/">{x}</A>,
     log: (x: string) => <A href="/log/">{x}</A>,
     plan: (x: string) => <A href="/plan/">{x}</A>,
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title={c.title} action={<ButtonLink href="/instellingen/agents/" size="sm" variant={tokens ? "secondary" : "primary"}>{c.toAgents}</ButtonLink>}>
+      <Card title={c.title} action={<ButtonLink href="/settings/agents/" size="sm" variant={tokens ? "secondary" : "primary"}>{c.toAgents}</ButtonLink>}>
         <div className="flex max-w-[46rem] flex-col gap-3 text-[13.5px] leading-relaxed">
           <p>{ex.intro}</p>
           {o && (

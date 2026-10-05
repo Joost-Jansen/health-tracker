@@ -231,8 +231,8 @@ cd web && npm run build                # static export, also run by the Docker b
 cd web && npm run dev                  # hot reload on :3000, proxies /api/* to the API on :8000
 ```
 
-Garmin is never called in tests: the sync takes an injectable client and FIT reader. Developer notes (in English and
-Dutch) are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md); design documents are in [`docs/`](docs).
+Garmin is never called in tests: the sync takes an injectable client and FIT reader. Developer notes are in
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md); design documents are in [`docs/`](docs).
 
 ## Connect an AI agent (MCP)
 
@@ -262,7 +262,8 @@ api/                 FastAPI app (create_app factory): auth and users, dashboard
                      zones, onboarding, Garmin connection and in-process sync scheduler, MCP server
 tools/               database schema and queries (db.py), Garmin sync (sync.py, fit.py, store.py), derived data
                      (derive.py, zones.py, routes.py, recommend.py, analytics.py), encryption (secretbox.py), CLI (tr.py)
-web/                 Next.js app: app/(app)/<page> per screen, components (design system, charts, maps, plan, zones)
+web/                 Next.js app: app/(app)/<page> per screen (app/(redirects) for old Dutch paths), components
+                     (design system, charts, maps, plan, zones)
 scripts/seed_demo.py synthetic demo account
 tests/               pytest, one file per module
 docs/                developer notes, design documents, screenshots

@@ -55,3 +55,23 @@ def test_fitness_series_sums_multiple_activities_per_day():
 
 def test_fitness_series_empty():
     assert fitness_series([], rhr=45, max_by_sport=MAXES, end=date(2026, 9, 1)) == []
+
+
+def test_trimp_from_time_per_heart_rate_weighs_hard_minutes_more():
+    from tools.zones import hr_histogram
+
+    steady = hr_histogram([150] * 3601, list(range(3601)))
+    mixed = hr_histogram([130] * 1800 + [170] * 1801, list(range(3601)))  # the same average, 150
+    assert steady == {"150": 3600} and mixed == {"130": 1800, "170": 1800}
+    base = {"sport": "run", "avg_hr": 150, "moving_time_s": 3600}
+    maxes = {"run": 189}
+    by_avg = trimp(base, 45, maxes)
+    assert trimp({**base, "hr_hist_s": steady}, 45, maxes) == pytest.approx(by_avg)
+    assert trimp({**base, "hr_hist_s": mixed}, 45, maxes) > by_avg * 1.05
+
+
+def test_hr_histogram_caps_pauses_and_skips_missing_heart_rate():
+    from tools.zones import hr_histogram
+
+    assert hr_histogram([140, None, 141, 141], [0, 10, 20, 200]) == {"140": 10, "141": 30}  # 180 s gap capped at 30
+    assert hr_histogram([None, None], [0, 1]) is None

@@ -1,4 +1,4 @@
-"""Recompute derived data in the database: time per HR zone on each activity, and the regular routes
+"""Recompute derived data in the database: time per HR zone and per heart rate on each activity, and the regular routes
 (runs and outdoor rides; indoor rides have no GPS track and never form a route).
 
 Run after every sync and after a zones change:
@@ -19,7 +19,7 @@ from tools import db
 from tools.routes import detect
 
 ROUTE_SPORTS = ("run", "ride")
-from tools.zones import zone_seconds
+from tools.zones import hr_histogram, zone_seconds
 
 
 def _run_for_routes(a: dict, latlng: list) -> dict:
@@ -45,6 +45,9 @@ def derive(scope: db.Scope) -> dict:
             if a.get("hr_zones_s") != z:
                 db.set_derived(scope, a["id"], hr_zones_s=z)
                 changed += 1
+        hist = hr_histogram(s["heartrate"], s["time"]) if s.get("heartrate") and s.get("time") else None
+        if a.get("hr_hist_s") != hist:
+            db.set_derived(scope, a["id"], hr_hist_s=hist)
         if a["sport"] in tracks and s.get("latlng") and a.get("distance_km"):
             tracks[a["sport"]].append(_run_for_routes(a, s["latlng"]))
 

@@ -84,3 +84,12 @@ def test_as_text_for_agents_lists_verdict_and_signals():
     w[TODAY.isoformat()] = {"resting_hr": 48, "sleep_h": 7.4, "body_battery_high": 80}
     text = as_text(readiness(w, TODAY, tsb=-5))
     assert text.startswith("klaar") and "rusthartslag 48 bpm" in text and "body battery 80" in text and "vorm -5" in text
+
+
+def test_form_is_judged_as_a_share_of_fitness():
+    w = history()
+    w[TODAY.isoformat()] = {"resting_hr": 48, "sleep_h": 7.5}
+    # -25 against a fitness of 90 (-28%) is training as usual; the same -25 against a fitness of 50 (-50%) is not
+    assert signal(readiness(w, TODAY, tsb=-25, form_pct=-28), "tsb")["level"] == "ok"
+    assert signal(readiness(w, TODAY, tsb=-25, form_pct=-50), "tsb")["level"] == "warn"
+    assert "vorm -25 (-28%)" in as_text(readiness(w, TODAY, tsb=-25, form_pct=-28))

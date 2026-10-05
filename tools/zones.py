@@ -38,6 +38,17 @@ def zone_for(zones: dict, sport: str, hr: float) -> str | None:
     return NAMES[-1]
 
 
+def hr_histogram(heartrate: list, time: list) -> dict[str, int] | None:
+    """Seconds per heart rate (bpm as a string key), with pauses capped like zone_seconds. From this the load of an
+    activity follows for any resting and max heart rate (tools/analytics.py trimp), without reading the streams again."""
+    out: dict[str, int] = {}
+    for i in range(len(heartrate) - 1):
+        if heartrate[i]:
+            key = str(round(heartrate[i]))
+            out[key] = out.get(key, 0) + min(time[i + 1] - time[i], MAX_SAMPLE_GAP_S)
+    return {k: v for k, v in out.items() if v} or None
+
+
 def zone_seconds(zones: dict, sport: str, heartrate: list, time: list) -> dict[str, int] | None:
     if sport not in zones:
         return None

@@ -18,7 +18,7 @@ from typing import Callable
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
-from api.dashboard import build_dashboard, summary, today_tsb
+from api.dashboard import build_dashboard, summary, today_form_pct, today_tsb
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
 from api.readiness import as_text as readiness_text, readiness
@@ -50,7 +50,7 @@ SESSION_TABLE_HELP = (
 # Codes in the data are English; the text for the agent is Dutch (see INSTRUCTIONS).
 PLAN_STATUS_NL = {"active": "actief", "finished": "afgerond", "stopped": "gestopt"}
 SESSION_STATUS_NL = {"done": "gedaan", "missed": "gemist", "today": "vandaag", "planned": "gepland", "rest": "rust"}
-FORM_STATUS_NL = {"fresh": "fris", "balanced": "in balans", "tired": "vermoeid", "very_tired": "zeer vermoeid"}
+FORM_STATUS_NL = {"transition": "overgang (fitheid zakt weg)", "fresh": "fris", "neutral": "neutraal", "optimal": "optimaal trainen", "high_risk": "hoog risico"}
 
 
 def _str(desc: str, **kw) -> dict:
@@ -266,11 +266,11 @@ class Server:
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
             parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
-            rd = readiness(s.wellness, today, today_tsb(f))
+            rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f))
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:
-                parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {FORM_STATUS_NL.get(f['status'], f['status'])}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
+                parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']} ({f.get('pct') if f.get('pct') is not None else '-'}% van fitheid): {FORM_STATUS_NL.get(f['status'], f['status'])}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
             parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]

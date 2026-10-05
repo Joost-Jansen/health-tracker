@@ -32,19 +32,21 @@ export const T = {
   zoneEstimate: (sport: string) => `Zones voor ${sportLabel(sport).toLowerCase()} zijn een schatting (Instellingen, Zones en profiel).`,
 
   /** Under the status as a heading ("Fris", "In balans" …), so without repeating that name. */
+  /** Form as % of fitness, the bands of intervals.icu (api/dashboard.py FORM_BANDS). */
   formStatus: {
-    fresh: "Er is ruimte voor een zware training of een wedstrijd.",
-    balanced: "Belasting en herstel houden elkaar in evenwicht.",
-    tired: "Je bouwt op; plan binnenkort een rustiger dag.",
-    very_tired: "De belasting is hoog tegenover wat je gewend bent; neem rust.",
+    transition: "Meer dan 20% frisser dan je fitheid: je traint al een tijd minder dan je gewend bent en je fitheid zakt weg.",
+    fresh: "5 tot 20% frisser dan je fitheid: er is ruimte voor een wedstrijd of een zware training.",
+    neutral: "Tussen -10% en +5%: belasting en herstel houden elkaar in evenwicht; je fitheid blijft ongeveer gelijk.",
+    optimal: "-10 tot -30% van je fitheid: je traint meer dan je gewend bent en bouwt fitheid op. Plan wel rustige dagen.",
+    high_risk: "Meer dan 30% onder je fitheid: de belasting is hoog tegenover wat je gewend bent. Neem rust; de kans op overbelasting stijgt.",
   } as Record<string, string>,
 
-  formMethod: "Belasting per training = TRIMP uit gemiddelde hartslag, rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
+  formMethod: "Belasting per training = TRIMP uit je hartslag per seconde (zonder hartslagdata: de gemiddelde), rusthartslag en je eigen max per sport. Fitheid is het 42-daags gemiddelde, vermoeidheid 7 dagen, vorm het verschil tussen die twee aan het eind van gisteren (de stand waarmee je vandaag begint).",
 
   /** Why today's fitness minus fatigue is not exactly the form. */
   formTsb: "Vorm = fitheid min vermoeidheid van gisteren: de stand aan het begin van vandaag.",
 
-  formChartNote: "Het gemiddelde geldt voor de vorm; ruitjes zijn wedstrijden en tests.",
+  formChartNote: "Fitheid en vermoeidheid zijn zelf al gemiddelden (42 en 7 dagen); de knop middelt alleen de vorm. Vorm in procenten: tegenover je fitheid van gisteren. Ruitjes zijn wedstrijden en tests.",
 
   /** The data is older than a day: what the site does not know since then. */
   syncStale: (days: number) =>
@@ -281,7 +283,7 @@ export const T = {
         case "ramp_fast":
           return { title: "Snelle opbouw", text: `Fitheid +${num(i.params.ramp)} in 7 dagen. Meer dan ongeveer 5 tot 7 per week houdt je lichaam lastig bij.` };
         case "fresh":
-          return { title: "Fris", text: `Vorm +${i.params.tsb}: goed moment voor een wedstrijd of een zware sessie.` };
+          return { title: "Fris", text: `Vorm +${i.params.tsb} (+${i.params.pct}% van je fitheid): goed moment voor een wedstrijd of een zware sessie.` };
         case "easy_share": {
           const p = i.params;
           const low = i.level !== "good";

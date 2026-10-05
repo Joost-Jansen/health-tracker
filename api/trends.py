@@ -436,8 +436,8 @@ def insights(form: list[dict], weekly: list[dict], activities: list[dict], today
             add("watch", "acwr_high", atl=round(now["atl"]), ctl=round(now["ctl"]), ratio=round(acwr, 1))
         elif ramp > 6:
             add("watch", "ramp_fast", ramp=round(ramp, 1))
-        elif now["tsb"] > 15:
-            add("info", "fresh", tsb=round(now["tsb"]))
+        elif now.get("form_pct") is not None and now["form_pct"] > 5:  # api/dashboard.py FORM_BANDS: fresh
+            add("info", "fresh", tsb=round(now["tsb"]), pct=now["form_pct"])
     since = (today - timedelta(days=28)).isoformat()
     four = [a for a in activities if a["sport"] == "run" and a["start_local"][:10] > since]
     secs = {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in four) for z in ("Z1", "Z2", "Z3", "Z4", "Z5")}

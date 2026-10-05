@@ -23,7 +23,7 @@ def _note(code: str, **params) -> dict:
     return {"code": code, "params": {k: v for k, v in params.items() if v is not None}}
 
 
-def readiness(wellness: dict, today: date, tsb: float | None = None) -> dict | None:
+def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: float | None = None) -> dict | None:
     """{verdict: klaar|rustig aan|herstel|onbekend, date: night used or None, no_night, signals: [{key, value, level, note}]}.
     `note` is {code, params}: vs_baseline {delta, baseline}, sleep {score?, baseline?}, highest {date, days_ago},
     form_yesterday {} (form is yesterday's fitness minus fatigue)."""
@@ -49,7 +49,13 @@ def readiness(wellness: dict, today: date, tsb: float | None = None) -> dict | N
         days_ago = (today - date.fromisoformat(bb_day)).days
         signals.append({"key": "body_battery", "value": bb, "note": _note("highest", date=bb_day, days_ago=days_ago), "level": "attention" if bb < 40 else "ok"})
     if tsb is not None:
-        signals.append({"key": "tsb", "value": round(tsb, 1), "note": _note("form_yesterday"), "level": "warn" if tsb < -30 else "attention" if tsb < -20 else "ok"})
+        # judged as % of fitness (api/dashboard.py FORM_BANDS: below -30% is high risk); the absolute numbers only
+        # when there is no percentage yet
+        if form_pct is not None:
+            level = "warn" if form_pct < -30 else "ok"
+        else:
+            level = "warn" if tsb < -30 else "attention" if tsb < -20 else "ok"
+        signals.append({"key": "tsb", "value": round(tsb, 1), "pct": form_pct, "note": _note("form_yesterday"), "level": level})
     if not signals:
         return None
 
@@ -73,7 +79,7 @@ def as_text(r: dict) -> str:
     parts = []
     for s in r["signals"]:
         p = s["note"]["params"]
-        value = f"{s['value']:+.0f}" if s["key"] == "tsb" else f"{s['value']}{units.get(s['key'], '')}"
+        value = f"{s['value']:+.0f}" + (f" ({s['pct']:+.0f}%)" if s.get("pct") is not None else "") if s["key"] == "tsb" else f"{s['value']}{units.get(s['key'], '')}"
         detail = {
             "vs_baseline": f"{p.get('delta', 0):+d} t.o.v. mediaan {p.get('baseline')}",
             "sleep": ", ".join(x for x in (f"score {p['score']}" if p.get("score") else "", f"normaal {p['baseline']} u" if p.get("baseline") else "") if x),

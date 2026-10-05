@@ -46,7 +46,8 @@ export type ActivitySummary = {
 
 export type ZoneShare = { seconds: ZoneSeconds; total_s: number; pct: Record<Zone, number> };
 export type Volume = { count: number; km: number; seconds: number };
-export type FormRow = { date: string; load: number; ctl: number; atl: number; tsb: number };
+/** form_pct: form as % of yesterday's fitness (null in the first weeks), see tools/analytics.py. */
+export type FormRow = { date: string; load: number; ctl: number; atl: number; tsb: number; form_pct?: number | null };
 
 /** Acute (ATL) against chronic (CTL) load, see api/dashboard.py load_indicator. */
 export type LoadIndicator = {
@@ -69,6 +70,8 @@ export type Dashboard = {
     ctl: number;
     atl: number;
     tsb: number;
+    /** form as % of fitness; the status follows from it (api/dashboard.py FORM_BANDS) */
+    pct?: number | null;
     status: string;
     ctl_peak: number;
     ctl_peak_date: string;
@@ -436,7 +439,7 @@ export type InsightCode =
   | { level: Insight["level"]; code: "record_set"; params: { key: RecordKey; seconds: number; previous_seconds: number; date: string; activity_id: string } }
   | { level: Insight["level"]; code: "acwr_high"; params: { atl: number; ctl: number; ratio: number } }
   | { level: Insight["level"]; code: "ramp_fast"; params: { ramp: number } }
-  | { level: Insight["level"]; code: "fresh"; params: { tsb: number } }
+  | { level: Insight["level"]; code: "fresh"; params: { tsb: number; pct: number } }
   | { level: Insight["level"]; code: "easy_share"; params: { easy_pct: number; grey_pct: number; hard_pct: number } }
   | { level: Insight["level"]; code: "longest_run"; params: { km: number } }
   | { level: Insight["level"]; code: "long_run_goal"; params: { km: number; target_km: number; goal_km: number } }

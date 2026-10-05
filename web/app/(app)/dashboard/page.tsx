@@ -121,7 +121,7 @@ export default function DashboardPage() {
               <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
                 <div><dt className="text-ink-muted">{m.fitness}</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
                 <div><dt className="text-ink-muted">{m.fatigue}</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
-                <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}</dd></div>
+                <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}{form.pct != null && <span className="ml-1 text-[12px] text-ink-muted">({form.pct > 0 ? "+" : ""}{form.pct}%)</span>}</dd></div>
               </dl>
               <p className="text-[11.5px] leading-relaxed text-ink-muted">{form.stopped_at_sync ? "" : `${T.formTsb} `}{m.peak(Math.round(form.ctl_peak), f.weekdayDay(form.ctl_peak_date))}</p>
               {form.stopped_at_sync && (

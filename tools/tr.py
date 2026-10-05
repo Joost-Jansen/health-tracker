@@ -67,7 +67,9 @@ def context_markdown(ctx: dict) -> str:
         out.append("")
     f = d.get("form")
     if f:
-        status = {"fresh": "fris", "balanced": "in balans", "tired": "vermoeid", "very_tired": "zeer vermoeid"}.get(f["status"], f["status"])
+        status = {"transition": "overgang (fitheid zakt weg)", "fresh": "fris", "neutral": "neutraal", "optimal": "optimaal trainen", "high_risk": "hoog risico"}.get(f["status"], f["status"])
+        if f.get("pct") is not None:
+            status += f" ({f['pct']}% van fitheid)"
         out += [f"## Vorm: {status}", f"Fitheid {f['ctl']:.0f}, vermoeidheid {f['atl']:.0f}, vorm {f['tsb']:+.0f}; piek fitheid {f['ctl_peak']:.0f} op {f['ctl_peak_date']}.", ""]
     out.append("## Volume deze week (gemiddelde 4 weken)")
     for sport, v in d["volume"]["week"].items():

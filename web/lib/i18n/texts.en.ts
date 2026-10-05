@@ -35,18 +35,19 @@ export const textsEn = {
   zoneEstimate: (s: string) => `${Sport(s)} zones are an estimate (Settings, Zones and profile).`,
 
   formStatus: {
-    fresh: "There is room for a hard session or a race.",
-    balanced: "Load and recovery are in balance.",
-    tired: "You are building up; plan an easier day soon.",
-    very_tired: "Load is high compared with what you are used to; take a rest.",
+    transition: "More than 20% fresher than your fitness: you have trained less than you are used to for a while and your fitness is slipping away.",
+    fresh: "5 to 20% fresher than your fitness: there is room for a race or a hard session.",
+    neutral: "Between -10% and +5%: load and recovery are in balance; your fitness stays about the same.",
+    optimal: "-10 to -30% of your fitness: you train more than you are used to and build fitness. Do plan easy days.",
+    high_risk: "More than 30% below your fitness: the load is high compared with what you are used to. Take a rest; the risk of overload goes up.",
   } as Record<string, string>,
 
   formMethod:
-    "Load per session = TRIMP from average heart rate, resting heart rate and your own max per sport. Fitness is the 42-day average, fatigue 7 days, form the difference between the two at the end of yesterday (where you start today).",
+    "Load per session = TRIMP from your heart rate per second (without heart-rate data: the average), resting heart rate and your own max per sport. Fitness is the 42-day average, fatigue 7 days, form the difference between the two at the end of yesterday (where you start today).",
 
   formTsb: "Form = fitness minus fatigue as of yesterday: where you stand at the start of today.",
 
-  formChartNote: "The average applies to form; diamonds are races and tests.",
+  formChartNote: "Fitness and fatigue are averages themselves (42 and 7 days); the button only averages form. Form in percent: against yesterday's fitness. Diamonds are races and tests.",
 
   syncStale: (days: number) =>
     `The last sync is ${days} days old. Sessions and recovery since then are still missing; fitness, fatigue and form stay at the last synced day.`,
@@ -256,7 +257,7 @@ export const textsEn = {
         case "ramp_fast":
           return { title: "Fast build-up", text: `Fitness +${num(i.params.ramp)} in 7 days. More than about 5 to 7 per week is hard for your body to keep up with.` };
         case "fresh":
-          return { title: "Fresh", text: `Form +${i.params.tsb}: a good moment for a race or a hard session.` };
+          return { title: "Fresh", text: `Form +${i.params.tsb} (+${i.params.pct}% of your fitness): a good moment for a race or a hard session.` };
         case "easy_share": {
           const p = i.params;
           const low = i.level !== "good";

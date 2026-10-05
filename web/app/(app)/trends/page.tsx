@@ -223,7 +223,7 @@ export default function TrendsPage() {
           <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
             <span>{TT.form.fitnessNow} <b className="text-ink">{Math.round(now.ctl)}</b></span>
             <span>{TT.form.fatigue} <b className="text-ink">{Math.round(now.atl)}</b></span>
-            <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b></span>
+            <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b>{now.form_pct != null && ` (${now.form_pct > 0 ? "+" : ""}${now.form_pct}%)`}</span>
             {peakCtl && <span>{TT.form.peak(Math.round(peakCtl.ctl), fmtDate(peakCtl.date))}</span>}
           </div>
         )}

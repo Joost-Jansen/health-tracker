@@ -50,14 +50,15 @@ def max_by_sport(zones: dict, activities: list[dict] | None = None) -> dict:
     return out
 
 
-def form_status(tsb: float) -> str:
-    if tsb > 5:
-        return "fresh"
-    if tsb >= -10:
-        return "balanced"
-    if tsb >= -30:
-        return "tired"
-    return "very_tired"
+# Form as % of fitness (tools/analytics.py form_pct), the bands intervals.icu uses: above +20% fitness is slipping
+# away, +5 to +20 fresh, -10 to +5 neutral, -30 to -10 the range where training builds fitness, below -30 high risk.
+FORM_BANDS = ((20, "transition"), (5, "fresh"), (-10, "neutral"), (-30, "optimal"))
+
+
+def form_status(pct: float | None) -> str:
+    if pct is None:
+        return "neutral"
+    return next((name for lower, name in FORM_BANDS if pct > lower), "high_risk")
 
 
 def _zone_share(activities: list[dict]) -> dict:
@@ -116,6 +117,10 @@ def load_indicator(series: list[dict]) -> dict:
 def today_tsb(form: dict | None) -> float | None:
     """Form to judge today by (readiness): None when the series stopped at an older sync."""
     return form["tsb"] if form and not form.get("stopped_at_sync") else None
+
+
+def today_form_pct(form: dict | None) -> float | None:
+    return form.get("pct") if form and not form.get("stopped_at_sync") else None
 
 
 def plan_week(sessions: list[dict], activities: list[dict], today: date, synced: date | None = None) -> dict:
@@ -248,7 +253,8 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
             "ctl": now["ctl"],
             "atl": now["atl"],
             "tsb": now["tsb"],
-            "status": form_status(now["tsb"]),
+            "pct": now["form_pct"],
+            "status": form_status(now["form_pct"]),
             "ctl_peak": peak["ctl"],
             "ctl_peak_date": peak["date"],
             "until": now["date"],

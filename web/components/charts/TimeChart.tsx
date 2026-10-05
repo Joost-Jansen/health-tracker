@@ -625,6 +625,12 @@ export default function TimeChart({
   const xTicks = timeTicks(a, b, plotW, locale);
   const showLegend = legend ?? series.length > 1;
   const hasMa = !!maOptions && series.some((s) => s.ma);
+  // When only some series get the average (Trends: form, not fitness and fatigue, which are averages already), the
+  // toggle and the legend say which: a line that is an average should not look like the raw value.
+  const maSeries = series.filter((s) => s.ma);
+  const partialMa = hasMa && maSeries.length < series.length;
+  const maOn = maOptions?.find((o) => o.days === maDays && o.days > 0);
+  const legendLabel = (s: ChartSeries) => (partialMa && maOn && s.ma ? `${s.label} · ${tc.avg(maLabel(maOn))}` : s.label);
   const hx = hover !== null ? x(hover) : 0;
   const tipLeft = hx < plotW / 2;
   const barW = Math.max(1, (barDays / span) * plotW * 0.78);
@@ -660,7 +666,7 @@ export default function TimeChart({
                       className="inline-block h-[3px] w-3 rounded-full"
                       style={{ background: s.colour, opacity: off ? 0.35 : 1, ...(s.kind === "bar" ? { height: 9, width: 9, borderRadius: 2 } : {}) }}
                     />
-                    {s.label}
+                    {legendLabel(s)}
                   </button>
                 );
               })}
@@ -670,7 +676,7 @@ export default function TimeChart({
           )}
           {hasMa && (
             <div className="flex items-center gap-2">
-              <span className="text-[11.5px] text-ink-muted">{tc.average}</span>
+              <span className="text-[11.5px] text-ink-muted">{partialMa ? tc.averageOf(maSeries.map((s) => s.label).join(", ")) : tc.average}</span>
               <Tabs
                 variant="segmented"
                 items={maOptions!.map((o) => ({ id: String(o.days), label: maLabel(o) }))}

@@ -1,6 +1,6 @@
 "use client";
 
-// The explanation per step, written once: the tour, the checklist on Vandaag and Help show the same text.
+// The explanation per step, written once: the tour, the checklist on the dashboard and Help show the same text.
 // What is about the user (number of workouts, max heart rate, when connected) comes from the onboarding status; the
 // texts from lib/i18n (onboarding) and the explanations about health and performance from lib/texts.ts (t.texts).
 

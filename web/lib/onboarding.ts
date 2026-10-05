@@ -79,8 +79,8 @@ export function stepShown(step: { id: StepId; claude?: boolean }, o: Pick<Onboar
   return !step.claude || o.choice === "claude" || o.steps[step.id];
 }
 
-/** The pages of the Rondkijken (look around) step (name and what you find there: lib/i18n onboarding.pages). Vandaag
- *  does not count: you land there anyway. The ids are stored per user (`visited`), so they keep their Dutch names
+/** The pages of the Rondkijken (look around) step (name and what you find there: lib/i18n onboarding.pages). The
+ *  dashboard does not count: you land there anyway. The ids are stored per user (`visited`), so they keep their Dutch names
  *  ("rondjes", "historie") while the pages live on English paths; tests/test_web_routes.py checks both sides. */
 export const PAGES: { id: Page; href: string }[] = [
   { id: "dashboard", href: "/dashboard/" },

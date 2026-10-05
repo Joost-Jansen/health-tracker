@@ -1,4 +1,4 @@
-"""Onboarding (T23): where a user stands, for the welcome tour, the checklist on Vandaag, the start banner and Help.
+"""Onboarding (T23): where a user stands, for the welcome tour, the checklist on the dashboard, the start banner and Help.
 
 Onboarding state per user:
 
@@ -25,8 +25,10 @@ from tools import db
 
 KEY = "onboarding"
 CHOICES = ("site", "claude")
-BANNERS = ("checklist", "data")  # the "Aan de slag" card on Vandaag, the start banner above empty pages
-PAGES = ("dashboard", "trends", "rondjes", "historie")  # the "look around" step
+BANNERS = ("checklist", "data")  # the "Aan de slag" (getting started) card on the dashboard, the start banner above empty pages
+# The "look around" step. Stored per user in `visited`, so the ids keep their Dutch names although the pages are now
+# /routes/ and /history/ (web/lib/onboarding.ts PAGES maps them; tests/test_web_routes.py checks both sides match).
+PAGES = ("dashboard", "trends", "rondjes", "historie")
 FIELDS = {"choice", "done", "step", "hide", "visit"}
 REQUIRED = ("garmin", "sync", "zones")
 
@@ -77,7 +79,7 @@ def steps(st: dict, visited: list[str]) -> dict:
         "sync": bool(st["sync"]["last_sync"]) or st["activities"]["count"] > 0,
         "zones": bool(st["zones"]["set"]),
         "profile": bool(st["profile"]["filled"]),
-        "explore": all(p in visited for p in PAGES[1:]),  # Vandaag is where you land anyway
+        "explore": all(p in visited for p in PAGES[1:]),  # the dashboard is where you land anyway
         "agent": st["agents"]["tokens"] > 0,
         "goals": st["goals"],
         "plan": st["plan"]["count"] > 0,

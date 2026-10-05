@@ -1,4 +1,4 @@
-"""Zones en profiel (T19): heart-rate zones per sport and basic facts, set by each user on the site.
+"""Zones and profile (T19): heart-rate zones per sport and basic facts, set by each user on the site.
 
 Zones model: % of max HR per sport. Z2..Z5 start at percentages P (default 70 / 77 / 85 / 92.5). Lower bounds:
 Z2 = round(max x P1), Z3..Z5 = round(max x P) + 1 (Garmin's convention: a zone's top is round(max x P), the next zone

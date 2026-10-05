@@ -1,4 +1,4 @@
-"""Rondjes: recurring routes (runs and rides) with a map, the history of every run or ride on them, and "a route for X km".
+"""Routes: recurring routes (runs and rides) with a map, the history of every run or ride on them, and "a route for X km".
 
 The pure functions take plain data; the router reads the caller's routes and activities from their DataStore:
 

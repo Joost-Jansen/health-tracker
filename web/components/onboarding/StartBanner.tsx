@@ -2,7 +2,7 @@
 
 // One line above a page that is still empty: where to start. Only while there
 // are no workouts yet, with a text that fits where you are (not connected, first sync running, waiting for sync).
-// Not on Vandaag: the checklist is there. Can be dismissed; that is stored with your account.
+// Not on the dashboard: the checklist is there. Can be dismissed; that is stored with your account.
 //
 // Also here: which pages of the "Rondkijken" (look around) step you have already seen (useRecordVisit).
 

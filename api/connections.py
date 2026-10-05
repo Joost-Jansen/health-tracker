@@ -1,4 +1,4 @@
-"""Koppelingen (T19): each user connects their own Garmin account on the site.
+"""Connections (T19, "Koppelingen" in the Dutch UI): each user connects their own Garmin account on the site.
 
 The user types Garmin e-mail and password (and the MFA code when Garmin asks for one). The server logs in once and keeps
 only the encrypted session (`settings.garmin_tokens`, tools/secretbox.py); the password is never stored. Garmin has no

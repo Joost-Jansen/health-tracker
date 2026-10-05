@@ -478,7 +478,7 @@ def build_trends(
 ) -> dict:
     """Everything the Trends page shows. `plan`: the active plan, for the user's own goal (goal_from_plan).
     `last_sync`: the store's sync text; after a sync older than yesterday the form series stops at the last synced
-    day, as on Vandaag (api/dashboard.py build_dashboard), because the days since are unknown, not rest days."""
+    day, as on the dashboard (api/dashboard.py build_dashboard), because the days since are unknown, not rest days."""
     synced = sync_day(last_sync)
     stopped = synced is not None and synced < today - timedelta(days=1)
     form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today)

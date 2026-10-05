@@ -1,6 +1,6 @@
 "use client";
 
-// The "Aan de slag" (getting started) checklist: every step with a check mark from your own data. On Vandaag as a
+// The "Aan de slag" (getting started) checklist: every step with a check mark from your own data. On the dashboard as a
 // card (replaces the old welcome card) while the tour is not done, or while there are no workouts yet and you have
 // not hidden it; in Help always, as a list.
 
@@ -50,7 +50,7 @@ export function countSteps(o: Onboarding) {
   return { done: steps.filter((s) => o.steps[s.id]).length, total: steps.length };
 }
 
-/** The card on Vandaag. Shows itself only when it is needed. */
+/** The card on the dashboard. Shows itself only when it is needed. */
 export default function OnboardingCard() {
   const t = useT();
   const q = useOnboarding();

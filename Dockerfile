@@ -1,5 +1,5 @@
-# Trainingsdashboard: één image met de statische site (web/out) en de FastAPI-API.
-# De data staat in Postgres (DATABASE_URL); de image bevat alleen code.
+# Training dashboard: one image with the static site (web/out) and the FastAPI API.
+# The data lives in Postgres (DATABASE_URL); the image contains only code.
 
 FROM node:22-alpine AS web
 WORKDIR /web
@@ -23,5 +23,5 @@ USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import os,urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:%s/api/health' % os.environ.get('PORT','8000')).getcode()==200 else 1)"
-# HOST 0.0.0.0, niet :: (anders faalt de IPv4-healthcheck op Railway).
+# HOST 0.0.0.0, not :: (otherwise the IPv4 healthcheck on Railway fails).
 CMD ["sh", "-c", "exec uvicorn api.main:create_app --factory --host \"${HOST:-0.0.0.0}\" --port \"${PORT:-8000}\""]

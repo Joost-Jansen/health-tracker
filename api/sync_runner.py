@@ -1,7 +1,7 @@
 """Garmin sync from inside `web`: "Nu synchroniseren" on the site and a daily run for every connected user.
 
 The Railway `sync` cron (tools/sync.py `run_all_users`) does the same; whichever runs first, the other finds nothing new.
-One sync per user at a time (lock); progress is kept in memory for the Koppelingen page.
+One sync per user at a time (lock); progress is kept in memory for the Connections page.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Agent tokens made on the website (Instellingen), so no Railway CLI is needed. Only SHA-256 hashes are stored
+"""Agent tokens made on the website (Settings), so no Railway CLI is needed. Only SHA-256 hashes are stored
 (table `agent_tokens`, each token belongs to one user); the token is shown once. Creating and revoking needs the
 user's login cookie; an agent cannot mint tokens.
 """

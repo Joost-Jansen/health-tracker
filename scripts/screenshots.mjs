@@ -7,6 +7,7 @@
 // Needs Playwright (`npm i -g playwright`, or run it with `npx -p playwright node scripts/screenshots.mjs`).
 // Sets the demo account's language to --locale first, so the screenshots match the README (English).
 // Map tiles come from tile.openstreetmap.org; without network access to it the maps show a plain background.
+// Behind an HTTPS proxy (HTTPS_PROXY set) the tiles are fetched through it from Node.
 
 import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -38,7 +39,19 @@ const VIEWPORT = { width: 1600, height: 1000 };
 const browser = await playwright.chromium.launch(
   process.env.PLAYWRIGHT_BROWSERS_PATH ? {} : { executablePath: process.env.CHROMIUM_PATH },
 );
-const context = await browser.newContext({ viewport: VIEWPORT, locale: opts.locale === "nl" ? "nl-NL" : "en-GB" });
+// Behind an HTTPS proxy (HTTPS_PROXY) Chromium may not trust its certificate, so fetch the map tiles
+// from Node instead (which honours NODE_EXTRA_CA_CERTS) and hand them to the page.
+const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
+const context = await browser.newContext({
+  viewport: VIEWPORT,
+  locale: opts.locale === "nl" ? "nl-NL" : "en-GB",
+  ...(proxy ? { proxy: { server: proxy, bypass: "localhost,127.0.0.1" } } : {}),
+});
+if (proxy) {
+  await context.route("https://tile.openstreetmap.org/**", async (route) =>
+    route.fulfill({ response: await route.fetch() }),
+  );
+}
 
 // Log in and set the account language through the API; the session cookie is shared with the pages.
 const api = context.request;

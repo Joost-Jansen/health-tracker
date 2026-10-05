@@ -10,7 +10,7 @@ export type RowMenuItem = { label: string; onSelect: () => void; danger?: boolea
 
 export default function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
   const [open, setOpen] = useState(false);
-  const [at, setAt] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [at, setAt] = useState<{ top?: number; bottom?: number; right: number }>({ top: 0, right: 0 });
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -37,7 +37,10 @@ export default function RowMenu({ label, items }: { label: string; items: RowMen
         aria-expanded={open}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
-          setAt({ top: r.bottom + 4, right: window.innerWidth - r.right });
+          const height = items.length * 36 + 8;
+          const right = window.innerWidth - r.right;
+          // Open upwards when the row is too close to the bottom of the screen.
+          setAt(r.bottom + 4 + height > window.innerHeight && r.top - 4 - height > 0 ? { bottom: window.innerHeight - r.top + 4, right } : { top: r.bottom + 4, right });
           setOpen((v) => !v);
         }}
         className="grid h-8 w-8 place-items-center rounded text-[18px] leading-none text-ink-muted hover:bg-[var(--surface-sunken)] hover:text-ink"
@@ -48,7 +51,7 @@ export default function RowMenu({ label, items }: { label: string; items: RowMen
         <div
           role="menu"
           className="fixed z-40 min-w-48 overflow-hidden rounded-md py-1 text-left"
-          style={{ top: at.top, right: at.right, background: "var(--surface-card, var(--surface))", boxShadow: "inset 0 0 0 1px var(--border-hairline), 0 8px 24px rgba(0,0,0,0.12)" }}
+          style={{ top: at.top, bottom: at.bottom, right: at.right, background: "var(--surface-card, var(--surface))", boxShadow: "inset 0 0 0 1px var(--border-hairline), 0 8px 24px rgba(0,0,0,0.12)" }}
         >
           {items.map((i) => (
             <button

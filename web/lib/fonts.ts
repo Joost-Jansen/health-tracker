@@ -9,7 +9,7 @@
 //   Hanken Grotesk → Founders Text  warmer and a bit quirkier at large
 //                                   sizes, with a real Light (300): exactly
 //                                   what the hero number needs
-//   IBM Plex Mono  → Söhne Mono     tickers, ISINs, times
+//   IBM Plex Mono  → Söhne Mono     ids, codes, times
 //
 // If you want the real Klim cuts later: replace the files in `fonts/`
 // and the paths below. Nothing else changes: the rest of the app only reads
@@ -17,7 +17,7 @@
 //
 // Only the latin subset. It covers the whole Dutch alphabet including the
 // accents (é ë ï ö ü are in Latin-1); for the odd Eastern European character in
-// a fund name the browser falls back to the system font. That costs 103 kB
+// an activity or route name the browser falls back to the system font. That costs 103 kB
 // instead of 226 kB, on every page.
 //
 // next/font/local and not next/font/google: the files are in the repo, so

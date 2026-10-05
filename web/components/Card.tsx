@@ -1,4 +1,4 @@
-// The card of the cockpit design: title on the left, optionally an action or a
+// The card of the design: title on the left, optionally an action or a
 // "more →" link on the right, content below.
 //
 // Used to be a local copy in both app/(app)/dashboard/page.tsx and

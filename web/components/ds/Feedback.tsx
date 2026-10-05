@@ -125,7 +125,7 @@ export function EmptyState({
   );
 }
 
-/** A small label. `mono` for an ISIN or a ticker. */
+/** A small label. `mono` for an id or a code. */
 export function Tag({
   tone = "neutral",
   mono = false,

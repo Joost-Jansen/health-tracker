@@ -493,7 +493,7 @@ body {
   font-feature-settings: var(--num-tabular);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* One long unbroken word (an ISIN, a fund name without hyphens) is what
+  /* One long unbroken word (a long activity or route name, a token) is what
      pushes a block wider than a 390px screen and makes the whole page scroll
      sideways. Break inside a word only when it really does not fit. */
   overflow-wrap: break-word;
@@ -726,9 +726,8 @@ label,
   .data-table td {
     padding: var(--sp-3) var(--sp-4);
   }
-  /* The product name is by far the widest cell and inherits the table's
-     nowrap, so a 45-character fund name pushed every number one and a half
-     swipes to the right. Only that column wraps: the numbers each stay on one
+  /* The name is by far the widest cell and inherits the table's nowrap, so a
+     long activity or route name would push every number off to the right. Only that column wraps: the numbers each stay on one
      line, and the first one is now in view together with the name. */
   .data-table th:first-child,
   .data-table td:first-child {

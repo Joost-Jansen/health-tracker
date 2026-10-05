@@ -17,7 +17,8 @@ from tools.sports import garmin_sport, strava_sport
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
 FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit")}
-# Uploaded FIT files (Wahoo, or any other device) come after the synced sources.
+# Uploaded FIT files (Wahoo, or any other device) come after the synced sources. A Wahoo cloud connection needs a
+# source name of its own, so that remove_source() on disconnect leaves the files someone uploaded themselves.
 DEFAULT_PRIORITY = ("garmin", "strava", "wahoo", "fit")
 SCALAR_FIELDS = (
     "name",
@@ -29,6 +30,9 @@ SCALAR_FIELDS = (
     "max_hr",
     "avg_cadence_spm",
 )
+
+# Which activity this is: kept when one source of a merged activity is removed.
+IDENTITY_FIELDS = ("start_utc", "start_local", "sport")
 
 STRAVA_STREAM_KEYS = {
     "time": "time", "latlng": "latlng", "heartrate": "heartrate", "velocity_smooth": "velocity",
@@ -208,19 +212,57 @@ def delete_activity_by_source(root: Path, source: str, source_id, day: str) -> N
                 path.unlink()
 
 
-def _merge(existing: dict, incoming: dict) -> dict:
-    """Keep non-scalar data (streams, laps, fit_file) from whoever has it; pick scalars by source priority."""
-    sources = {**existing.get("sources", {}), **incoming["sources"]}
-    merged = {k: v for k, v in existing.items() if k not in SCALAR_FIELDS}
-    merged.update({k: v for k, v in incoming.items() if k not in SCALAR_FIELDS})
-    merged["sources"] = sources
+def _rank(source: str, key: str | None = None) -> int:
+    order = FIELD_PRIORITY.get(key, DEFAULT_PRIORITY)
+    return order.index(source) if source in order else len(order)
+
+
+def pick_scalars(record: dict) -> dict:
+    """Set each scalar field from the highest-priority source that has it; drop a field no source has (any more)."""
+    sources = record.get("sources", {})
     for key in SCALAR_FIELDS:
+        record.pop(key, None)
         for src in FIELD_PRIORITY.get(key, DEFAULT_PRIORITY):
             value = sources.get(src, {}).get("fields", {}).get(key)
             if value is not None:
-                merged[key] = value
+                record[key] = value
                 break
-    return merged
+    return record
+
+
+def _merge(existing: dict, incoming: dict) -> dict:
+    """Keep non-scalar data (streams, laps, fit_file) from whoever has it; pick scalars by source priority.
+
+    `owners` remembers which source gave each non-scalar field. A lower-priority source never overwrites what a
+    higher one gave (an uploaded Wahoo file does not replace Garmin's laps), and remove_source() knows what to take
+    out when a connection is ended.
+    """
+    (src,) = incoming["sources"]
+    owners = dict(existing.get("owners") or {})
+    merged = {k: v for k, v in existing.items() if k not in SCALAR_FIELDS}
+    for key, value in incoming.items():
+        if key in SCALAR_FIELDS or key in ("sources", "owners"):
+            continue
+        owner = owners.get(key)
+        if key in merged and owner and owner != src and _rank(owner) < _rank(src):
+            continue
+        merged[key] = value
+        owners[key] = src
+    merged["sources"] = {**existing.get("sources", {}), **incoming["sources"]}
+    merged["owners"] = owners
+    return pick_scalars(merged)
+
+
+def remove_source(record: dict, source: str) -> dict | None:
+    """The record without what `source` gave, or None when nothing else is left. Identity fields stay."""
+    sources = {k: v for k, v in record.get("sources", {}).items() if k != source}
+    if not sources:
+        return None
+    owners = dict(record.get("owners") or {})
+    out = {k: v for k, v in record.items() if owners.get(k) != source or k in IDENTITY_FIELDS}
+    out["sources"] = sources
+    out["owners"] = {k: v for k, v in owners.items() if v != source}
+    return pick_scalars(out)
 
 
 def prepare(record: dict) -> dict:

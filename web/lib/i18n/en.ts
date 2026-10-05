@@ -160,7 +160,7 @@ export const en: Messages = {
       },
       {
         title: "How long",
-        text: "Until you delete it or have your account deleted. Disconnecting Garmin or Wahoo removes the stored access; data that already came in stays until your account is deleted.",
+        text: "Until you delete it or have your account deleted. Disconnecting Garmin removes the stored access; workouts that already came in stay. Disconnecting Wahoo, or revoking access at Wahoo itself, also deletes everything that came in through Wahoo: rides that only came from Wahoo entirely, and Wahoo's part of rides that are on Garmin too. FIT files you upload yourself are yours and stay until you have them deleted. On request you can see your data or have it deleted.",
         items: [],
       },
       {

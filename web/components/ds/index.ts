@@ -1,9 +1,9 @@
-// Meridians primitieven. Eén ingang, zodat een pagina niet zes paden hoeft te
-// kennen en er nooit een tweede versie van dezelfde knop ontstaat.
+// Meridian's primitives. One entry point, so a page does not need to know six
+// paths and there is never a second version of the same button.
 //
-// De klassenamen komen uit app/ds.css, die letterlijk uit het handoff-pakket
-// komt. Wie hier iets toevoegt: ontwerp het tegen de regels van dat pakket in
-// plaats van de versie van een bibliotheek te importeren.
+// The class names come from app/ds.css, which comes verbatim from the handoff
+// package. If you add something here: design it against that package's rules
+// instead of importing a library's version.
 
 export { Button, ButtonLink, IconButton } from "./Button";
 export { Input, Select, Checkbox, Switch } from "./Field";

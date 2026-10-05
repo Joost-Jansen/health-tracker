@@ -1,57 +1,57 @@
-// De gelijnde sectie — het handtekeningelement van dit ontwerp, en de reden dat
-// de app straks bijna geen kaarten meer heeft.
+// The ruled section: the signature element of this design, and the reason the
+// app will soon have almost no cards left.
 //
-// Een sectie is: een kapitaaltjes-label van 11px boven een streep over de volle
-// breedte, met de inhoud eronder. Geen doos. Een inktstreep (--n-800) voor wat
-// primair is, een haarlijn voor wat secundair is, en één keer per scherm een
-// terracotta streep van 2px voor het blok dat je aandacht vraagt.
+// A section is: an 11px small-caps label above a full-width rule, with the
+// content beneath it. No box. An ink rule (--n-800) for what is primary, a
+// hairline for what is secondary, and once per screen a 2px terracotta rule
+// for the block that asks for your attention.
 //
-// Dit vervangt components/Card.tsx op de veertig plekken waar de kaart alleen
-// maar een rand stond te tekenen. Een echte kaart (ds-card) blijft bestaan voor
-// wat werkelijk zweeft: dialogen en menu's.
+// This replaces components/Card.tsx in the forty places where the card was only
+// drawing a border. A real card (ds-card) remains for what genuinely floats:
+// dialogs and menus.
 
 import InfoPopover from "@/components/InfoPopover";
 import { useT } from "@/lib/i18n";
 
 type Props = {
-  /** Het kapitaaltjes-label boven de streep. */
+  /** The small-caps label above the rule. */
   label?: React.ReactNode;
   /**
-   * Eén of twee zinnen over wat deze sectie laat zien, achter een "i" naast het
-   * kopje. Het middelste van de drie hulpniveaus: de "?" in de bovenbalk gaat
-   * over het hele scherm, deze "i" over deze lijst of grafiek, en de "i" naast
-   * een los getal over dat getal.
+   * One or two sentences about what this section shows, behind an "i" next to the
+   * heading. The middle of the three help levels: the "?" in the top bar is about
+   * the whole screen, this "i" about this list or chart, and the "i" next to a
+   * single number about that number.
    *
-   * **Alleen uitleg.** Wat over jóuw cijfers gaat — "12 posities", "3 landen
-   * vielen af" — is geen uitleg maar een uitkomst, en hoort dus in `meta` of in
-   * de inhoud te staan waar je het ziet zonder te klikken.
+   * **Explanation only.** What is about your numbers ("12 positions", "3
+   * countries dropped out") is not an explanation but an outcome, and so belongs
+   * in `meta` or in the content, where you see it without clicking.
    */
   info?: React.ReactNode;
   /**
-   * Wat de "i" aan een schermlezer aankondigt, als het kopje geen platte tekst
-   * is. Anders wordt hij uit `label` afgeleid.
+   * What the "i" announces to a screen reader when the heading is not plain
+   * text. Otherwise it is derived from `label`.
    */
   infoLabel?: string;
   /**
-   * Stille context rechts op dezelfde regel — "12 posities", "3 uur geleden".
+   * Quiet context on the right of the same line: "12 positions", "3 hours ago".
    *
-   * **Kort houden.** De kop breekt af als het er niet naast past, en dan staat
-   * er iets tússen het kopje en zijn streep — precies wat de streep onbruikbaar
-   * maakt als "hier begint een nieuw onderwerp". Een hele zin is geen meta maar
-   * inleiding, en hoort dus in de inhoud.
+   * **Keep it short.** The head wraps when it does not fit alongside, and then
+   * something sits between the heading and its rule, which is exactly what makes
+   * the rule useless as "a new topic starts here". A whole sentence is not meta
+   * but an introduction, and so belongs in the content.
    */
   meta?: React.ReactNode;
   /**
-   * Een kleine bediening rechts op de kopregel — een schakelaar van twee of drie
-   * knoppen, een downloadlink. Gaat vóór `meta`.
+   * A small control on the right of the head line: a switch of two or three
+   * buttons, a download link. Goes before `meta`.
    *
-   * Past de bediening er niet naast (de periodekiezer van zeven knoppen op een
-   * telefoon), zet hem dan als eerste kind ín de sectie: onder de streep, vlak
-   * boven het ding dat hij bedient. Dat is trouwens ook waar hij hoort — een
-   * stille schakelaar staat naast wat hij filtert, niet in het chroom.
+   * If the control does not fit alongside (the seven-button period picker on a
+   * phone), make it the first child inside the section: below the rule, right
+   * above the thing it controls. That is also where it belongs anyway: a quiet
+   * switch sits next to what it filters, not in the chrome.
    */
   action?: React.ReactNode;
-  /** quiet = haarlijn in plaats van inktstreep, voor een sectie in een zijkolom. */
+  /** quiet = hairline instead of ink rule, for a section in a side column. */
   tone?: "ink" | "quiet" | "brand";
   className?: string;
   children: React.ReactNode;
@@ -68,10 +68,10 @@ export default function Section({
   children,
 }: Props) {
   const t = useT();
-  // Het kopje met zijn "i" als één blok, zodat de knop links bij de tekst blijft
-  // staan en niet naar het midden van de kopregel drijft. items-center en niet
-  // baseline: een knop zonder tekst heeft zijn basislijn onderaan, en dan hangt
-  // de glyph een paar pixels onder de kapitaaltjes.
+  // The heading with its "i" as one block, so the button stays on the left next to
+  // the text and does not drift to the middle of the head line. items-center, not
+  // baseline: a button without text has its baseline at the bottom, and then the
+  // glyph hangs a few pixels below the small caps.
   const heading = (style?: React.CSSProperties) =>
     label && (
       <span className="ds-section__label inline-flex items-center gap-1" style={style}>
@@ -87,14 +87,14 @@ export default function Section({
     );
 
   if (tone === "brand") {
-    // Het advies-blok: één per scherm, en het enige terracotta moment erop.
+    // The advice block: one per screen, and the only terracotta moment on it.
     //
-    // Dezelfde vorm als elke andere sectie — kopje boven, streep eronder — en
-    // alleen de streep is anders: 2px terracotta in plaats van 1px inkt. Het
-    // referentiescherm zet hem bóven het kopje, en dat werkt daar omdat hij in
-    // een eigen zijkolom staat. In één kolom onder elkaar levert dat een streep
-    // op die de ene keer boven en de andere keer onder een kopje hangt, en dan
-    // weet je niet meer waar een onderwerp begint.
+    // The same shape as every other section (heading above, rule below), and
+    // only the rule differs: 2px terracotta instead of 1px ink. The reference
+    // screen puts it above the heading, and that works there because it sits in
+    // its own side column. In a single stacked column that gives a rule that
+    // hangs above one heading and below another, and then you no longer know
+    // where a topic starts.
     return (
       <section className={`ds-section ${className}`}>
         <div
@@ -122,28 +122,27 @@ export default function Section({
   );
 }
 
-/** Het kleine kapitaaltjes-labeltje boven een getal. */
+/** The small small-caps label above a number. */
 export function Eyebrow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <span className={`ds-eyebrow ${className}`}>{children}</span>;
 }
 
 /**
- * Het heldengetal: precies één per scherm, op 68px in de displayletter.
+ * The hero number: exactly one per screen, at 68px in the display face.
  *
- * Alles wat het ondersteunt staat op 21px of lager. Geef een steunend getal
- * nooit een doosje om het belangrijk te laten lijken — schaal en ruimte doen
- * dat werk.
+ * Everything that supports it is 21px or smaller. Never give a supporting
+ * number a box to make it look important: scale and space do that work.
  */
 export function Hero({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <span className={`ds-hero ${className}`}>{children}</span>;
 }
 
 /**
- * Een steunend getal: label erboven, waarde in de displayletter op 21px,
- * optioneel een regel context eronder.
+ * A supporting number: label above, value in the display face at 21px,
+ * optionally a line of context below.
  *
- * Drie tot vier ervan in een links-zware rij onder de inktstreep, met de rechterkant
- * van die streep bewust leeg — dat is de asymmetrie waar het ontwerp om vraagt.
+ * Three or four of them in a left-heavy row under the ink rule, with the right side
+ * of that rule deliberately empty: that is the asymmetry the design asks for.
  */
 export function Figure({
   label,
@@ -156,8 +155,8 @@ export function Figure({
   label: React.ReactNode;
   value: React.ReactNode;
   note?: React.ReactNode;
-  /** Wat dit getal precies meet, achter een "i" naast het labeltje. Het kleinste
-   *  van de drie hulpniveaus — één of twee zinnen, niet meer. */
+  /** What exactly this number measures, behind an "i" next to the label. The smallest
+   *  of the three help levels: one or two sentences, no more. */
   info?: React.ReactNode;
   tone?: "gain" | "loss";
   className?: string;
@@ -184,7 +183,7 @@ export function Figure({
   );
 }
 
-/** Een kale haarlijn, voor waar ruimte alleen niet genoeg blijkt. */
+/** A bare hairline, for where space alone turns out not to be enough. */
 export function Rule({ className = "" }: { className?: string }) {
   return <hr className={`ds-rule ${className}`} />;
 }

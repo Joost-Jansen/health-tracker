@@ -1,9 +1,9 @@
-// Het beeldmerk: een hartslaglijn die in een lus eindigt, een rondje hardlopen.
+// The logomark: a heart-rate line that ends in a loop, a running route.
 //
-//   de lijn   `currentColor`, dezelfde kleur als de tekst ernaast
-//   de stip   `--logo-accent`, standaard de salie van het thema
+//   the line  `currentColor`, the same colour as the text next to it
+//   the dot   `--logo-accent`, by default the theme's sage
 //
-// Op de zijbalk zet ds.css het accent lichter, want die rail is altijd donker.
+// On the sidebar ds.css makes the accent lighter, because that rail is always dark.
 
 export default function Logomark({ height, className }: { height: number; className?: string }) {
   return (

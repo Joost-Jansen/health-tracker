@@ -1,14 +1,14 @@
-// Knoppen. Meridian kent vijf varianten en drie maten; de regels erbij:
+// Buttons. Meridian has five variants and three sizes; the rules that go with them:
 //
-//   primary    walnoot-zwart. Precies één per scherm.
-//   secondary  papier met een rand. De werkpaardknop.
-//   ghost      geen vlak. Voor acties naast een sectiekop.
-//   brand      terracotta. Nooit in een scherm vol cijfers — het accentmoment
-//              van een scherm is er maar één, en dat is meestal geen knop.
-//   danger     bordeaux op een randje. Verwijderen, en verder niets.
+//   primary    walnut black. Exactly one per screen.
+//   secondary  paper with a border. The workhorse button.
+//   ghost      no surface. For actions next to a section head.
+//   brand      terracotta. Never on a screen full of numbers: a screen has only
+//              one accent moment, and that is usually not a button.
+//   danger     burgundy on an edge. Deleting, and nothing else.
 //
-// Hover maakt het vlak één stap warmer, nooit een andere kleur. Indrukken maakt
-// het nog een stap donkerder. Geen schaal, geen lift, geen schaduw.
+// Hover makes the surface one step warmer, never a different colour. Pressing makes
+// it one more step darker. No scale, no lift, no shadow.
 
 import Link from "next/link";
 
@@ -30,11 +30,11 @@ function classes(variant: Variant, size: Size, block: boolean, className: string
 type CommonProps = {
   variant?: Variant;
   size?: Size;
-  /** Volle breedte — voor een formulier of een paneel op een telefoon. */
+  /** Full width: for a form or a panel on a phone. */
   block?: boolean;
-  /** Een 15px-glyph vóór het label. Iconen ondersteunen een label, ze vervangen het nooit. */
+  /** A 15px glyph before the label. Icons support a label, they never replace it. */
   icon?: React.ReactNode;
-  /** Dezelfde glyph, maar erachter — voor "verder"-achtige acties. */
+  /** The same glyph, but after the label: for "next"-like actions. */
   iconAfter?: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
@@ -59,7 +59,7 @@ export function Button({
   );
 }
 
-/** Dezelfde knop, maar hij navigeert. */
+/** The same button, but it navigates. */
 export function ButtonLink({
   href,
   variant = "secondary",
@@ -81,11 +81,11 @@ export function ButtonLink({
 }
 
 /**
- * Een knop die alleen een glyph toont.
+ * A button that shows only a glyph.
  *
- * `label` is verplicht, niet optioneel: een knop zonder tekst is voor een
- * schermlezer een knop zonder betekenis, en dit is de enige plek in het systeem
- * waar een icoon een label mág vervangen.
+ * `label` is required, not optional: to a screen reader a button without text
+ * is a button without meaning, and this is the only place in the system where
+ * an icon may replace a label.
  */
 export function IconButton({
   label,

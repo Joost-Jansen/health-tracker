@@ -1,9 +1,9 @@
-// Invoervelden. Eén laag chroom om alles heen: label boven, hint eronder, en de
-// bediening zelf zonder rand maar met een inset box-shadow — zo blijft de hoogte
-// van een veld exact 36px, ongeacht of hij een rand tekent of niet.
+// Input fields. One layer of chrome around everything: label above, hint below, and
+// the control itself without a border but with an inset box-shadow, so the height
+// of a field stays exactly 36px whether it draws a border or not.
 //
-// Focus is 1px inkt plus een salie ring op 20%. Dat is het enige moment
-// waarop salie in een formulier verschijnt.
+// Focus is 1px ink plus a sage ring at 20%. That is the only moment
+// sage appears in a form.
 
 import { useId } from "react";
 
@@ -50,7 +50,7 @@ export function Input({
   label?: React.ReactNode;
   hint?: React.ReactNode;
   error?: React.ReactNode;
-  /** Een glyph links ín het veld — een vergrootglas bij een zoekveld. */
+  /** A glyph on the left inside the field: a magnifying glass for a search field. */
   icon?: React.ReactNode;
   size?: "md" | "lg";
   className?: string;
@@ -105,9 +105,9 @@ export function Select({
 }
 
 /**
- * Een vinkje. Het echte <input> blijft in de boom staan (verborgen maar
- * bereikbaar), zodat toetsenbord, formulierstatus en schermlezers werken zoals
- * ze horen; het vierkantje ernaast is puur de tekening.
+ * A checkbox. The real <input> stays in the tree (hidden but reachable), so
+ * keyboard, form state and screen readers work as they should; the little
+ * square next to it is just the drawing.
  */
 export function Checkbox({
   label,
@@ -145,7 +145,7 @@ export function Checkbox({
   );
 }
 
-/** Een schakelaar voor iets dat meteen ingaat. Staat hij aan, dan is hij olijf. */
+/** A switch for something that takes effect at once. When it is on, it is olive. */
 export function Switch({
   label,
   checked,

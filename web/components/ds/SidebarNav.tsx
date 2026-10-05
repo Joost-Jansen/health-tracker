@@ -1,22 +1,22 @@
 "use client";
 
-// De zijbalk: een vast diepgroen paneel van 248px.
+// The sidebar: a fixed deep-green panel of 248px.
 //
-// Dit is het sterkste identiteitssignaal van het ontwerp, en het enige element
-// dat níet met het thema meedraait — hij leest van --surface-ink, dat met opzet
-// themaonafhankelijk is. Een donkere rail tegen een papieren veld is het
-// architectonische anker; laat je hem 's nachts omklappen, dan is het gewoon
-// weer een menu.
+// This is the design's strongest identity signal, and the only element that
+// does not follow the theme: it reads from --surface-ink, which is
+// theme-independent on purpose. A dark rail against a paper field is the
+// architectural anchor; let it flip at night and it is just a menu
+// again.
 //
-// Op een telefoon past hij niet. Daar schuift hij open van links, met een scrim
-// eronder, sluit hij op Escape en op een tik ernaast, en houdt hij de focus
-// binnen zolang hij openstaat.
+// It does not fit on a phone. There it slides open from the left, with a scrim
+// underneath, closes on Escape and on a tap next to it, and keeps the focus
+// inside while it is open.
 //
-// Hij komt er op twee manieren: de menuknop linksboven, of een veeg naar rechts
-// vanaf de linkerrand van het scherm. Die veeg is geen kortere weg naar de knop
-// maar een gemakkelijkere: linksboven is de hoek waar een duim niet bij kan.
-// Onderweg volgt het paneel de vinger, dus je ziet halverwege wat je krijgt en
-// kunt je bedenken; loslaten voorbij de helft (of met een zwiep) beslist.
+// It opens in two ways: the menu button top left, or a swipe to the right
+// from the left edge of the screen. That swipe is not a shortcut to the button
+// but an easier way: top left is the corner a thumb cannot reach.
+// Along the way the panel follows the finger, so halfway you see what you get and
+// can change your mind; letting go past halfway (or with a flick) decides.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -72,12 +72,12 @@ function NavList({
   );
 }
 
-/** Hoe dicht bij de linkerrand een veeg moet beginnen om het paneel te openen.
- *  Ruim genoeg voor een duim, smal genoeg om niet in de weg te zitten. */
+/** How close to the left edge a swipe must start to open the panel.
+ *  Wide enough for a thumb, narrow enough not to get in the way. */
 const EDGE_ZONE = 24;
-/** Zoveel pixels mag een vinger dwalen voor we beslissen: veeg of scroll. */
+/** How many pixels a finger may wander before we decide: swipe or scroll. */
 const AXIS_SLOP = 10;
-/** Boven deze snelheid (px per ms) beslist de zwiep, niet hoe ver je kwam. */
+/** Above this speed (px per ms) the flick decides, not how far you got. */
 const FLING = 0.4;
 
 export default function SidebarNav({
@@ -91,7 +91,7 @@ export default function SidebarNav({
   groups: NavGroup[];
   activeId: string | null;
   footer?: React.ReactNode;
-  /** Alleen van belang onder lg: staat het uitschuifpaneel open? */
+  /** Only relevant below lg: is the slide-out panel open? */
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -100,8 +100,8 @@ export default function SidebarNav({
   const panel = useRef<HTMLElement>(null);
   const drawer = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
-  /** Waar het paneel staat terwijl een vinger het vasthoudt: 0 dicht, 1 open.
-   *  `null` betekent dat niemand het vasthoudt en de CSS het overneemt. */
+  /** Where the panel is while a finger holds it: 0 closed, 1 open.
+   *  `null` means nobody holds it and the CSS takes over. */
   const [drag, setDrag] = useState<number | null>(null);
 
   useEffect(() => {
@@ -134,24 +134,24 @@ export default function SidebarNav({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
-      // Het paneel wordt onzichtbaar; de focus mag er niet in achterblijven —
-      // na een tik op een menu-item staat hij op die link. Terug naar de knop
-      // die hem opende.
+      // The panel becomes invisible; the focus must not stay behind in it
+      // (after a tap on a menu item it is on that link). Back to the button
+      // that opened it.
       if (panel.current?.contains(document.activeElement)) opener.current?.focus();
     };
   }, [open, onClose]);
 
-  // De veeg. Op document, want zolang het paneel dicht is ligt er bij de
-  // linkerrand geen element om het gebaar op te vangen.
+  // The swipe. On document, because while the panel is closed there is no
+  // element at the left edge to catch the gesture.
   useEffect(() => {
-    // Alles wat tussen twee frames onthouden moet worden, maar geen hertekening
-    // waard is.
+    // Everything that must be remembered between two frames but is not worth
+    // a re-render.
     const g = { on: false, decided: false, fromOpen: open, x0: 0, y0: 0, w: 1, x: 0, t: 0, v: 0, p: 0 };
 
     const start = (e: TouchEvent) => {
-      // Alleen op de smalle indeling: op lg zet Tailwind het paneel op
-      // display:none, en dat is meteen het antwoord op "zijn we op een
-      // telefoon" zonder de breekpunten hier te herhalen.
+      // Only in the narrow layout: on lg Tailwind sets the panel to
+      // display:none, and that directly answers "are we on a
+      // phone" without repeating the breakpoints here.
       const el = drawer.current;
       if (!el || e.touches.length !== 1 || getComputedStyle(el).display === "none") return;
       const t = e.touches[0];
@@ -178,9 +178,9 @@ export default function SidebarNav({
 
       if (!g.decided) {
         if (Math.abs(dx) < AXIS_SLOP && Math.abs(dy) < AXIS_SLOP) return;
-        // Meer verticaal dan horizontaal is scrollen, en de verkeerde kant op
-        // (naar links terwijl hij al dicht is) is geen gebaar. Allebei: laat
-        // los, en blijf er tot de volgende aanraking vanaf.
+        // More vertical than horizontal is scrolling, and the wrong direction
+        // (to the left while it is already closed) is not a gesture. Both: let
+        // go, and stay off until the next touch.
         if (Math.abs(dy) > Math.abs(dx) || (g.fromOpen ? dx > 0 : dx < 0)) {
           g.on = false;
           return;
@@ -188,7 +188,7 @@ export default function SidebarNav({
         g.decided = true;
       }
 
-      // Vanaf hier is het gebaar van ons en mag de pagina niet meescrollen.
+      // From here on the gesture is ours and the page must not scroll along.
       e.preventDefault();
       const dt = e.timeStamp - g.t;
       if (dt > 0) {
@@ -206,8 +206,8 @@ export default function SidebarNav({
       g.on = false;
       g.decided = false;
       if (!decided) return;
-      // Een duidelijke zwiep wint van de afstand: wie hard naar rechts veegt
-      // bedoelt "open", ook als hij bij een derde losliet.
+      // A clear flick beats the distance: whoever swipes hard to the right
+      // means "open", even when letting go at a third.
       const wantsOpen = Math.abs(g.v) > FLING ? g.v > 0 : g.p > 0.5;
       setDrag(null);
       if (wantsOpen) onOpen();
@@ -228,7 +228,7 @@ export default function SidebarNav({
 
   return (
     <>
-      {/* Breed scherm: het paneel staat er gewoon, over de volle hoogte. */}
+      {/* Wide screen: the panel is simply there, at full height. */}
       <nav
         aria-label={t.nav.main}
         className="ds-sidebar ds-sidebar--ink sticky top-0 hidden h-screen lg:flex"
@@ -238,8 +238,8 @@ export default function SidebarNav({
         {footer && <div className="mt-auto">{footer}</div>}
       </nav>
 
-      {/* Telefoon: hetzelfde paneel, uitgeschoven. Hij blijft staan als hij
-          dicht is — zie ds.css — zodat een veeg hem kan oppakken. */}
+      {/* Phone: the same panel, slid out. It stays in place when it is
+          closed (see ds.css), so a swipe can pick it up. */}
       <div
         ref={drawer}
         className={`ds-navdrawer lg:hidden${open ? " ds-navdrawer--open" : ""}${
@@ -263,25 +263,25 @@ export default function SidebarNav({
   );
 }
 
-/** De stand halverwege een veeg. Zonder veeg geen inline-opmaak: dan bepalen de
- *  klassen waar het paneel staat, mét hun overgang. De verschuiving is een
- *  percentage van de eigen breedte, zodat de breedte hier niet bekend hoeft te
- *  zijn — 0 is helemaal weg, 1 is helemaal open. */
+/** The position halfway through a swipe. Without a swipe no inline style: then the
+ *  classes decide where the panel is, with their transition. The offset is a
+ *  percentage of its own width, so the width does not need to be known
+ *  here: 0 is fully gone, 1 is fully open. */
 function styleAt(drag: number | null, part: "panel" | "scrim"): React.CSSProperties | undefined {
   if (drag === null) return undefined;
   return part === "panel" ? { transform: `translate3d(${(drag - 1) * 100}%, 0, 0)` } : { opacity: drag };
 }
 
-/** Het beeldmerk en het woordmerk, in de displayletter.
+/** The logomark and the wordmark, in the display face.
  *
- *  De app heet "health-tracker": kleine letter en koppelteken, niet "Health Tracker".
- *  Geen naam van een van de bestemmingen, want een woordmerk dat meeleest als
- *  menu-item zet je op het verkeerde been.
+ *  The app is called "health-tracker": lower case and a hyphen, not "Health Tracker".
+ *  Not the name of one of the destinations, because a wordmark that reads like a
+ *  menu item puts you on the wrong foot.
  *
- *  Het merk ervoor is dezelfde ligatuur als het icoon op het beginscherm, zodat
- *  de app binnen hetzelfde teken draagt als waarmee hij op je telefoon staat.
- *  15px is de hoogte van de kleine letters van het woordmerk ernaast; samen met
- *  de basislijn-uitlijning van .ds-sidebar__brand staan ze op één lijn. */
+ *  The mark in front is the same ligature as the home-screen icon, so inside the
+ *  app it carries the same sign it has on your phone.
+ *  15px is the x-height of the wordmark next to it; together with the baseline
+ *  alignment of .ds-sidebar__brand they sit on one line. */
 function Wordmark() {
   return (
     <div className="ds-sidebar__brand">

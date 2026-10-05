@@ -1,14 +1,14 @@
-// Drie soorten tabs, één component — en de keuze tussen de drie is een
-// inhoudelijke, niet een esthetische:
+// Three kinds of tabs, one component, and the choice between them is about
+// content, not about looks:
 //
-//   underline   wisselt tussen aanzichten van hetzelfde onderwerp
-//               (Posities · Details). Staat in de kop van het scherm.
-//   quiet       een periode of een filter, vlak naast het ding dat het filtert
-//               (1M · 6M · 1J). Nooit als chroom bovenaan de pagina.
-//   segmented   een compacte schakelaar binnen een blok. Alleen daar.
+//   underline   switches between views of the same subject
+//               (Positions · Details). Sits in the head of the screen.
+//   quiet       a period or a filter, right next to the thing it filters
+//               (1M · 6M · 1Y). Never as chrome at the top of the page.
+//   segmented   a compact switch inside a block. Only there.
 //
-// De actieve underline-tab krijgt een inktstreepje, de actieve quiet-tab een
-// salie haarlijntje.
+// The active underline tab gets a small ink rule, the active quiet tab a thin
+// sage hairline.
 
 export type TabItem = { id: string; label: React.ReactNode; href?: string };
 
@@ -24,7 +24,7 @@ export default function Tabs({
 }: {
   items: (string | TabItem)[];
   value?: string;
-  /** Weglaten als de tabs `href` dragen — dan navigeert de tab in plaats van te schakelen. */
+  /** Leave out when the tabs carry `href`: then the tab navigates instead of switching. */
   onChange?: (id: string) => void;
   variant?: "underline" | "quiet" | "segmented";
   ariaLabel?: string;
@@ -57,8 +57,8 @@ export default function Tabs({
       {norm.map((i) => {
         const active = i.id === value;
         const tabClass = `ds-tab ${active ? "ds-tab--active" : ""}`;
-        // Een tab die een eigen adres heeft is een link, geen knop: dat is wat
-        // een bladwijzer, het toetsenbord en de middelste muisknop nodig hebben.
+        // A tab with its own address is a link, not a button: that is what
+        // a bookmark, the keyboard and the middle mouse button need.
         return i.href ? (
           <Link key={i.id} href={i.href} aria-current={active ? "page" : undefined} className={tabClass}>
             {i.label}

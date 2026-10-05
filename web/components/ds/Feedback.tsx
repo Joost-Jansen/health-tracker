@@ -1,17 +1,17 @@
 "use client";
 
-// Dialoog, lege staat en tag/badge — het kleine gereedschap.
+// Dialog, empty state and tag/badge: the small tools.
 //
-// Bewust afwezig in dit systeem, en dus ook hier: de toast. Een rustig product
-// laat niets bij je opduiken; een verandering is zichtbaar op de plek waar hij
-// gebeurde. Waar de app nu een groene bevestigingsregel toont, blijft dat een
-// regel op zijn eigen plek.
+// Deliberately absent from this system, and so here too: the toast. A calm product
+// does not pop things up at you; a change is visible where it
+// happened. Where the app now shows a green confirmation line, that stays a
+// line in its own place.
 
 import { useCallback, useEffect, useRef } from "react";
 
 /**
- * Een dialoog. Sluit op Escape en op een klik op het scrim, houdt de focus
- * binnen zolang hij open is, en geeft hem terug aan het element dat hem opende.
+ * A dialog. Closes on Escape and on a click on the scrim, keeps the focus
+ * inside while it is open, and gives it back to the element that opened it.
  */
 export function Dialog({
   open,
@@ -46,8 +46,8 @@ export function Dialog({
         return;
       }
       if (e.key !== "Tab" || !panel.current) return;
-      // Focus houden binnen het paneel: zonder dit tabt de gebruiker de dialoog
-      // uit naar de pagina eronder, die hij niet kan zien en niet mag bedienen.
+      // Keep the focus inside the panel: without this the user tabs out of the
+      // dialog to the page underneath, which they cannot see and must not operate.
       const focusables = panel.current.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
@@ -101,7 +101,7 @@ export function Dialog({
   );
 }
 
-/** Wat er staat als er niets is. Rustig geformuleerd, met één uitweg. */
+/** What shows when there is nothing. Calmly worded, with one way out. */
 export function EmptyState({
   icon,
   title,
@@ -125,7 +125,7 @@ export function EmptyState({
   );
 }
 
-/** Een klein etiket. `mono` voor een ISIN of een ticker. */
+/** A small label. `mono` for an ISIN or a ticker. */
 export function Tag({
   tone = "neutral",
   mono = false,
@@ -156,7 +156,7 @@ export function Tag({
   );
 }
 
-/** Een telletje. Nooit rood, nooit voor "ongelezen" — dat is aandacht vragen. */
+/** A small count. Never red, never for "unread": that is asking for attention. */
 export function Badge({
   quiet = false,
   className = "",

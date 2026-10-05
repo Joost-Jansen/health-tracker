@@ -154,3 +154,27 @@ def test_a_wahoo_sync_saves_the_newest_tokens(monkeypatch):
     assert run_db_sync(s, key, None, today=date(2026, 10, 5), wahoo_factory=lambda tokens, creds: FakeWahoo([])) == 0
     assert wahoo.load_tokens(db.get_setting(s, "wahoo_tokens"), key)["refresh_token"] == "new"
     assert "garmin" not in (db.get_setting(s, "sync_state") or {}).get("last_failed", [])
+
+
+def test_a_workout_whose_summary_wahoo_refuses_is_skipped_and_the_rest_comes_in():
+    e = db.connect("sqlite://")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+
+    class Refusing(FakeWahoo):
+        def summary(self, wid):
+            if wid == 3:
+                raise wahoo.WahooError('HTTP 401 {"error":"You are not authorized to view this workout summary"}')
+            return super().summary(wid)
+
+    client, state = Refusing(WORKOUTS), {}
+    assert wahoo.sync_wahoo(s, client, state, date(2026, 10, 5), read_activity=lambda b: RIDES[b]) == 1
+    assert [a["fit_file"] for a in db.load_activities(s)] == ["wahoo_api/2"]
+
+
+def test_a_refused_summary_does_not_refresh_the_token():
+    http = Http({("GET", "/v1/workouts/7/workout_summary"): [Resp(401, {}, b'{"error":"You are not authorized to view this workout summary"}')]})
+    c = wahoo.WahooClient({"access_token": "a1", "refresh_token": "r1", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000)
+    with pytest.raises(wahoo.WahooError):
+        c.summary(7)
+    assert not any(call[0] == "POST-data" for call in http.calls) and c.tokens()["access_token"] == "a1"

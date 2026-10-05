@@ -90,10 +90,10 @@ class WahooClient:
             raise WahooError(f"token refresh: {_detail(r)}")
         self._t = _tokens(r.json(), self.now())
 
-    def _request(self, method: str, path: str, **params):
+    def _request(self, method: str, path: str, refresh_on_401: bool = True, **params):
         if self._t.get("expires_at", 0) - 120 < self.now():
             self.refresh()
-        for attempt in (1, 2):
+        for attempt in (1, 2) if refresh_on_401 else (2,):
             r = self.http.request(method, f"{API}{path}", params=params or None,
                                   headers={"Authorization": f"Bearer {self._t['access_token']}"}, timeout=TIMEOUT_S)
             if r.status_code == 401 and attempt == 1:
@@ -108,7 +108,9 @@ class WahooClient:
         return self._request("GET", "/v1/workouts", page=page, per_page=per_page)
 
     def summary(self, workout_id) -> dict:
-        return self._request("GET", f"/v1/workouts/{workout_id}/workout_summary")
+        """A 401 here is about this one workout ("not authorized to view this workout summary"), not the token: the
+        list call before it already worked with this token, so no refresh."""
+        return self._request("GET", f"/v1/workouts/{workout_id}/workout_summary", refresh_on_401=False)
 
     def download(self, url: str) -> bytes:
         r = self.http.get(url, timeout=TIMEOUT_S * 2)
@@ -153,7 +155,13 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
             if not day or day < cutoff.isoformat():
                 done = True  # newest first: everything after this is older
                 break
-            summary = wo.get("workout_summary") or client.summary(wo["id"])
+            summary = wo.get("workout_summary")
+            if not summary:
+                try:
+                    summary = client.summary(wo["id"])
+                except WahooError as err:  # Wahoo refuses some workouts' summaries: skip that one, not the rest
+                    print(f"wahoo: workout {wo['id']} overgeslagen ({err})")
+                    continue
             url = ((summary or {}).get("file") or {}).get("url")
             if not url:
                 continue  # a manual entry without a file: nothing to measure

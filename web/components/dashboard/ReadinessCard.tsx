@@ -1,22 +1,22 @@
 // Ready for today? The verdict from last night and the form. The API gives codes and numbers
-// (api/readiness.py); the sentences come from T.vandaag.readiness.
+// (api/readiness.py); the sentences come from T.today.readiness.
 
 import Card from "@/components/Card";
 import { useT } from "@/lib/i18n";
 import type { Readiness } from "@/lib/training";
 
 const VERDICT_COLOUR: Record<Readiness["verdict"], string> = {
-  klaar: "var(--zone-2)",
-  "rustig aan": "var(--zone-3)",
-  herstel: "var(--zone-5)",
-  onbekend: "var(--zone-1)",
+  ready: "var(--zone-2)",
+  easy: "var(--zone-3)",
+  recover: "var(--zone-5)",
+  unknown: "var(--zone-1)",
 };
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
 
 export default function ReadinessCard({ r, className = "" }: { r: Readiness; className?: string }) {
   const T = useT().texts;
-  const t = T.vandaag.readiness;
-  const advice = r.verdict === "onbekend" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
+  const t = T.today.readiness;
+  const advice = r.verdict === "unknown" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
   const text = r.no_night ? `${advice} ${t.noNight}` : advice;
   // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;

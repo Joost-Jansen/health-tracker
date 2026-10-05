@@ -27,6 +27,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data |
+| `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
 | `tests/` | pytest, one file per module |
 
 ## Working on it
@@ -79,7 +80,7 @@ The site is in Dutch (`nl`, the source) and English (`en`, en-GB formatting: 5.3
 Adding a string: add the key to `nl.ts` and `en.ts`, use `const t = useT()` and `t.area.key` (or `t.area.key(params)`), run
 `npm run check:i18n`. An API text the site shows is a code with params (`ApiError`, see Errors), never a sentence.
 
-Which language: the account's `locale` (`GET /api/me`, set with `PATCH /api/account {locale}` from Instellingen, Account,
+Which language: the account's `locale` (`GET /api/me`, set with `PATCH /api/account {locale}` from Settings, Account,
 or at registration); without one the last choice on this device (localStorage `locale`, also the switch on the login
 page), else the browser language (Dutch browsers Dutch, everything else English). `<html lang>` follows, set before
 the first paint by an inline script in `web/app/layout.tsx`.
@@ -99,8 +100,11 @@ an existing page. Remove a redirect (and its line in that test) once nobody uses
 | `/analyses/doelen/`, `/analyses/profiel/` | `/analyses/goals/`, `/analyses/profile/` |
 | `/help/handleiding/` | `/help/guide/` |
 
-Ids did not change: the onboarding page ids stored per user (`visited`: `rondjes`, `historie`), the nav and catalog keys
-(`nav.items.rondjes`, `nav.tabs.koppelingen`, ...) and the guide's anchors (`#gegevens`) keep their names.
+The ids followed in schema 3: onboarding page ids (`visited`: `routes`, `history`), plan statuses (`active`, `finished`,
+`stopped`), nav and catalog keys (`nav.items.routes`, `nav.tabs.connections`, ...) and the guide's anchors (`#data`) are
+English. `tools/db.py` `_migrate_v3` converts the Dutch values a schema 2 database holds; the API also still accepts the
+old onboarding page ids and plan statuses in Dutch from MCP agents. Generated route names are English too ("6.0 km loop
+(r1)"); the site shows them in the user's language and still recognises the Dutch ones.
 
 ## API contract
 
@@ -127,7 +131,7 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | POST | `/api/connections/sync` | sync now in the background |
 | GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
 | GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |
-| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|rondjes\|historie}` (stored page ids; the pages themselves are `/routes/` and `/history/`) |
+| GET/PUT | `/api/onboarding` | `{choice: site\|claude\|null, done, step, hidden[], visited[], status, steps: {garmin, sync, zones, profile, explore, agent, goals, plan}, required_done}`; PUT takes only what changes: `{choice?, done?, step?, hide?: checklist\|data, visit?: dashboard\|trends\|routes\|history}` |
 
 Sync: `web` runs a daily sync for every connected user after 06:00 Europe/Amsterdam (`api/sync_runner.py`, off with `SYNC_IN_WEB=false`); the optional cron `sync` (`tools/sync.py run_all_users`) does the same.
 
@@ -141,6 +145,8 @@ Existing:
 | GET | `/api/me` | `{username}` |
 | GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key, value, level, note: {code, params}}]}` (codes, no sentences). |
 | GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first; runs with implausible wrist HR carry `hr_flags: [low_start\|flat\|dropout]` |
+| POST | `/api/activities/upload?name=&recompute=true` | one FIT file (or a zip with one) as the raw body: a ride or run from a Wahoo or any other device. Merged into an activity that starts within 2 min (Garmin stays leading), else added; `{status: added\|merged, id, sport, start_local, distance_km, source: wahoo\|fit, merged_with[]}`. Errors: `upload_empty`, `upload_too_large`, `fit_unreadable` |
+| POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |

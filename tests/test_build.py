@@ -31,7 +31,7 @@ def test_build_writes_routes_and_summaries(tmp_path):
     build(tmp_path, today=date(2026, 9, 30))
     routes = json.loads((tmp_path / "routes" / "routes.json").read_text())
     assert len(routes) == 1 and routes[0]["runs"] == 3
-    assert "4.0 km rondje (r1)" in (tmp_path / "routes" / "routes.md").read_text()
+    assert "4.0 km loop (r1)" in (tmp_path / "routes" / "routes.md").read_text()
     assert "Laatste sync: 2026-09-30 06:02" in (tmp_path / "summary" / "this-week.md").read_text()
     assert (tmp_path / "summary" / "last-90-days.md").exists()
 

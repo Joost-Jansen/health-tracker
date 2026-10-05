@@ -2,9 +2,9 @@
 
 **A self-hosted training platform on top of your Garmin data, built so that both you and an AI coach (Claude, over MCP) work from the same numbers.**
 
-![Dashboard ("Vandaag") with readiness, upcoming sessions, form and time per heart-rate zone](docs/screenshots/dashboard.jpg)
+![The Today page with readiness, training load, this week of the plan, upcoming sessions and form](docs/screenshots/dashboard.jpg)
 
-<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in Dutch and English; these screenshots show the Dutch version.</sub>
+<sub>All screenshots show the synthetic demo account from [`scripts/seed_demo.py`](scripts/seed_demo.py); no real person's data. The UI is in English and Dutch; these screenshots show the English version. Regenerate them with [`scripts/screenshots.mjs`](scripts/screenshots.mjs).</sub>
 
 health-tracker syncs runs, rides, swims, sleep and recovery from Garmin Connect into Postgres, computes what the watch
 app does not (your own heart-rate zones per sport, training load, recurring routes, race predictions) and shows it in a
@@ -27,7 +27,7 @@ can run their own instance, invite friends, and each account only ever sees its 
 
 ## Features
 
-**Today (Vandaag).** A readiness check that compares last night's resting heart rate, sleep and Body Battery with *your own*
+**Today.** A readiness check that compares last night's resting heart rate, sleep and Body Battery with *your own*
 baseline and your current form, the next sessions from the active plan (with a suggested route), form (fitness, fatigue,
 freshness), time per heart-rate zone per week or month for all sports and per sport, and this week's volume next to the
 four-week average.
@@ -44,22 +44,26 @@ weekly recovery, record progression, detected races and predicted race times (Ri
 
 ![Trends: insights, predicted race times and the form chart](docs/screenshots/trends.jpg)
 
-**Routes (Rondjes).** Recurring routes are recognised automatically, independent of where you started the watch, for runs
+**Loops.** Recurring routes are recognised automatically, independent of where you started the watch, for runs
 and rides. Each route shows its most typical track, every other run drawn lightly underneath, and pace and efficiency
 (metres per heartbeat) over time. "A loop of X km" combines known routes into a suggestion for a given distance.
 
 | | |
 |---|---|
-| ![Route overview with a map per recurring route](docs/screenshots/rondjes.jpg) | ![One route with its pace and efficiency trend](docs/screenshots/rondje.jpg) |
+| ![Loop overview with a map per recurring route](docs/screenshots/routes.jpg) | ![One loop with its pace and efficiency trend](docs/screenshots/route.jpg) |
 
-**Training plan (Schema).** Create a plan in the editor, paste a markdown/CSV table, or let an agent write it. Planned
+**Training plan.** Create a plan in the editor, paste a markdown/CSV table, or let an agent write it. Planned
 sessions are matched to what you actually did (done, missed, today, planned), with zone compliance per session, weekly
 planned-versus-done kilometres, a race countdown and a suggested route for every run or ride.
 
-![Training plan: this week, with each session matched to the activity that was done](docs/screenshots/plan.jpg)
+| | |
+|---|---|
+| ![The active plan with kilometres per week: done, planned and the race](docs/screenshots/plan.jpg) | ![One week of the plan, with each session matched to the activity that was done](docs/screenshots/plan-week.jpg) |
 
 **History, log and analyses.** A filterable activity list per month, a log and an analyses section (markdown), goals and
 profile documents. Agents write here too; every entry records who wrote it.
+
+![History: activities per month with distance, pace, heart rate and time per zone](docs/screenshots/history.jpg)
 
 **Settings.** Heart-rate zones per sport as a percentage of max HR (with a suggestion from your own data), profile facts,
 the Garmin connection (including MFA), agent tokens with copy-ready MCP instructions, and an admin panel (users, roles,
@@ -104,6 +108,10 @@ minutes of each other are the same activity). Sleep, resting HR, Body Battery, s
 `tools/derive.py` recomputes the derived data: time per heart-rate zone with the user's own zones, and the recurring routes.
 The API computes everything else (form, trends, plan matching, readiness) from that data on request, with a small per-user
 cache that is invalidated after a sync.
+
+**Other devices.** Rides or runs that never reached Garmin (a Wahoo bike computer, Zwift, a borrowed watch) can be
+uploaded as FIT files under History. They go through the same merge: a file whose start matches an activity that is
+already there is folded into it instead of counted twice, with Garmin's values leading.
 
 The web app is a static export (`web/out`) served by the same FastAPI process, so there is one service, one origin and no
 CORS. In development `next dev` proxies `/api/*` to the API.
@@ -156,12 +164,12 @@ You need a Garmin Connect account with a watch that records heart rate. Everythi
 4. On `web`, set the variables from the table below. At minimum:
    `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `PORT=8000`, `HOST=0.0.0.0`.
 5. Under Settings, set the healthcheck path to `/api/health`, and under Networking generate a public domain.
-6. Deploy. Open the domain and follow **Maak het eerste (beheerder)** (create the first, admin account) on the login page: on an empty database the first
+6. Deploy. Open the domain and follow **Create the first one (admin)** on the login page: on an empty database the first
    account becomes the admin. Registration then switches to `closed`; open it or create invite codes under
-   Instellingen, Beheer.
-7. Connect Garmin under Instellingen, Koppelingen (email, password and the MFA code if Garmin asks). The first sync starts
+   Settings, Admin.
+7. Connect Garmin under Settings, Connections (email, password and the MFA code if Garmin asks). The first sync starts
    right away; after that `web` syncs every connected user daily after 06:00 Europe/Amsterdam.
-8. Set your heart-rate zones under Instellingen, Zones en profiel (the page suggests a max HR from your own data).
+8. Set your heart-rate zones under Settings, Zones and profile (the page suggests a max HR from your own data).
 
 Optional: a separate **cron service** for the sync, if you prefer it outside the web process. Add a second service from the
 same repo with `Dockerfile.sync`, cron schedule `0 4 * * *`, and the same `DATABASE_URL` and `TOKEN_ENCRYPTION_KEY`; then
@@ -237,7 +245,7 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 ## Connect an AI agent (MCP)
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
-Instellingen, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_trends`, `get_plan`,
+Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_trends`, `get_plan`,
 `create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 
 - **Claude app / claude.ai:** Settings, Connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`.
@@ -264,7 +272,7 @@ tools/               database schema and queries (db.py), Garmin sync (sync.py, 
                      (derive.py, zones.py, routes.py, recommend.py, analytics.py), encryption (secretbox.py), CLI (tr.py)
 web/                 Next.js app: app/(app)/<page> per screen (app/(redirects) for old Dutch paths), components
                      (design system, charts, maps, plan, zones)
-scripts/seed_demo.py synthetic demo account
+scripts/             seed_demo.py (synthetic demo account), screenshots.mjs (retakes the README screenshots)
 tests/               pytest, one file per module
 docs/                developer notes, design documents, screenshots
 Dockerfile           web + API image (Node build stage, Python runtime)

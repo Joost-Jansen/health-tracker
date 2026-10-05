@@ -64,14 +64,14 @@ def test_form_has_current_values_and_peak():
     assert f["ctl"] > 0 and f["atl"] > 0
     assert f["ctl_peak_date"] <= "2026-09-30"
     assert len(f["series"]) <= 91
-    assert f["status"] in {"fris", "in balans", "vermoeid", "zeer vermoeid"}
+    assert f["status"] in {"fresh", "balanced", "tired", "very_tired"}
 
 
 def test_form_status_bands():
-    assert form_status(10) == "fris"
-    assert form_status(0) == "in balans"
-    assert form_status(-20) == "vermoeid"
-    assert form_status(-35) == "zeer vermoeid"
+    assert form_status(10) == "fresh"
+    assert form_status(0) == "balanced"
+    assert form_status(-20) == "tired"
+    assert form_status(-35) == "very_tired"
 
 
 def test_recent_activities_newest_first_without_streams():

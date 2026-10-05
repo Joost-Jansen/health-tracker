@@ -88,14 +88,14 @@ export type Dashboard = {
   readiness?: Readiness | null;
 };
 
-/** Codes and numbers; the text comes from T.vandaag.readiness (api/readiness.py). */
+/** Codes and numbers; the text comes from T.today.readiness (api/readiness.py). */
 export type ReadinessNote = {
   code: "vs_baseline" | "sleep" | "highest" | "form_yesterday";
   params: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number };
 };
 
 export type Readiness = {
-  verdict: "klaar" | "rustig aan" | "herstel" | "onbekend";
+  verdict: "ready" | "easy" | "recover" | "unknown";
   date: string | null;
   /** No sleep or resting heart rate from last night. */
   no_night: boolean;
@@ -192,9 +192,9 @@ export const fmtPaceS = (s?: number | null) => (s ? `${fmtClock(s)}/km` : "–")
 // ── Trends (T5) ──────────────────────────────────────────────────────────────
 
 export type RecordRow = { date: string; seconds: number; activity_id: string };
-export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[]; detected?: "naam" | "hartslag" };
-export type Prediction = { seconds: number; pace_s_per_km: number; from: { date: string; km: number; seconds: number; activity_id: string; source: "split" | "wedstrijd" } };
-export type Insight = { level: "goed" | "let_op" | "info"; title: string; text: string };
+export type Race = { date: string; name: string; sport: string; seconds: number; distance_km: number; activity_ids: string[]; detected?: "name" | "heart_rate" };
+export type Prediction = { seconds: number; pace_s_per_km: number; from: { date: string; km: number; seconds: number; activity_id: string; source: "split" | "race" } };
+export type Insight = { level: "good" | "watch" | "info"; title: string; text: string };
 
 export type Trends = {
   today: string;
@@ -214,7 +214,7 @@ export type Trends = {
 
 // ── Plan (T6) ────────────────────────────────────────────────────────────────
 
-export type SessionStatus = "gedaan" | "gemist" | "vandaag" | "gepland" | "rust";
+export type SessionStatus = "done" | "missed" | "today" | "planned" | "rest";
 
 export type PlanSession = {
   id?: number;
@@ -256,7 +256,7 @@ export type Plan = {
   goal?: string | null;
   race?: string | null;
   notes?: string | null;
-  status: "actief" | "afgerond" | "gestopt";
+  status: "active" | "finished" | "stopped";
   author: string;
   created_at: string;
   sessions: PlanSession[];

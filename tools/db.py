@@ -42,9 +42,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 
+from tools.routes import english_default_name
 from tools.store import activity_id, merge, prepare, same_start
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -158,7 +159,7 @@ plans = Table(
     Column("goal", Text),
     Column("race", String(200)),
     Column("notes", Text),
-    Column("status", String(20), nullable=False),  # actief | afgerond | gestopt
+    Column("status", String(20), nullable=False),  # active | finished | stopped
     Column("author", String(40), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
 )
@@ -274,15 +275,43 @@ def _migrate_v1(conn, owner_id: int = 1) -> dict:
     return counts
 
 
+PLAN_STATUS_V2 = {"actief": "active", "afgerond": "finished", "gestopt": "stopped"}
+ONBOARDING_PAGE_V2 = {"rondjes": "routes", "historie": "history"}
+
+
+def _migrate_v3(conn) -> None:
+    """Dutch values stored up to schema 2 -> English: plan statuses, the onboarding pages you visited and generated
+    route names ("6.0 km rondje (r1)" -> "6.0 km loop (r1)"; tools/routes.py makes them in English now)."""
+    for old, new in PLAN_STATUS_V2.items():
+        conn.execute(update(plans).where(plans.c.status == old).values(status=new))
+    for row in conn.execute(select(settings).where(settings.c.key == "onboarding")).mappings().all():
+        value = dict(row["value"] or {})
+        visited = value.get("visited") or []
+        if any(p in ONBOARDING_PAGE_V2 for p in visited):
+            value["visited"] = list(dict.fromkeys(ONBOARDING_PAGE_V2.get(p, p) for p in visited))
+            conn.execute(update(settings).where(settings.c.user_id == row["user_id"], settings.c.key == "onboarding").values(value=value))
+    for row in conn.execute(select(routes)).mappings().all():
+        data = dict(row["data"] or {})
+        name = english_default_name(data.get("name"))
+        if name != data.get("name"):
+            data["name"] = name
+            conn.execute(update(routes).where(routes.c.user_id == row["user_id"], routes.c.id == row["id"]).values(data=data))
+
+
 def create_schema(engine: Engine) -> dict | None:
-    """Create missing tables; migrate a single-user (v1) database to multi-user. Returns migration counts or None."""
+    """Create missing tables; migrate a single-user (v1) database to multi-user and Dutch stored values to English (v3).
+    Returns the v1 migration counts or None."""
     with engine.begin() as conn:
         tables = set(inspect(conn).get_table_names())
         migrated = None
         if "activities" in tables and "user_id" not in {c["name"] for c in inspect(conn).get_columns("activities")}:
             migrated = _migrate_v1(conn)
         meta.create_all(conn)
-        if conn.execute(select(app_settings.c.value).where(app_settings.c.key == "schema_version")).scalar_one_or_none() is None:
+        version = conn.execute(select(app_settings.c.value).where(app_settings.c.key == "schema_version")).scalar_one_or_none()
+        if version is None or int(version) < 3:
+            _migrate_v3(conn)
+        if version != SCHEMA_VERSION:
+            conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
     return migrated
 
@@ -595,11 +624,11 @@ def list_entries(s: Scope, kind: str | None = None, limit: int = 100) -> list[di
 
 
 def create_plan(s: Scope, title: str, author: str, goal: str | None = None, race: str | None = None, notes: str | None = None) -> int:
-    """A new plan becomes the active one; the user's previous active plan is marked afgerond."""
+    """A new plan becomes the active one; the user's previous active plan is marked finished."""
     with s.engine.begin() as conn:
-        conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "actief").values(status="afgerond"))
+        conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
         res = conn.execute(
-            insert(plans).values(user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="actief", author=author, created_at=_now())
+            insert(plans).values(user_id=s.user_id, title=title, goal=goal, race=race, notes=notes, status="active", author=author, created_at=_now())
         )
         return res.inserted_primary_key[0]
 
@@ -652,7 +681,7 @@ def clear_plan_link(s: Scope, plan_id: int, activity_id: str) -> None:
 
 def active_plan(s: Scope) -> dict | None:
     with s.engine.connect() as conn:
-        pid = conn.execute(select(plans.c.id).where(plans.c.user_id == s.user_id, plans.c.status == "actief").order_by(plans.c.id.desc())).scalar()
+        pid = conn.execute(select(plans.c.id).where(plans.c.user_id == s.user_id, plans.c.status == "active").order_by(plans.c.id.desc())).scalar()
     return get_plan(s, pid) if pid else None
 
 
@@ -671,8 +700,8 @@ def update_plan(s: Scope, plan_id: int, **fields) -> None:
     allowed = {"title", "goal", "race", "notes", "status"}
     values = {k: v for k, v in fields.items() if k in allowed}
     with s.engine.begin() as conn:
-        if values.get("status") == "actief":
-            conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "actief").values(status="afgerond"))
+        if values.get("status") == "active":
+            conn.execute(update(plans).where(plans.c.user_id == s.user_id, plans.c.status == "active").values(status="finished"))
         if values:
             conn.execute(update(plans).where(plans.c.id == plan_id, plans.c.user_id == s.user_id).values(**values))
 

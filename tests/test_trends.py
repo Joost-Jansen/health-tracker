@@ -108,7 +108,7 @@ def hard_run(aid, start, km=21.1, secs=6300):
 def test_hard_run_is_detected_as_race_but_tempo_run_is_not():
     tempo = act("t", "2026-09-20T08:00:00", hr_zones_s={"Z1": 600, "Z2": 600, "Z3": 600, "Z4": 1800, "Z5": 0})
     out = races([hard_run("h", "2026-09-27T11:30:00"), tempo])
-    assert [r["activity_ids"] for r in out] == [["h"]] and out[0]["detected"] == "hartslag"
+    assert [r["activity_ids"] for r in out] == [["h"]] and out[0]["detected"] == "heart_rate"
 
 
 def test_predictions_use_riegel_from_longest_recent_effort():
@@ -123,7 +123,7 @@ def test_predictions_use_riegel_from_longest_recent_effort():
 def test_insights_flag_low_easy_share():
     acts = [hard_run("h", "2026-09-27T11:30:00")]
     out = insights([], [], acts, date(2026, 9, 30))
-    assert out[0]["level"] == "let_op" and out[0]["code"] == "easy_share"
+    assert out[0]["level"] == "watch" and out[0]["code"] == "easy_share"
     assert out[0]["params"]["easy_pct"] == 0 and out[0]["params"]["hard_pct"] == 95
 
 
@@ -212,7 +212,7 @@ def test_goal_sets_the_long_run_target_and_compares_the_prediction():
     p = out["goal_prediction"]["params"]
     assert p["goal_seconds"] == 12600 and p["predicted_seconds"] == round(6000 * 2**1.06) and p["goal_km"] == 42.195
     half = by_code(insights([], [], acts, date(2026, 9, 30), goal={"km": 21.0975, "seconds": None, "date": None, "text": "x"}))
-    assert half["long_run_goal"]["params"]["target_km"] == 18 and half["long_run_goal"]["level"] == "goed"
+    assert half["long_run_goal"]["params"]["target_km"] == 18 and half["long_run_goal"]["level"] == "good"
     assert "goal_prediction" not in half  # no goal time
 
 

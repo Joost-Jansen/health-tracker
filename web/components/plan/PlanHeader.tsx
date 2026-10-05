@@ -77,9 +77,9 @@ export default function PlanHeader({
   const t = useT();
   const h = t.plan.header;
   const train = plan.sessions.filter((s) => s.sport !== "rest");
-  const done = train.filter((s) => s.status === "gedaan").length;
-  const due = train.filter((s) => s.status === "gedaan" || s.status === "gemist").length;
-  const left = train.filter((s) => s.status === "gepland" || s.status === "vandaag").length;
+  const done = train.filter((s) => s.status === "done").length;
+  const due = train.filter((s) => s.status === "done" || s.status === "missed").length;
+  const left = train.filter((s) => s.status === "planned" || s.status === "today").length;
   const pct = due ? Math.round((done / due) * 100) : null;
 
   return (

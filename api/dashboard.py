@@ -51,12 +51,12 @@ def max_by_sport(zones: dict, activities: list[dict] | None = None) -> dict:
 
 def form_status(tsb: float) -> str:
     if tsb > 5:
-        return "fris"
+        return "fresh"
     if tsb >= -10:
-        return "in balans"
+        return "balanced"
     if tsb >= -30:
-        return "vermoeid"
-    return "zeer vermoeid"
+        return "tired"
+    return "very_tired"
 
 
 def _zone_share(activities: list[dict]) -> dict:
@@ -135,17 +135,17 @@ def plan_week(sessions: list[dict], activities: list[dict], today: date, synced:
         row["sessions"] += 1
         row["planned_km"] += s.get("distance_km") or 0
         row["planned_s"] += (s.get("duration_min") or 0) * 60
-        if s.get("status") == "gedaan":
+        if s.get("status") == "done":
             row["done"] += 1
     for row in sports.values():
         row["planned_km"], row["done_km"] = round(row["planned_km"], 1), round(row["done_km"], 1)
     after_sync = synced.isoformat() if synced else "9999"
-    status = ["unsynced" if s.get("status") == "gemist" and s["date"] > after_sync else s.get("status") for s in week]
+    status = ["unsynced" if s.get("status") == "missed" and s["date"] > after_sync else s.get("status") for s in week]
     counts = {
         "total": len(week),
-        "done": status.count("gedaan"),
-        "missed": status.count("gemist"),
-        "upcoming": status.count("gepland") + status.count("vandaag"),
+        "done": status.count("done"),
+        "missed": status.count("missed"),
+        "upcoming": status.count("planned") + status.count("today"),
         "unsynced": status.count("unsynced"),
     }
     return {"start": monday.isoformat(), "end": sunday.isoformat(), "sports": sports, "sessions": counts}

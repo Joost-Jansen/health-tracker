@@ -46,6 +46,12 @@ SESSION_TABLE_HELP = (
 )
 
 
+# Codes in the data are English; the text for the agent is Dutch (see INSTRUCTIONS).
+PLAN_STATUS_NL = {"active": "actief", "finished": "afgerond", "stopped": "gestopt"}
+SESSION_STATUS_NL = {"done": "gedaan", "missed": "gemist", "today": "vandaag", "planned": "gepland", "rest": "rust"}
+FORM_STATUS_NL = {"fresh": "fris", "balanced": "in balans", "tired": "vermoeid", "very_tired": "zeer vermoeid"}
+
+
 def _str(desc: str, **kw) -> dict:
     return {"type": "string", "description": desc, **kw}
 
@@ -77,7 +83,7 @@ TOOLS = [
     {
         "name": "set_plan_status",
         "description": "Zet het actieve schema (of plan_id) op afgerond, gestopt of weer actief.",
-        "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "enum": ["actief", "afgerond", "gestopt"]}, "plan_id": {"type": "integer"}}, "required": ["status"]},
+        "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "enum": ["active", "finished", "stopped"], "description": "active (actief), finished (afgerond) of stopped (gestopt)"}, "plan_id": {"type": "integer"}}, "required": ["status"]},
     },
     {
         "name": "add_log",
@@ -167,7 +173,7 @@ def activity_md(a: dict) -> str:
 def plan_md(plan: dict | None) -> str:
     if not plan:
         return "Geen actief schema."
-    out = [f"# {plan['title']} (id {plan['id']}, {plan['status']}, door {plan['author']})"]
+    out = [f"# {plan['title']} (id {plan['id']}, {PLAN_STATUS_NL.get(plan['status'], plan['status'])}, door {plan['author']})"]
     if plan.get("goal") or plan.get("race"):
         out.append(f"Doel: {plan.get('goal') or '-'} · wedstrijd: {plan.get('race') or '-'}")
     if plan.get("notes"):
@@ -181,7 +187,7 @@ def plan_md(plan: dict | None) -> str:
         rs = s.get("route_suggestion")
         out.append(
             f"| {s['date']} | {s['sport']} | {s.get('kind') or ''} | {s.get('distance_km') or ''} | {s.get('duration_min') or ''} | {s.get('target_zone') or ''} | "
-            f"{s.get('description') or ''} | {s.get('status')} | {done} | {' + '.join(rs['names']) if rs else ''} |"
+            f"{s.get('description') or ''} | {SESSION_STATUS_NL.get(s.get('status'), s.get('status') or '')} | {done} | {' + '.join(rs['names']) if rs else ''} |"
         )
     out += ["", "| Week | Gepland km | Gedaan km | Sessies gedaan | Gemist |", "|---|---|---|---|---|"]
     out += [f"| {w['week']} | {w['planned_km']} | {w['done_km']} | {w['done']}/{w['planned']} | {w['missed']} |" for w in plan["weeks"]]
@@ -220,7 +226,7 @@ class Server:
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:
-                parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {f['status']}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
+                parts.append(f"\n## Vorm\nFitheid (CTL) {f['ctl']}, vermoeidheid (ATL) {f['atl']}, vorm (TSB) {f['tsb']}: {FORM_STATUS_NL.get(f['status'], f['status'])}. Piek CTL {f['ctl_peak']} op {f['ctl_peak_date']}.")
             parts += [this_week_md(s.activities, s.wellness, today, s.last_sync, s.zones), last_90_days_md(s.activities, s.wellness, today, s.zones)]
             parts += ["## Vaste rondjes", "", "| Id | Naam | km | Keer | Laatst | Tempo/km | HR |", "|---|---|---|---|---|---|---|"]
             parts += [f"| {r['id']} | {r.get('name')} | {r.get('distance_km')} | {r.get('runs')} | {r.get('last_run')} | {r.get('median_pace') or (str(r['median_speed_kmh']) + ' km/u' if r.get('median_speed_kmh') else '-')} | {r.get('median_hr')} |" for r in s.routes]
@@ -259,15 +265,16 @@ class Server:
             return plan_md(self._full(db.get_plan(self.engine, pid))) + note
         if name == "set_plan_status":
             status = args.get("status")
-            if status not in ("actief", "afgerond", "gestopt"):
-                raise ToolError("status is actief, afgerond of gestopt")
+            status = {nl: code for code, nl in PLAN_STATUS_NL.items()}.get(status, status)  # the Dutch words still work
+            if status not in PLAN_STATUS_NL:
+                raise ToolError("status is active, finished of stopped")
             plan = self._plan(args.get("plan_id"))
-            if status == "actief":
+            if status == "active":
                 for p in db.list_plans(self.engine):
-                    if p["status"] == "actief" and p["id"] != plan["id"]:
-                        db.set_plan_status(self.engine, p["id"], "afgerond")
+                    if p["status"] == "active" and p["id"] != plan["id"]:
+                        db.set_plan_status(self.engine, p["id"], "finished")
             db.set_plan_status(self.engine, plan["id"], status)
-            return f"Schema {plan['id']} ({plan['title']}) staat op {status}."
+            return f"Schema {plan['id']} ({plan['title']}) staat op {PLAN_STATUS_NL[status]}."
         if name == "add_log":
             kind = args.get("kind") or "log"
             if kind not in ("log", "analysis"):

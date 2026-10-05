@@ -6,7 +6,7 @@ import type { PlanSession } from "@/lib/training";
 
 export default function Upcoming({ sessions, title, className = "" }: { sessions: PlanSession[]; title?: string; className?: string }) {
   const tt = useT();
-  const t = tt.texts.vandaag.upcoming;
+  const t = tt.texts.today.upcoming;
   const f = useFormat();
   return (
     <Card title={t.title} more={t.more} moreHref="/plan/" className={className}>
@@ -16,11 +16,11 @@ export default function Upcoming({ sessions, title, className = "" }: { sessions
         <ul className="flex flex-col">
           {sessions.slice(0, 4).map((s, i) => (
             <li key={`${s.date}-${i}`} className="grid grid-cols-[72px_1fr] items-baseline gap-3 border-t border-border py-2 text-[13px] first:border-t-0 sm:grid-cols-[92px_1fr]">
-              <span className={s.status === "vandaag" ? "font-semibold" : "text-ink-muted"}>{s.status === "vandaag" ? t.today : f.weekdayDay(s.date)}</span>
+              <span className={s.status === "today" ? "font-semibold" : "text-ink-muted"}>{s.status === "today" ? t.today : f.weekdayDay(s.date)}</span>
               <span className="truncate">
                 <span className="font-medium">{s.sport === "rest" ? t.rest : tt.sport(s.sport)}</span>
                 {[s.kind, s.distance_km ? f.km(s.distance_km) : null, s.duration_min ? `${s.duration_min} min` : null, s.target_zone].filter(Boolean).map((x) => <span key={String(x)} className="text-ink-muted"> · {x}</span>)}
-                {s.status === "gedaan" && <span className="text-gain"> · {t.done}</span>}
+                {s.status === "done" && <span className="text-gain"> · {t.done}</span>}
               </span>
             </li>
           ))}

@@ -30,24 +30,6 @@ function Icon({ children, ...props }: IconProps) {
   );
 }
 
-export function TrendingUpIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M3 17l6-6 4 4 8-8" />
-      <path d="M17 7h4v4" />
-    </Icon>
-  );
-}
-
-export function TrendingDownIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M3 7l6 6 4-4 8 8" />
-      <path d="M17 17h4v-4" />
-    </Icon>
-  );
-}
-
 export function CalendarIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -63,24 +45,6 @@ export function NewspaperIcon(props: IconProps) {
       <path d="M4 5h13v15H5a1 1 0 0 1-1-1z" />
       <path d="M17 8h3v10a2 2 0 0 1-2 2" />
       <path d="M7 9h7M7 12.5h7M7 16h4" />
-    </Icon>
-  );
-}
-
-export function UploadIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 15V3M7 8l5-5 5 5" />
-      <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
-    </Icon>
-  );
-}
-
-export function RefreshIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-      <path d="M21 3v5h-5" />
     </Icon>
   );
 }
@@ -106,53 +70,6 @@ export function CloseIcon(props: IconProps) {
   return (
     <Icon {...props}>
       <path d="M6 6l12 12M18 6L6 18" />
-    </Icon>
-  );
-}
-
-export function ClockIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </Icon>
-  );
-}
-
-export function InboxIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M4 12h4l2 3h4l2-3h4" />
-      <path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7z" />
-    </Icon>
-  );
-}
-
-export function DownloadIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 3v12M7 10l5 5 5-5" />
-      <path d="M4 19v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" transform="translate(0 -2)" />
-    </Icon>
-  );
-}
-
-export function FolderIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    </Icon>
-  );
-}
-
-/** Two opposed arrows — "this control swaps between two things". */
-export function SwapIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M7 4v16" />
-      <path d="M4 7l3-3 3 3" />
-      <path d="M17 20V4" />
-      <path d="M14 17l3 3 3-3" />
     </Icon>
   );
 }
@@ -205,15 +122,6 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
-export function SearchIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-3.5-3.5" />
-    </Icon>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Navigation: one glyph per destination in the sidebar, and the hamburger that
 // unfolds it on a phone.
@@ -239,17 +147,7 @@ export function LayoutIcon(props: IconProps) {
   );
 }
 
-/** Portfolio: a list of positions. */
-export function ListIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
-    </Icon>
-  );
-}
-
-/** Return: a line that climbs. */
+/** Trends: a line that climbs. */
 export function ChartLineIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -259,75 +157,11 @@ export function ChartLineIcon(props: IconProps) {
   );
 }
 
-/** Allocation: the allocation bar itself, in miniature. */
-export function SegmentsIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <rect x="3" y="9.5" width="7" height="5" rx="1.5" />
-      <rect x="11.5" y="9.5" width="4.5" height="5" rx="1.5" />
-      <rect x="17.5" y="9.5" width="3.5" height="5" rx="1.5" />
-    </Icon>
-  );
-}
-
-/** Dividend: money that comes in without selling anything. */
-export function CoinsIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <ellipse cx="12" cy="6.5" rx="7" ry="2.75" />
-      <path d="M5 6.5v5c0 1.5 3.1 2.75 7 2.75s7-1.25 7-2.75v-5" />
-      <path d="M5 11.5v5c0 1.5 3.1 2.75 7 2.75s7-1.25 7-2.75v-5" />
-    </Icon>
-  );
-}
-
 export function SettingsIcon(props: IconProps) {
   return (
     <Icon {...props}>
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3" />
-    </Icon>
-  );
-}
-
-/** Accounts: a wallet, money that is not in securities. */
-export function WalletIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 0 1 1 1v2" />
-      <path d="M3 7.5V17a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-2" />
-      <path d="M20 9.5h-4a2.5 2.5 0 0 0 0 5h4a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1Z" />
-    </Icon>
-  );
-}
-
-/** Spending: a tag, where the money went. */
-export function TagIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M11.6 3.5H5.5A2 2 0 0 0 3.5 5.5v6.1a2 2 0 0 0 .6 1.4l7 7a2 2 0 0 0 2.8 0l6.1-6.1a2 2 0 0 0 0-2.8l-7-7a2 2 0 0 0-1.4-.6Z" />
-      <path d="M7.8 7.8h.01" />
-    </Icon>
-  );
-}
-
-/** Net worth: a rising line, with the areas beneath it. */
-export function GrowthIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M3 19.5h18" />
-      <path d="M3.5 15.5l5-5 4 3 7-7" />
-      <path d="M15.5 6.5h4v4" />
-    </Icon>
-  );
-}
-
-/** Running, cycling, swimming and the training destinations. */
-export function HeartPulseIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M19.5 12.6 12 20l-7.5-7.4A4.6 4.6 0 0 1 12 6.5a4.6 4.6 0 0 1 7.5 6.1Z" />
-      <path d="M3.5 12.5h4l1.5-2.5 2.5 5 2-3.5h7" />
     </Icon>
   );
 }

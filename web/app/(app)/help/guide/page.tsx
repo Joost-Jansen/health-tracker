@@ -47,7 +47,7 @@ export default function HelpGuide() {
         </Text>
       </Card>
 
-      <Part id="beginnen" title={title("beginnen")}>
+      <Part id="getting-started" title={title("getting-started")}>
         <ol className="list-decimal pl-5">
           <li>{rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}{doneNote("garmin", m.doneNote)}</li>
           <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
@@ -56,7 +56,7 @@ export default function HelpGuide() {
         <p className="text-xs text-ink-muted">{rich(m.progressAt, { link: link("/help/") })}</p>
       </Part>
 
-      <Part id="gegevens" title={title("gegevens")}>
+      <Part id="data" title={title("data")}>
         <p>{ex("garmin").intro}</p>
         <Bullets items={ex("garmin").bullets} />
         <p>{ex("sync").intro}</p>
@@ -70,7 +70,7 @@ export default function HelpGuide() {
         <p className="text-xs text-ink-muted">{T.onboarding.wristHr}</p>
       </Part>
 
-      <Part id="cijfers" title={title("cijfers")}>
+      <Part id="numbers" title={title("numbers")}>
         <p><b>{m.readiness}</b> {T.readinessBasis}</p>
         <p><b>{m.form}</b> {T.formMethod}</p>
         <p><b>{m.z2}</b> {T.z2Pace}</p>
@@ -78,17 +78,17 @@ export default function HelpGuide() {
         <p className="text-xs text-ink-muted">{T.noMedicalAdvice}</p>
       </Part>
 
-      <Part id="waar" title={title("waar")}>
+      <Part id="where" title={title("where")}>
         <ul className="list-disc pl-5">
           {PAGES.map((p) => <li key={p.id}><A href={p.href}>{t.onboarding.pages[p.id].label}</A>: {t.onboarding.pages[p.id].text}.</li>)}
           <li><A href="/plan/">{t.nav.items.plan}</A>: {m.plan}</li>
-          <li><A href="/log/">{t.nav.items.logboek}</A>: {m.log}</li>
-          <li><A href="/settings/">{t.nav.items.instellingen}</A>: {m.settings}</li>
+          <li><A href="/log/">{t.nav.items.log}</A>: {m.log}</li>
+          <li><A href="/settings/">{t.nav.items.settings}</A>: {m.settings}</li>
         </ul>
         <p className="text-xs text-ink-muted">{m.smallPrint}</p>
       </Part>
 
-      <Part id="schema" title={title("schema")}>
+      <Part id="plan" title={title("plan")}>
         <p>{ex("goals").intro}</p>
         <Bullets items={ex("goals").bullets} />
         <p>{ex("plan").intro}</p>

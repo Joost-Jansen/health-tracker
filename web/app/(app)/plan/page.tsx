@@ -36,7 +36,7 @@ export default function PlanPage() {
     },
   });
   const finish = useMutation({
-    mutationFn: (id: number) => api.patch(`/api/plans/${id}`, { status: "afgerond" }),
+    mutationFn: (id: number) => api.patch(`/api/plans/${id}`, { status: "finished" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["plan-active"] }),
   });
   const go = (m: Mode) => {

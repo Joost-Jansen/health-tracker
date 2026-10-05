@@ -134,8 +134,8 @@ def test_plans_import_edit_and_match(client):
     assert preview["saved"] is False and len(preview["sessions"]) == 2
     res = client.post("/api/plans/import", json={"text": text, "title": "Test"}).json()
     plan = res["plan"]
-    assert plan["title"] == "Test" and plan["status"] == "actief"
-    assert plan["sessions"][0]["status"] == "gedaan"  # the 10 km run on 2026-09-29 in the fixture
+    assert plan["title"] == "Test" and plan["status"] == "active"
+    assert plan["sessions"][0]["status"] == "done"  # the 10 km run on 2026-09-29 in the fixture
     sessions = [{k: s[k] for k in ("date", "sport", "distance_km")} for s in plan["sessions"]][:1]
     edited = client.put(f"/api/plans/{plan['id']}/sessions", json=sessions).json()
     assert len(edited["sessions"]) == 1
@@ -151,7 +151,7 @@ def test_plan_links_set_and_cleared_by_hand(client):
     assert plan["sessions"][0]["match"] == "near"
     url = f"/api/plans/{plan['id']}/links/{aid}"
     out = client.put(url, json={"session_date": None}).json()
-    assert [s["status"] for s in out["sessions"]] == ["gemist", "gemist"] and out["weeks"][0]["done_km"] == 10
+    assert [s["status"] for s in out["sessions"]] == ["missed", "missed"] and out["weeks"][0]["done_km"] == 10
     out = client.put(url, json={"session_date": "2026-10-04"}).json()
     assert [s.get("match") for s in out["sessions"]] == [None, "manual"]
     assert client.put(url, json={"session_date": "2026-10-01"}).json()["code"] == "no_session_to_link"

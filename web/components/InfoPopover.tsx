@@ -3,7 +3,7 @@
 // A small "i" that explains a figure on click — for the sentence a number
 // needs but does not deserve permanent space for.
 //
-// Click, not hover: the cockpit is read on a phone as much as on a laptop, and
+// Click, not hover: the site is read on a phone as much as on a laptop, and
 // a hover tooltip is unreachable with a thumb. Escape and any outside click
 // close it, the same two gestures the account menu in the app layout uses.
 //

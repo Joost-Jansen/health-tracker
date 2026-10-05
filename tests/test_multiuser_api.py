@@ -52,7 +52,7 @@ def test_open_registration_and_data_isolation(app, engine):  # noqa: F811
     # plans, log, docs: each their own
     pid = admin.post("/api/plans", json={"title": "Marathon", "sessions": [{"date": "2026-10-04", "sport": "run"}]}).json()["id"]
     assert anna.get(f"/api/plans/{pid}").status_code == 404
-    assert anna.patch(f"/api/plans/{pid}", json={"status": "gestopt"}).status_code == 404
+    assert anna.patch(f"/api/plans/{pid}", json={"status": "stopped"}).status_code == 404
     assert anna.put(f"/api/plans/{pid}/sessions", json=[]).status_code == 404
     assert anna.get("/api/plans/active").json()["plan"] is None
     admin.post("/api/entries", json={"kind": "log", "title": "Joost-log", "body": "b"})

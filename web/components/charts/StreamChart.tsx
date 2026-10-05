@@ -149,7 +149,7 @@ export default function StreamChart({
           <div key={p.key}>
             <div className="flex items-baseline justify-between text-[11.5px] text-ink-muted">
               <span>{p.label}</span>
-              <span className="tabular-nums">{hv != null ? p.format(hv) : avg != null ? `gem. ${p.format(p.key === "pace" ? 1000 / (vals.reduce((s, v) => s + 1000 / v, 0) / vals.length) : avg)}` : ""}</span>
+              <span className="tabular-nums">{hv != null ? p.format(hv) : avg != null ? t.charts.avg(p.format(p.key === "pace" ? 1000 / (vals.reduce((s, v) => s + 1000 / v, 0) / vals.length) : avg)) : ""}</span>
             </div>
             <svg width={w} height={p.height} className="block overflow-visible" role="img" aria-label={p.label}>
               {p.bands &&

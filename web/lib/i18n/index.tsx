@@ -74,9 +74,10 @@ export function errorText(err: unknown, t: Messages, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
-/** Display name of a route: generated names ("5.2 km rondje (r3)", tools/routes.py) in the current language. */
+/** Display name of a route: generated names ("5.2 km loop (r3)", "40.0 km bike route (f1)", tools/routes.py) in the
+ *  current language. Names generated before schema 3 are Dutch ("5.2 km rondje (r3)") and read the same way. */
 export function routeName(name: string | null | undefined, id: string, t: Messages, f: Format): string {
-  const m = /^(\d+\.\d) km (fiets)?(rondje|route) \(([rf]\d+)\)$/.exec(name ?? "");
+  const m = /^(\d+\.\d) km (bike |fiets)?(loop|rondje|route) \(([rf]\d+)\)$/.exec(name ?? "");
   if (!m) return name || id;
-  return t.routes.defaultName(f.num(Number(m[1]), 1), m[3] === "rondje", !!m[2], m[4]);
+  return t.routes.defaultName(f.num(Number(m[1]), 1), m[3] !== "route", !!m[2], m[4]);
 }

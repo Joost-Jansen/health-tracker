@@ -84,7 +84,7 @@ def test_derive_builds_ride_routes_next_to_run_routes():
     by_sport = {r["sport"]: r for r in db.load_routes(e)}
     assert by_sport["run"]["id"] == "r1" and by_sport["run"]["median_pace"]
     assert by_sport["ride"]["id"] == "f1" and by_sport["ride"]["runs"] == 2
-    assert by_sport["ride"]["name"] == "40.0 km fietsrondje (f1)" and by_sport["ride"]["median_speed_kmh"] == 30.0
+    assert by_sport["ride"]["name"] == "40.0 km bike loop (f1)" and by_sport["ride"]["median_speed_kmh"] == 30.0
 
 
 def test_derive_keeps_run_routes_and_names_when_rides_arrive():

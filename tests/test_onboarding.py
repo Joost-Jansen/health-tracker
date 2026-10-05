@@ -108,10 +108,10 @@ def test_choice_step_done_and_hidden_are_stored(anna):
 
 
 def test_visited_pages_complete_the_explore_step(anna):
-    for page in ("trends", "rondjes", "trends"):
+    for page in ("trends", "routes", "trends"):
         r = anna.put("/api/onboarding", json={"visit": page}).json()
-    assert r["visited"] == ["trends", "rondjes"] and r["steps"]["explore"] is False
-    r = anna.put("/api/onboarding", json={"visit": "historie"}).json()
+    assert r["visited"] == ["trends", "routes"] and r["steps"]["explore"] is False
+    r = anna.put("/api/onboarding", json={"visit": "historie"}).json()  # the Dutch id from before schema 3 still counts
     assert r["steps"]["explore"] is True
 
 
@@ -144,10 +144,9 @@ def test_agent_token_sees_its_own_user(app, anna):
     assert r["status"]["agents"]["tokens"] == 1 and r["status"]["activities"]["count"] == 0
 
 
-def test_stored_page_ids_survive_the_english_paths(engine, anna):  # noqa: F811
-    # The pages moved to English paths (/routes/, /history/), but the page ids stored per user stay the same, so
-    # onboarding state saved before the rename still counts.
+def test_dutch_page_ids_stored_before_schema_3_still_count(engine, anna):  # noqa: F811
+    # The schema 3 migration renames them (tests/test_multiuser_db.py); reading converts any that are left.
     me = anna.get("/api/me").json()
-    db.set_setting(db.Scope(engine, me["id"]), "onboarding", {"done": True, "visited": ["dashboard", "trends", "rondjes", "historie"]})
+    db.set_setting(db.Scope(engine, me["id"]), "onboarding", {"done": True, "visited": ["dashboard", "trends", "rondjes", "historie", "routes"]})
     r = anna.get("/api/onboarding").json()
-    assert r["visited"] == ["dashboard", "trends", "rondjes", "historie"] and r["steps"]["explore"] is True
+    assert r["visited"] == ["dashboard", "trends", "routes", "history"] and r["steps"]["explore"] is True

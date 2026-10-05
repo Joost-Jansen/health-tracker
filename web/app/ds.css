@@ -195,13 +195,6 @@
   font-size: var(--fs-xs); line-height: 1.4; white-space: nowrap; box-shadow: var(--shadow-3);
   font-variant-numeric: tabular-nums;
 }
-.ds-alloc { display: flex; flex-direction: column; gap: var(--sp-5); }
-.ds-alloc__bar { display: flex; height: 8px; border-radius: var(--radius-pill); overflow: hidden; background: var(--surface-inset); }
-.ds-alloc__seg { height: 100%; transition: opacity var(--dur-fast) var(--ease-standard); }
-.ds-alloc__legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-4) var(--sp-6); }
-.ds-alloc__item { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--text-secondary); }
-.ds-alloc__swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-.ds-alloc__pct { margin-left: auto; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 /* ── Table ────────────────────────────────────────────── */
 .ds-table { width: 100%; font-size: var(--fs-sm); font-feature-settings: var(--num-tabular); }
@@ -217,7 +210,6 @@
 .ds-table td:first-child, .ds-table th:first-child { padding-left: 0; }
 .ds-table td:last-child, .ds-table th:last-child { padding-right: 0; }
 .ds-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.ds-table__ticker { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.04em; color: var(--text-muted); }
 .ds-table__name { font-weight: var(--fw-medium); color: var(--text-primary); }
 .ds-table th.sortable { cursor: pointer; }
 .ds-table th.sortable:hover { color: var(--text-primary); }
@@ -303,26 +295,6 @@
    container was doing nothing but drawing a box. */
 .ds-section { display: flex; flex-direction: column; gap: var(--sp-5); }
 .ds-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-5); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--n-800); }
-.uitgaven-posten .ds-section__head { min-height: calc(30px + var(--sp-3) + 1px); align-items: center; }
-.tijd-filterbalk { background: var(--surface-page); }
-.tijd-filterbalk__knop { transition: background-color 180ms ease, color 180ms ease; }
-.tijd-filterbalk__knop:hover, .tijd-filterbalk__knop[data-open="true"] { background: var(--surface-inset); color: var(--text-primary); }
-.tijd-filterbalk__chip { display: inline-flex; align-items: center; gap: 6px; border-color: var(--rule); background: var(--surface-inset); color: var(--text-primary); transition: background-color 180ms ease; }
-.tijd-filterbalk__chip:hover { background: var(--surface-card); }
-.tijd-filterbalk__paneel {
-  position: absolute; top: 100%; right: 0; width: min(100%, 900px); max-height: min(70vh, 680px);
-  overflow-y: auto; padding: var(--sp-5); background: var(--surface-card);
-  border: 1px solid var(--rule); border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, .16);
-  transform: translateY(0); opacity: 1; visibility: visible;
-  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
-}
-.tijd-filterbalk__paneel[data-open="false"] {
-  transform: translateY(-8px); opacity: 0; visibility: hidden; pointer-events: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tijd-filterbalk__paneel, .tijd-filterbalk__knop { transition: none; }
-}
 .ds-section--quiet .ds-section__head { border-bottom-color: var(--border-hairline); }
 .ds-section__label { font-size: var(--fs-micro); font-weight: var(--fw-medium); letter-spacing: 0.11em; text-transform: uppercase; color: var(--text-primary); }
 .ds-section__meta { font-size: var(--fs-xs); color: var(--text-muted); }

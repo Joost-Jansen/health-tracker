@@ -1,4 +1,4 @@
-"""Recognise recurring routes ("vaste rondjes") from GPS tracks, for runs and for rides.
+"""Recognise recurring routes from GPS tracks, for runs and for rides.
 
 A run or ride is reduced to a shape: start, end, distance and the set of ~100 m
 grid cells it passes. Two are the same route when they cover mostly the same
@@ -33,8 +33,11 @@ MATCH = {"run": (MAX_DISTANCE_DIFF, MIN_OVERLAP, MIN_OVERLAP), "ride": (0.30, 0.
 MIN_RUNS = 3
 MIN_COUNT = {"run": MIN_RUNS, "ride": 2}  # few rides with GPS, so two of the same already count
 PREFIX = {"run": "r", "ride": "f"}
-LABELS = {"run": ("rondje", "route"), "ride": ("fietsrondje", "fietsroute")}  # (loop, point to point)
-DEFAULT_NAME = re.compile(r"^\d+\.\d km (rondje \(r|route \(r|fietsrondje \(f|fietsroute \(f)\d+\)$")
+LABELS = {"run": ("loop", "route"), "ride": ("bike loop", "bike route")}  # (loop, point to point)
+# Generated names; the site shows them in the user's language (web/lib/i18n). Up to schema 3 they were Dutch
+# ("rondje", "fietsrondje", "fietsroute"), which still counts as generated.
+DEFAULT_NAME = re.compile(r"^\d+\.\d km (loop \(r|route \(r|bike loop \(f|bike route \(f|rondje \(r|fietsrondje \(f|fietsroute \(f)\d+\)$")
+_DUTCH_LABELS = {"rondje": "loop", "fietsrondje": "bike loop", "fietsroute": "bike route"}
 
 
 def haversine_m(a, b) -> float:
@@ -251,6 +254,12 @@ def _summary(members: list[dict], sport: str) -> dict:
 def _default_name(distance: float, is_loop: bool, route_id: str, sport: str) -> str:
     loop_label, line_label = LABELS.get(sport, LABELS["run"])
     return f"{distance:.1f} km {loop_label if is_loop else line_label} ({route_id})"
+
+
+def english_default_name(name: str | None) -> str | None:
+    """A generated Dutch name (schema 2) in English; any other name unchanged."""
+    m = re.match(r"^(\d+\.\d km )(rondje|fietsrondje|fietsroute)( \([rf]\d+\))$", name or "")
+    return f"{m[1]}{_DUTCH_LABELS[m[2]]}{m[3]}" if m else name
 
 
 def _pairs(decisions: dict | None, key: str) -> list[tuple[str, str]]:

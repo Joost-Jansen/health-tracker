@@ -127,7 +127,7 @@ export default function DashboardPage() {
               {form.stopped_at_sync && (
                 <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
                   <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
-                  {T.vandaag.formStopped(f.weekdayDay(form.until))}
+                  {T.today.formStopped(f.weekdayDay(form.until))}
                 </p>
               )}
             </div>

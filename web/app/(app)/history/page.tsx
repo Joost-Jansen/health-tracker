@@ -11,6 +11,7 @@ import Card from "@/components/Card";
 import { Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
 import { SportBadge } from "@/components/plan/SportIcon";
+import FitUpload from "@/components/history/FitUpload";
 import { useFormat, useT } from "@/lib/i18n";
 import { type ActivityListItem, type Heatmap, ZONE_COLOUR, ZONES } from "@/lib/training";
 
@@ -79,6 +80,7 @@ function ListView() {
         <Tabs variant="quiet" items={PERIODS.map((id) => ({ id, label: t.history.periods[id] }))} value={period} onChange={setPeriod} ariaLabel={t.history.period} />
         <input className="ds-input h-9 min-w-0 flex-1 text-[13px] sm:max-w-[240px]" placeholder={t.history.search} value={search} onChange={(e) => setSearch(e.target.value)} />
         <span className="ml-auto text-[12px] text-ink-muted tabular-nums">{t.history.count(items.length)}</span>
+        <FitUpload />
       </div>
 
       {groups.length === 0 && <p className="text-sm text-ink-muted">{t.history.nothing}</p>}

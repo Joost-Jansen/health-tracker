@@ -1,5 +1,5 @@
 // Load: the last week (fatigue, 7 days) against what you are used to (fitness, 42 days), with three soft
-// bands. Numbers and band come from api/dashboard.py load_indicator; the sentences from T.vandaag.load.
+// bands. Numbers and band come from api/dashboard.py load_indicator; the sentences from T.today.load.
 
 import Card from "@/components/Card";
 import InfoPopover from "@/components/InfoPopover";
@@ -15,7 +15,7 @@ const pos = (v: number) => `${((Math.min(MAX, Math.max(MIN, v)) - MIN) / (MAX - 
 
 /** `wide`: the card is alone in its row; then the bar sits next to the explanation instead of below it. */
 export default function LoadCard({ load, wide = false, className = "" }: { load: LoadIndicator; wide?: boolean; className?: string }) {
-  const t = useT().texts.vandaag.load;
+  const t = useT().texts.today.load;
   const f = useFormat();
   /** 1,3 en 0,85 (1.3 and 0.85): no trailing zeros. */
   const num = (v: number, digits = 2) => f.trim(v, digits);

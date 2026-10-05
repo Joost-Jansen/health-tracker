@@ -198,7 +198,7 @@ function Detail({ id }: { id: string }) {
       </div>
 
       {a.route && routeRuns.length >= 2 && (
-        <Card title={t.activity.earlier(routeName(a.route.name, a.route.id, t, f))} more={t.nav.items.rondjes} moreHref="/routes/">
+        <Card title={t.activity.earlier(routeName(a.route.name, a.route.id, t, f))} more={t.nav.items.routes} moreHref="/routes/">
           <LineChart
             ariaLabel={t.activity.paceAria}
             height={170}

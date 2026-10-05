@@ -41,8 +41,8 @@ def test_plans_are_private_per_user():
     assert db.get_plan(b, pa) is None
     with pytest.raises(KeyError):
         db.replace_sessions(b, pa, [{"date": "2026-10-01", "sport": "run"}])
-    db.set_plan_status(b, pa, "gestopt")
-    assert db.get_plan(a, pa)["status"] == "actief"
+    db.set_plan_status(b, pa, "stopped")
+    assert db.get_plan(a, pa)["status"] == "active"
 
 
 def test_users_invites_and_delete_with_all_data():
@@ -104,7 +104,7 @@ def _check_migrated(e):
     assert db.user_for_token_hash(e, "e" * 64) == 1
     assert db.get_document(s, "goals")["body"] == "Marathon" and db.list_entries(s)[0]["id"] == 7
     plan = db.active_plan(s)
-    assert plan["id"] == 3 and plan["sessions"][0]["distance_km"] == 10.0
+    assert plan["id"] == 3 and plan["status"] == "active" and plan["sessions"][0]["distance_km"] == 10.0
     assert db.load_routes(s)[0]["name"] == "Park"
     # new rows after the migration get fresh ids (Postgres sequences moved past the copied ids)
     assert db.add_entry(s, "log", "nieuw", "b", "alice") == 8
@@ -115,6 +115,25 @@ def _check_migrated(e):
 
 def test_migration_from_single_user_sqlite(tmp_path):
     _check_migrated(_v1_database(f"sqlite:///{tmp_path / 'v1.db'}"))
+
+
+def test_schema_3_turns_stored_dutch_values_into_english(tmp_path):
+    e = db.connect(f"sqlite:///{tmp_path / 'v2.db'}")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+    old = db.create_plan(s, "Oud", "alice")
+    new = db.create_plan(s, "Nieuw", "alice")
+    db.save_routes(s, [{"id": "r1", "sport": "run", "name": "6.0 km rondje (r1)"}, {"id": "f1", "sport": "ride", "name": "40.0 km fietsroute (f1)"}, {"id": "r2", "sport": "run", "name": "Park"}])
+    db.set_setting(s, "onboarding", {"done": False, "visited": ["trends", "rondjes", "historie", "routes"]})
+    with e.begin() as c:  # what a schema 2 database holds
+        c.execute(db.plans.update().where(db.plans.c.id == old).values(status="afgerond"))
+        c.execute(db.plans.update().where(db.plans.c.id == new).values(status="actief"))
+        c.execute(db.app_settings.update().where(db.app_settings.c.key == "schema_version").values(value=2))
+    db.create_schema(e)
+    assert db.get_plan(s, old)["status"] == "finished" and db.active_plan(s)["id"] == new
+    assert sorted(r["name"] for r in db.load_routes(s)) == ["40.0 km bike route (f1)", "6.0 km loop (r1)", "Park"]
+    assert db.get_setting(s, "onboarding")["visited"] == ["trends", "routes", "history"]
+    assert db.get_app_setting(e, "schema_version") == db.SCHEMA_VERSION == 3
 
 
 @pytest.mark.skipif(not os.environ.get("TEST_POSTGRES_URL"), reason="set TEST_POSTGRES_URL to run against Postgres")

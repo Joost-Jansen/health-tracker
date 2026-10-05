@@ -39,7 +39,7 @@ SPORTS = {
     "rest": ("rest", "rust", "rustdag", "vrij", "off"),
 }
 MONTHS = {"jan": 1, "feb": 2, "mrt": 3, "mar": 3, "apr": 4, "mei": 5, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "oct": 10, "nov": 11, "dec": 12}
-STATUSES = ("actief", "afgerond", "gestopt")
+STATUSES = ("active", "finished", "stopped")
 
 
 # --- parsing ------------------------------------------------------------------------------
@@ -216,7 +216,7 @@ def _day_gap(a: dict, day: str) -> int:
 
 
 def match_sessions(sessions: list[dict], activities: list[dict], today: date, links: dict[str, str | None] | None = None) -> list[dict]:
-    """Every session with a status: gedaan, gemist (past, none), vandaag, gepland or rust. One activity counts for at
+    """Every session with a status: done, missed (past, none), today, planned or rest. One activity counts for at
     most one session, in this order:
 
     1. `links`, what the user decided: activity id -> the date of the session of its sport it belongs to, or None
@@ -289,14 +289,14 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date, li
     for i, s in enumerate(ordered):
         row = dict(s)
         if s["sport"] == "rest":
-            row["status"] = "rust"
+            row["status"] = "rest"
         elif i in chosen:
             acts, how = chosen[i]
             km = round(sum(a.get("distance_km") or 0 for a in acts), 2)
             secs = sum(a.get("moving_time_s") or 0 for a in acts)
             merged = {"hr_zones_s": {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in acts) for z in NAMES}}
             row.update(
-                status="gedaan",
+                status="done",
                 match=how,
                 activity_ids=[a["id"] for a in acts],
                 done={
@@ -309,7 +309,7 @@ def match_sessions(sessions: list[dict], activities: list[dict], today: date, li
             )
         else:
             day = date.fromisoformat(s["date"])
-            row["status"] = "gemist" if day < today else "vandaag" if day == today else "gepland"
+            row["status"] = "missed" if day < today else "today" if day == today else "planned"
             near = sorted((a for a in activities if a["sport"] == s["sport"] and a["id"] not in used and _day_gap(a, s["date"]) <= CANDIDATE_DAYS), key=lambda a: (_day_gap(a, s["date"]), a["start_local"]))
             row["candidates"] = [
                 {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s")} for a in near
@@ -348,7 +348,7 @@ def suggest_routes(sessions: list[dict], routes: list[dict], today: date) -> Non
     for s in sessions:
         if s.get("route"):
             continue
-        if s["sport"] not in ("run", "ride") or not s.get("distance_km") or s.get("status") in ("gedaan", "gemist"):
+        if s["sport"] not in ("run", "ride") or not s.get("distance_km") or s.get("status") in ("done", "missed"):
             continue
         recs = recommend(usable, s["distance_km"], today, limit=1, sport=s["sport"])
         if recs:
@@ -380,9 +380,9 @@ def weekly_summary(sessions: list[dict], activities: list[dict] = ()) -> list[di
         w["planned"] += 1
         w["planned_km"] += s.get("distance_km") or 0
         w["sports"].setdefault(s["sport"], {"planned_km": 0.0, "done_km": 0.0})["planned_km"] += s.get("distance_km") or 0
-        if s.get("status") == "gedaan":
+        if s.get("status") == "done":
             w["done"] += 1
-        elif s.get("status") == "gemist":
+        elif s.get("status") == "missed":
             w["missed"] += 1
     for w in weeks.values():
         w["done_km"] = sum(v["done_km"] for v in w["sports"].values())

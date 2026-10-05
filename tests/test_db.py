@@ -83,10 +83,10 @@ def test_plan_with_sessions():
     pid = db.create_plan(e, title="Marathon 3:45", goal="marathon onder 3:45", race="Rotterdam 2027-04-11", author="agent")
     db.add_sessions(e, pid, [
         {"date": "2026-10-06", "sport": "run", "kind": "duurloop", "distance_km": 16, "target_zone": "Z2"},
-        {"date": "2026-10-04", "sport": "run", "kind": "herstel", "duration_min": 40, "target_zone": "Z1"},
+        {"date": "2026-10-04", "sport": "run", "kind": "recover", "duration_min": 40, "target_zone": "Z1"},
     ])
     plan = db.get_plan(e, pid)
-    assert plan["status"] == "actief"
+    assert plan["status"] == "active"
     assert [s["date"] for s in plan["sessions"]] == ["2026-10-04", "2026-10-06"]
     assert db.active_plan(e)["id"] == pid
 
@@ -95,7 +95,7 @@ def test_new_active_plan_retires_the_previous_one():
     e = fresh()
     first = db.create_plan(e, title="A", author="agent")
     second = db.create_plan(e, title="B", author="agent")
-    assert db.get_plan(e, first)["status"] == "afgerond"
+    assert db.get_plan(e, first)["status"] == "finished"
     assert db.active_plan(e)["id"] == second
 
 

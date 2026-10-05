@@ -81,6 +81,13 @@ MESSAGES: dict[str, str] = {
     "upload_empty": "leeg bestand",
     "upload_too_large": "bestand groter dan {max_mb} MB",
     "fit_unreadable": "geen leesbare activiteit in dit FIT-bestand",
+    # feedback (api/feedback.py)
+    "feedback_kind": "soort is bug of idea",
+    "feedback_empty": "schrijf wat er mis is of wat je zou willen",
+    "feedback_too_many": "te veel feedback vandaag, probeer het morgen opnieuw",
+    "feedback_screenshot_type": "screenshot moet een png, jpeg of webp zijn",
+    "feedback_not_found": "feedback niet gevonden",
+    "feedback_status": "status is een van {options}",
 }
 
 

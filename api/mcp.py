@@ -112,6 +112,38 @@ class ToolError(Exception):
 
 # --- formatting -----------------------------------------------------------------------------------------
 
+# Only for an admin's token: feedback from all users of the site (api/feedback.py).
+FEEDBACK_TOOLS = [
+    {
+        "name": "list_feedback",
+        "description": "Feedback van gebruikers van de site: kapot (bug) of een idee, met pagina, browser, versie en recente fouten. Nieuwste eerst. Standaard alleen open meldingen (new en planned).",
+        "inputSchema": {"type": "object", "properties": {"status": _str("new, planned, fixed, wontfix of all", enum=["new", "planned", "fixed", "wontfix", "all", "open"], default="open"), "limit": {"type": "integer", "default": 30}}},
+    },
+    {
+        "name": "update_feedback",
+        "description": "Status en/of antwoord bij een melding. De gebruiker ziet beide op de site. Status: new, planned, fixed, wontfix.",
+        "inputSchema": {"type": "object", "properties": {"id": {"type": "integer"}, "status": _str("Nieuwe status", enum=list(db.FEEDBACK_STATUSES)), "reply": _str("Antwoord voor de gebruiker, kort en in hun taal")}, "required": ["id"]},
+    },
+]
+
+
+def feedback_md(items: list[dict]) -> str:
+    out = []
+    for f in items:
+        ctx = f.get("context") or {}
+        head = f"## #{f['id']} {f['kind']} · {f['status']} · {f['created_at'][:16].replace('T', ' ')} · {f.get('username') or f['user_id']}"
+        lines = [head, f["message"].strip()]
+        meta = [f"pagina {f['page']}" if f.get("page") else None, f"versie {ctx['version']}" if ctx.get("version") else None, ctx.get("browser"), ctx.get("screen"), ctx.get("language")]
+        lines.append("_" + " · ".join(m for m in meta if m) + "_")
+        for e in ctx.get("errors") or []:
+            lines.append(f"- fout: {e.get('message')} {('(' + str(e.get('where')) + ')') if e.get('where') else ''}".rstrip())
+        if f.get("has_screenshot"):
+            lines.append(f"- screenshot: /api/feedback/{f['id']}/screenshot (alleen in de browser)")
+        if f.get("reply"):
+            lines.append(f"Antwoord: {f['reply']}")
+        out.append("\n".join(lines))
+    return "\n\n".join(out) or "Geen feedback."
+
 
 def _clock(seconds) -> str:
     if not seconds:
@@ -319,6 +351,22 @@ class Server:
             return "\n".join(
                 f"{i}. {' + '.join(o['names'])}: {o['total_km']} km ({o['deviation_km']:+.1f} km), {o['days_since']} dagen niet {verb}" for i, o in enumerate(opts, 1)
             )
+        if name in ("list_feedback", "update_feedback"):
+            if not self.user.is_admin:
+                raise ToolError("Alleen voor beheerders")
+            engine = self.engine.engine
+            if name == "list_feedback":
+                status = args.get("status") or "open"
+                items = db.list_feedback(engine, status=None if status in ("all", "open") else status, limit=min(int(args.get("limit") or 30), 200))
+                if status == "open":
+                    items = [f for f in items if f["status"] in ("new", "planned")]
+                return feedback_md(items)
+            status = args.get("status")
+            if status is not None and status not in db.FEEDBACK_STATUSES:
+                raise ToolError(f"status is een van {', '.join(db.FEEDBACK_STATUSES)}")
+            if not db.update_feedback(engine, int(args["id"]), status=status, reply=args.get("reply")):
+                raise ToolError(f"Feedback {args['id']} bestaat niet")
+            return feedback_md([db.get_feedback(engine, int(args["id"]))])
         raise ToolError(f"Onbekende tool {name}")
 
     def handle(self, msg: dict, who: str) -> dict | None:
@@ -342,7 +390,7 @@ class Server:
         if method == "ping":
             return ok({})
         if method == "tools/list":
-            return ok({"tools": TOOLS})
+            return ok({"tools": TOOLS + (FEEDBACK_TOOLS if self.user.is_admin else [])})
         if method == "tools/call":
             try:
                 text = self.call(params.get("name", ""), params.get("arguments") or {}, who)

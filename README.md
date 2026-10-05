@@ -69,6 +69,11 @@ profile documents. Agents write here too; every entry records who wrote it.
 the Garmin connection (including MFA), agent tokens with copy-ready MCP instructions, and an admin panel (users, roles,
 suspend, reset password, invite codes, registration mode).
 
+**Feedback.** Users report something broken or an idea from the sidebar, optionally with a screenshot; the page, browser,
+screen size and the last errors the browser hit go along. Admins answer in an inbox under Settings (status and a reply the
+user sees), or let their agent do it over MCP (`list_feedback`, `update_feedback`). An optional ntfy ping says a report
+came in, without its content.
+
 | | |
 |---|---|
 | ![Heart-rate zones per sport and profile](docs/screenshots/zones.jpg) | ![Agent tokens with the MCP connector URL and the claude mcp add command](docs/screenshots/agents.jpg) |
@@ -191,6 +196,7 @@ Every push to your fork's `main` redeploys `web`.
 | `SYNC_IN_WEB` | web | no | `false` turns off the daily sync inside `web` (when you run the cron service instead) | `false` |
 | `TRAINING_USER`, `TRAINING_PASSWORD_HASH` | web | no | Alternative bootstrap: creates this admin on an empty database at startup, instead of registering in the browser. Ignored once any user exists | a bcrypt hash: `python -c "import bcrypt, getpass; print(bcrypt.hashpw(getpass.getpass().encode(), bcrypt.gensalt()).decode())"` |
 | `TRAINING_AGENT_TOKEN_HASH` | web | no | Legacy: SHA-256 of one agent token for the first admin. Prefer tokens created on the site | `tools/set_agent_token.py` |
+| `FEEDBACK_NTFY_URL` | web | no | An [ntfy](https://ntfy.sh) topic URL: a ping to your phone when someone sends feedback. Only the kind and a link go out, never the text | `https://ntfy.sh/<a long random topic>` |
 | `GARMINTOKENS` | sync | no | Legacy: an initial Garmin session for the first admin, used by the cron service if the stored one is missing or stale. Prefer connecting on the site | `tools/setup_garmin.py` |
 
 Never commit any of these; set them in Railway (or a git-ignored `.env.dev` locally).

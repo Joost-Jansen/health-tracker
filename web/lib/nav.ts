@@ -44,6 +44,7 @@ export const NAV: NavGroup[] = [
           tab("connections", "/settings/connections/"),
           tab("zones", "/settings/zones/"),
           tab("agents", "/settings/agents/"),
+          tab("feedback", "/settings/feedback/"),
           tab("admin", "/settings/admin/", true),
         ],
       },

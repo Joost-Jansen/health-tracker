@@ -1,3 +1,5 @@
+import { recordError } from "@/lib/recentErrors";
+
 // Thin fetch wrapper — always same-origin (`/api/...`), always sends the
 // httpOnly session cookie. In production Caddy routes /api/* straight to
 // the backend; under `next dev`, next.config.js rewrites it there instead.
@@ -24,6 +26,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status !== 401) recordError(`${res.status} ${body.code ?? res.statusText}`, { where: `${init?.method ?? "GET"} ${path.split("?")[0]}`, status: res.status });
     throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : res.statusText, body.code, body.params);
   }
   return res.json() as Promise<T>;

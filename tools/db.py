@@ -199,7 +199,25 @@ routes = Table(
     PrimaryKeyConstraint("user_id", "id"),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plan_links, plans, routes)
+feedback = Table(
+    # What users report from the site: something broken or an idea. Read by the admins (settings, MCP).
+    "feedback",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Integer, nullable=False, index=True),
+    Column("kind", String(10), nullable=False),  # bug | idea
+    Column("message", Text, nullable=False),
+    Column("page", String(300)),
+    Column("context", JSON),  # browser, screen, version, recent errors: what makes a report fixable
+    Column("screenshot", LargeBinary),
+    Column("screenshot_type", String(20)),
+    Column("status", String(10), nullable=False, default="new"),  # new | planned | fixed | wontfix
+    Column("reply", Text),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True)),
+)
+
+USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plan_links, plans, routes, feedback)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -476,6 +494,65 @@ def invite_usable(engine: Engine, code: str) -> bool:
 def delete_invite(engine: Engine, code: str) -> None:
     with engine.begin() as conn:
         conn.execute(delete(invites).where(invites.c.code == code))
+
+
+# --- feedback ----------------------------------------------------------------------------------------------------
+
+FEEDBACK_KINDS = ("bug", "idea")
+FEEDBACK_STATUSES = ("new", "planned", "fixed", "wontfix")
+
+
+def add_feedback(engine: Engine, user_id: int, kind: str, message: str, page: str | None, context: dict | None, screenshot: bytes | None = None, screenshot_type: str | None = None) -> int:
+    with engine.begin() as conn:
+        return conn.execute(
+            insert(feedback).values(user_id=user_id, kind=kind, message=message, page=page, context=context, screenshot=screenshot, screenshot_type=screenshot_type, status="new", created_at=_now())
+        ).inserted_primary_key[0]
+
+
+def _feedback_out(row) -> dict:
+    out = {k: row[k] for k in ("id", "user_id", "kind", "message", "page", "context", "status", "reply")}
+    out["has_screenshot"] = bool(row["has_screenshot"])
+    utc = lambda d: (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).isoformat() if d else None  # noqa: E731  (SQLite drops the zone)
+    out["created_at"] = utc(row["created_at"])
+    out["updated_at"] = utc(row["updated_at"])
+    if "username" in row:
+        out["username"] = row["username"]
+    return out
+
+
+def list_feedback(engine: Engine, user_id: int | None = None, status: str | None = None, limit: int = 200) -> list[dict]:
+    """Newest first, without the screenshot bytes. `user_id` None: everyone's, with the username (admins)."""
+    cols = [c for c in feedback.c if c.name != "screenshot"] + [feedback.c.screenshot.isnot(None).label("has_screenshot"), users.c.username]
+    q = select(*cols).join(users, users.c.id == feedback.c.user_id, isouter=True)
+    if user_id is not None:
+        q = q.where(feedback.c.user_id == user_id)
+    if status:
+        q = q.where(feedback.c.status == status)
+    with engine.connect() as conn:
+        return [_feedback_out(r) for r in conn.execute(q.order_by(feedback.c.id.desc()).limit(limit)).mappings()]
+
+
+def get_feedback(engine: Engine, feedback_id: int) -> dict | None:
+    cols = [c for c in feedback.c if c.name != "screenshot"] + [feedback.c.screenshot.isnot(None).label("has_screenshot"), users.c.username]
+    with engine.connect() as conn:
+        row = conn.execute(select(*cols).join(users, users.c.id == feedback.c.user_id, isouter=True).where(feedback.c.id == feedback_id)).mappings().first()
+    return _feedback_out(row) if row else None
+
+
+def feedback_screenshot(engine: Engine, feedback_id: int) -> tuple[int, bytes, str] | None:
+    """(owner user id, bytes, media type), or None."""
+    with engine.connect() as conn:
+        row = conn.execute(select(feedback.c.user_id, feedback.c.screenshot, feedback.c.screenshot_type).where(feedback.c.id == feedback_id)).first()
+    return (row[0], row[1], row[2] or "image/png") if row and row[1] else None
+
+
+def update_feedback(engine: Engine, feedback_id: int, **fields) -> bool:
+    """Set status and/or reply (None leaves a field as it is, "" clears the reply)."""
+    values = {k: v for k, v in fields.items() if k in ("status", "reply") and v is not None}
+    if "reply" in values:
+        values["reply"] = values["reply"].strip() or None
+    with engine.begin() as conn:
+        return conn.execute(update(feedback).where(feedback.c.id == feedback_id).values(**values, updated_at=_now())).rowcount > 0
 
 
 # --- agent tokens ------------------------------------------------------------------------------------------------

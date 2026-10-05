@@ -461,3 +461,19 @@ export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recove
 
 /** ActivitySummary with the flag for unreliable wrist heart rate (GET /api/activities, when the API includes it). */
 export type ActivitySummaryFlags = { hr_flags?: HrFlagReason[] };
+
+export type FeedbackStatus = "new" | "planned" | "fixed" | "wontfix";
+export type FeedbackItem = {
+  id: number;
+  user_id: number;
+  username?: string | null;
+  kind: "bug" | "idea";
+  message: string;
+  page: string | null;
+  context: { browser?: string; screen?: string; language?: string; theme?: string; version?: string | null; errors?: { message: string; where?: string; status?: number; at?: string }[] } | null;
+  status: FeedbackStatus;
+  reply: string | null;
+  has_screenshot: boolean;
+  created_at: string;
+  updated_at: string | null;
+};

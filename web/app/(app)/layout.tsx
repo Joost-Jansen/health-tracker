@@ -15,12 +15,14 @@ import { useAccountLocale, useT } from "@/lib/i18n";
 import type { Me } from "@/lib/training";
 import StartBanner, { useRecordVisit } from "@/components/onboarding/StartBanner";
 import Welcome from "@/components/onboarding/Welcome";
+import FeedbackDialog from "@/components/feedback/FeedbackDialog";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const t = useT();
   const [navOpen, setNavOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const me = useQuery({
     queryKey: ["me"],
     queryFn: () => api.get<Me>("/api/me"),
@@ -51,7 +53,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onOpen={() => setNavOpen(true)}
         onClose={() => setNavOpen(false)}
         footer={
-          <div className="flex items-center justify-between px-2 pb-1 text-xs leading-normal" style={{ color: "var(--text-on-ink-muted)" }}>
+          <div className="flex flex-col gap-2 px-2 pb-1 text-xs leading-normal" style={{ color: "var(--text-on-ink-muted)" }}>
+            <button
+              type="button"
+              className="self-start underline underline-offset-4"
+              onClick={() => {
+                setNavOpen(false);
+                setFeedbackOpen(true);
+              }}
+            >
+              {t.nav.feedback}
+            </button>
+            <div className="flex items-center justify-between">
             <span>{t.nav.loggedInAs(me.data.display_name || me.data.username)}</span>
             <button
               type="button"
@@ -63,6 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               {t.nav.logout}
             </button>
+            </div>
           </div>
         }
       />
@@ -89,6 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       {/* The first time: how you use the site, and the steps that go with it. */}
       <Welcome enabled />
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }

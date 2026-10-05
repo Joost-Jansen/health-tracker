@@ -134,6 +134,9 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
 | GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
 | POST/DELETE | `/api/admin/invites`, `/api/admin/invites/{code}` | invite codes (`{days}`) |
+| POST/GET | `/api/feedback` | send `{kind: bug\|idea, message, page?, context?, screenshot?: data URL}` (site login; 20 a day) / your own, with status and reply |
+| GET | `/api/feedback/{id}/screenshot` | its sender or an admin |
+| GET/PATCH | `/api/admin/feedback`, `/api/admin/feedback/{id}` | everyone's (`?status=`) / `{status?: new\|planned\|fixed\|wontfix, reply?}`; admins only. MCP: `list_feedback`, `update_feedback` for an admin's token |
 | GET | `/api/connections` | `{garmin: {connected, readable, connected_at, last_sync, last_failed, syncing}}` |
 | POST | `/api/connections/garmin` | `{email, password}` -> `{status: connected\|mfa}`; password only goes to Garmin, the session is stored encrypted |
 | POST | `/api/connections/garmin/mfa` | `{code}` (within 10 min) |

@@ -3,7 +3,7 @@
 Creates the user `demo` (display name "Demo") with about six months of made-up training: runs, rides and pool swims
 with per-second-ish streams (GPS around a few invented loops east of Utrecht, heart rate, pace, altitude), daily sleep
 and recovery values, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
-Afterwards it runs `tools/derive.py` so zone times and routes ("rondjes") exist, just like after a real sync.
+Afterwards it runs `tools/derive.py` so zone times and routes exist, just like after a real sync.
 Nothing here comes from a real person: every number is generated from a fixed random seed.
 
     DATABASE_URL=sqlite:///demo.db python scripts/seed_demo.py              # prints a generated password
@@ -261,19 +261,19 @@ def run_workout(kind: str, km: float, fitness: float, rnd: random.Random) -> lis
                 Segment(2000, easy, zone_hr("run", 2))]
     if kind == "race":
         return [Segment(km * 1000, pace(4.62 - 0.2 * fitness if km > 15 else 4.3 - 0.2 * fitness), zone_hr("run", 4) + 2)]
-    if kind == "herstel":
+    if kind == "recovery":
         return [Segment(km * 1000, easy * 0.93, zone_hr("run", 1) + 4)]
     return [Segment(km * 1000, easy, zone_hr("run", 2) - 1)]
 
 
 # Weekly pattern: (weekday, sport, kind, distance km in the base phase, in the build phase, zone, description)
 WEEK = [
-    (1, "run", "interval", 9, 11, "Z4", "5 x 1 km op 10 km-tempo, 400 m dribbelen"),
-    (2, "run", "duurloop", 7, 9, "Z2", "Rustige duurloop"),
-    (3, "swim", "techniek", 1.8, 2.2, "Z2", "Zwemmen: techniek en 4 x 200 m"),
-    (4, "run", "herstel", 5, 6, "Z1", "Herstelloop, heel rustig"),
-    (5, "ride", "duurrit", 45, 55, "Z2", "Duurrit op de fiets"),
-    (6, "run", "lange duurloop", 13, 16, "Z2", "Lange duurloop"),
+    (1, "run", "interval", 9, 11, "Z4", "5 x 1 km at 10K pace, 400 m jog"),
+    (2, "run", "easy run", 7, 9, "Z2", "Easy run"),
+    (3, "swim", "technique", 1.8, 2.2, "Z2", "Swim: technique and 4 x 200 m"),
+    (4, "run", "recovery", 5, 6, "Z1", "Recovery run, very easy"),
+    (5, "ride", "endurance ride", 45, 55, "Z2", "Endurance ride"),
+    (6, "run", "long run", 13, 16, "Z2", "Long run"),
 ]
 
 
@@ -290,7 +290,7 @@ def plan_sessions(plan_start: date, race: date) -> list[dict]:
             if day > race:
                 continue
             km = build * (1 + 0.04 * w)
-            if kind == "lange duurloop":
+            if kind == "long run":
                 km = min(32, 16 + 1.5 * w)
             elif sport == "run":
                 km = min(km, 12)  # the quality sessions and easy runs stay short; the long run carries the build
@@ -304,8 +304,8 @@ def plan_sessions(plan_start: date, race: date) -> list[dict]:
                 continue
             if sport == "run":
                 km = nearest(RUN_LOOPS, km).km  # the plan picks one of the regular loops
-                if kind == "lange duurloop" and km >= 25:
-                    desc = f"Lange duurloop {km:g} km, laatste 3 km op marathontempo"
+                if kind == "long run" and km >= 25:
+                    desc = f"Long run {km:g} km, last 3 km at marathon pace"
             elif sport == "ride":
                 km = nearest(RIDE_LOOPS, km).km
             if sport == "swim":
@@ -316,9 +316,9 @@ def plan_sessions(plan_start: date, race: date) -> list[dict]:
         if w % 3 == 2 and taper > 2:  # every third week the Wednesday easy run becomes a tempo run
             for s in out:
                 if s["date"] == (monday + timedelta(days=2)).isoformat():
-                    s.update(kind="tempo", target_zone="Z3", description="Tempoloop: 2 km in, rest op drempeltempo, 2 km uit")
-    out.append({"date": race.isoformat(), "sport": "run", "kind": "wedstrijd", "distance_km": 42.2, "target_zone": "Z3",
-                "description": "Marathon: eerste helft op 5:00/km, daarna op gevoel"})
+                    s.update(kind="tempo", target_zone="Z3", description="Tempo run: 2 km warm-up, the rest at threshold pace, 2 km cool-down")
+    out.append({"date": race.isoformat(), "sport": "run", "kind": "race", "distance_km": 42.2, "target_zone": "Z3",
+                "description": "Marathon: first half at 5:00/km, then by feel"})
     return out
 
 
@@ -329,34 +329,34 @@ def _local(day: date, hh: int, mm: int) -> datetime:
     return datetime.combine(day, time(hh, mm), tzinfo=TZ)
 
 
-PROFILE = """# Profiel
+PROFILE = """# Profile
 
-Demo-atleet (synthetische data, geen echt persoon).
+Demo athlete (synthetic data, not a real person).
 
-- Loopt sinds een paar jaar, fietst en zwemt ernaast voor de afwisseling.
-- Traint 5 tot 6 keer per week: 4 keer lopen, 1 keer fietsen, 1 keer zwemmen.
-- Doordeweeks 's avonds, in het weekend 's ochtends.
-- Geen blessures op dit moment.
+- Has been running for a few years; rides and swims on the side for variety.
+- Trains 5 to 6 times a week: 4 runs, 1 ride, 1 swim.
+- Weekday evenings, weekend mornings.
+- No injuries at the moment.
 """
 
-GOALS = """# Doelen
+GOALS = """# Goals
 
-1. **Marathon onder 3:30** ({race}).
-2. Halve marathon onder 1:40 (gelukt: {half}).
-3. Elke week minstens 80% van de tijd in Z1-Z2.
+1. **Marathon under 3:30** ({race}).
+2. Half marathon under 1:40 (done: {half}).
+3. At least 80% of the time in Z1-Z2 every week.
 """
 
-ANALYSIS = """| | Waarde |
+ANALYSIS = """| | Value |
 |---|---|
-| Tijd | {time} |
-| Gemiddeld tempo | {pace}/km |
-| Gemiddelde hartslag | {hr} bpm |
+| Time | {time} |
+| Average pace | {pace}/km |
+| Average heart rate | {hr} bpm |
 
-**Observatie.** Vlak gelopen; de hartslag liep in de tweede helft 5 tot 6 slagen op bij hetzelfde tempo.
+**Observation.** Evenly paced; in the second half the heart rate rose 5 to 6 beats at the same pace.
 
-**Interpretatie.** Het aerobe fundament is goed, maar de drift laat zien dat de duurlopen boven 25 km nog ontbreken.
+**Interpretation.** The aerobic base is good, but the drift shows that runs over 25 km are still missing.
 
-**Advies.** Lange duurloop elke week 1,5 km langer, tot 32 km drie weken voor de marathon. Tempo blijft Z2.
+**Advice.** Make the long run 1.5 km longer every week, up to 32 km three weeks before the marathon. Pace stays Z2.
 """
 
 
@@ -395,22 +395,22 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
         wd = day.weekday()
         todo: list[tuple[str, str, float, str]] = []  # sport, kind, km, name
         if day == half:
-            todo = [("run", "race", 21.1, "Halve marathon")]
+            todo = [("run", "race", 21.1, "Half marathon")]
         elif day == ten_k:
-            todo = [("run", "race", 10.0, "10 km wedstrijd")]
+            todo = [("run", "race", 10.0, "10 km race")]
         elif day >= plan_start:
             for (d, sport), x in planned.items():
                 if d == day.isoformat() and day < end + timedelta(days=1):
                     km = x.get("distance_km") or 2.0
-                    label = {"interval": "Intervaltraining", "tempo": "Tempoloop", "herstel": "Herstelloop", "lange duurloop": "Lange duurloop",
-                             "duurloop": "Duurloop", "duurrit": "Duurrit", "techniek": "Zwemmen"}.get(x["kind"], x["kind"].capitalize())
+                    label = {"interval": "Interval training", "tempo": "Tempo run", "recovery": "Recovery run", "long run": "Long run",
+                             "easy run": "Easy run", "endurance ride": "Endurance ride", "technique": "Swim"}.get(x["kind"], x["kind"].capitalize())
                     todo.append((sport, x["kind"], km, label))
         else:
             for w, sport, kind, base, _build, _zone, _desc in WEEK:
                 if w == wd:
                     km = base * (0.9 + 0.2 * fitness)
-                    label = {"interval": "Intervaltraining", "herstel": "Herstelloop", "lange duurloop": "Lange duurloop", "duurloop": "Duurloop",
-                             "duurrit": "Duurrit", "techniek": "Zwemmen"}[kind]
+                    label = {"interval": "Interval training", "recovery": "Recovery run", "long run": "Long run", "easy run": "Easy run",
+                             "endurance ride": "Endurance ride", "technique": "Swim"}[kind]
                     todo.append((sport, kind, km, label))
         if day == end:
             todo = []  # today: nothing done yet, so the dashboard shows today's session as planned
@@ -422,13 +422,13 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
             when = _local(day, 18 if evening else 9, rnd.choice((0, 5, 10, 20, 30, 40)))
             if sport == "run":
                 lap = 1000
-                kind_for_sim = "race" if kind == "race" else "lange" if kind == "lange duurloop" else kind
+                kind_for_sim = "race" if kind == "race" else "long" if kind == "long run" else kind
                 loop = nearest(RUN_LOOPS, km)
                 if kind == "race":
                     when = _local(day, 10 if km > 15 else 11, 0)
                 else:
                     km = loop.km
-                segs = run_workout("duurloop" if kind_for_sim == "lange" else kind_for_sim, km, fitness, rnd)
+                segs = run_workout("easy run" if kind_for_sim == "long" else kind_for_sim, km, fitness, rnd)
                 step = 2
             elif sport == "ride":
                 lap, step = 5000, 3
@@ -436,15 +436,15 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
                 km = loop.km
                 v = (26.5 + 2.5 * fitness + rnd.uniform(-1, 1)) / 3.6
                 segs = [Segment(km * 1000, v, zone_hr("ride", 2))]
-                name = "Duurrit"
+                name = "Endurance ride"
             else:
                 lap, step, loop = 100, 5, None
                 metres = 1800 + 400 * fitness + rnd.choice((0, 100, 200))
                 v = 100 / (118 - 10 * fitness)
                 segs = [Segment(400, v * 0.92, zone_hr("swim", 1) + 4), Segment(metres - 600, v, zone_hr("swim", 2)), Segment(200, v * 0.9, zone_hr("swim", 1) + 6)]
-                name = "Zwemmen (binnenbad)"
+                name = "Pool swim"
             streams = simulate(sport, segs, loop, rnd, step)
-            vo2 = 49 + 4 * fitness + rnd.uniform(-0.6, 0.6) if sport == "run" and kind != "herstel" else None
+            vo2 = 49 + 4 * fitness + rnd.uniform(-0.6, 0.6) if sport == "run" and kind != "recovery" else None
             rec = record(sport, when, name, streams, gid, vo2, lap)
             db.upsert_activity(s, rec)
             count += 1
@@ -484,25 +484,25 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
     db.put_document(s, "profile", PROFILE, USERNAME)
     db.put_document(s, "goals", GOALS.format(race=race.isoformat(), half=half.isoformat()), USERNAME)
     pid = db.create_plan(
-        s, "Marathon in 16 weken", USERNAME, goal="Marathon onder 3:30", race=f"Marathon, {race.isoformat()}",
-        notes="Opbouw in blokken van vier weken: drie weken meer, een week minder. De lange duurloop groeit naar 32 km; "
-              "de laatste twee weken zijn taper. Intervaltraining op dinsdag, tempo om de drie weken op woensdag.",
+        s, "Marathon in 16 weeks", USERNAME, goal="Marathon under 3:30", race=f"Marathon, {race.isoformat()}",
+        notes="Built in four-week blocks: three weeks up, one week down. The long run grows to 32 km; "
+              "the last two weeks are the taper. Intervals on Tuesday, a tempo run every third Wednesday.",
     )
     db.add_sessions(s, pid, sessions)
     if half_result:
-        db.add_entry(s, "analysis", "Halve marathon: terugblik", ANALYSIS.format(
+        db.add_entry(s, "analysis", "Half marathon: review", ANALYSIS.format(
             time=f"{half_time // 3600}:{half_time % 3600 // 60:02d}:{half_time % 60:02d}", pace=f"{half_pace // 60}:{half_pace % 60:02d}",
             hr=half_result["avg_hr"]), "agent", day=(half + timedelta(days=1)).isoformat())
-    db.add_entry(s, "log", "Start marathonschema", "- Vraag: schema voor een marathon onder 3:30\n- Data: 4 keer lopen per week, lange duurloop 14 km\n"
-                 "- Besluit: 16 weken, opbouw in blokken van 4, zie Schema", "agent", day=plan_start.isoformat())
-    db.add_entry(s, "log", "Weekevaluatie", "- Vraag: hoe ging deze week?\n- Data: 82% in Z1-Z2, rusthartslag stabiel\n"
-                 "- Advies: zo doorgaan; zaterdag de rit iets korter voor de lange duurloop", "agent", day=(end - timedelta(days=2)).isoformat())
-    db.add_entry(s, "log", "Zware benen na intervallen", "Kuiten stijf na de 1000-en. Morgen herstelloop in plaats van duurloop.", USERNAME,
+    db.add_entry(s, "log", "Marathon plan started", "- Question: a plan for a marathon under 3:30\n- Data: running 4 times a week, long run 14 km\n"
+                 "- Decision: 16 weeks, built in blocks of 4, see Plan", "agent", day=plan_start.isoformat())
+    db.add_entry(s, "log", "Weekly review", "- Question: how did this week go?\n- Data: 82% in Z1-Z2, resting heart rate stable\n"
+                 "- Advice: keep going; make Saturday's ride a bit shorter before the long run", "agent", day=(end - timedelta(days=2)).isoformat())
+    db.add_entry(s, "log", "Heavy legs after intervals", "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.", USERNAME,
                  day=(end - timedelta(days=9)).isoformat())
 
     derived = derive(s)
-    run_names = ("Kort rondje", "Parkrondje", "Langs de rivier", "Grote ronde", "Halvemarathonronde", "Lange ronde", "Dertig")
-    ride_names = ("Polderronde", "Plassenronde", "Dijkenronde")
+    run_names = ("Short loop", "Park loop", "Along the river", "Big loop", "Half marathon loop", "Long loop", "Thirty")
+    ride_names = ("Polder loop", "Lakes loop", "Dike loop")
     names = {"run": {lp.km: n for lp, n in zip(RUN_LOOPS, run_names)}, "ride": {lp.km: n for lp, n in zip(RIDE_LOOPS, ride_names)}}
     routes = db.load_routes(s)
     for r in routes:

@@ -178,3 +178,32 @@ def test_a_refused_summary_does_not_refresh_the_token():
     with pytest.raises(wahoo.WahooError):
         c.summary(7)
     assert not any(call[0] == "POST-data" for call in http.calls) and c.tokens()["access_token"] == "a1"
+
+
+def test_a_file_that_does_not_download_is_skipped_and_retried_next_sync():
+    e = db.connect("sqlite://")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+
+    class Flaky(FakeWahoo):
+        fail = {2}
+
+        def download(self, url):
+            if int(url.split("/")[-1].split(".")[0]) in self.fail:
+                raise wahoo.WahooError("FIT download: HTTP 504")
+            return super().download(url)
+
+    client, state = Flaky(WORKOUTS), {}
+    assert wahoo.sync_wahoo(s, client, state, date(2026, 10, 5), read_activity=lambda b: RIDES[b]) == 1
+    assert state["wahoo"]["last_workout_day"] == "2026-09-20" and state["wahoo"]["failed"] == {"2": 1}
+    client.fail = set()
+    assert wahoo.sync_wahoo(s, client, state, date(2026, 10, 5), read_activity=lambda b: RIDES[b]) == 2
+    assert state["wahoo"]["last_workout_day"] == "2026-10-02" and state["wahoo"]["failed"] == {}
+    assert {a["fit_file"] for a in db.load_activities(s)} == {"wahoo_api/3", "wahoo_api/2"}
+
+
+def test_download_tries_three_times_on_a_server_error():
+    http = Http({("GET", "https://cdn/x.fit"): [Resp(504), Resp(502), Resp(200, None, b"fit")]})
+    slept = []
+    c = wahoo.WahooClient({"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000, sleep=slept.append)
+    assert c.download("https://cdn/x.fit") == b"fit" and slept == [2, 4]

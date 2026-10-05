@@ -72,11 +72,12 @@ def exchange_code(code: str, redirect_uri: str, creds: tuple[str, str], http=req
 
 
 class WahooClient:
-    def __init__(self, tokens: dict, creds: tuple[str, str], http=requests, now=time.time):
+    def __init__(self, tokens: dict, creds: tuple[str, str], http=requests, now=time.time, sleep=time.sleep):
         self._t = dict(tokens)
         self.creds = creds
         self.http = http
         self.now = now
+        self.sleep = sleep
 
     def tokens(self) -> dict:
         return dict(self._t)
@@ -113,10 +114,21 @@ class WahooClient:
         return self._request("GET", f"/v1/workouts/{workout_id}/workout_summary", refresh_on_401=False)
 
     def download(self, url: str) -> bytes:
-        r = self.http.get(url, timeout=TIMEOUT_S * 2)
-        if r.status_code != 200:
-            raise WahooError(f"FIT download: HTTP {r.status_code}")
-        return r.content
+        """The FIT file; Wahoo's file server answers a 5xx now and then, so up to three tries."""
+        for attempt in range(3):
+            if attempt:
+                self.sleep(2 * attempt)
+            try:
+                r = self.http.get(url, timeout=TIMEOUT_S * 2)
+            except requests.RequestException as err:
+                status = type(err).__name__
+                continue
+            if r.status_code == 200:
+                return r.content
+            status = f"HTTP {r.status_code}"
+            if r.status_code < 500:
+                break
+        raise WahooError(f"FIT download: {status}")
 
     def deauthorize(self) -> None:
         """Revoke this app's access at Wahoo (DELETE /v1/permissions)."""
@@ -146,6 +158,8 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
     else:
         cutoff = today - timedelta(days=FIRST_SYNC_DAYS)
     count, newest, page = 0, w.get("last_workout_day"), 1
+    tries = w.setdefault("failed", {})  # workout id -> failed downloads; retried by the next syncs, three times at most
+    retry_from = None
     while True:
         data = client.workouts(page)
         items = data.get("workouts") or []
@@ -168,8 +182,16 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
             key = f"{SOURCE}/{wo['id']}"
             fit = db.get_fit(s, key)
             if fit is None:
-                fit = client.download(url)
+                try:
+                    fit = client.download(url)
+                except WahooError as err:  # one file not coming in does not stop the rest
+                    n = tries[str(wo["id"])] = tries.get(str(wo["id"]), 0) + 1
+                    print(f"wahoo: workout {wo['id']} niet gedownload, poging {n} ({err})")
+                    if n < 3:
+                        retry_from = min(retry_from or day, day)
+                    continue
                 db.put_fit(s, key, fit)
+                tries.pop(str(wo["id"]), None)
             try:
                 activity = read_activity(fit)
             except ValueError as err:
@@ -187,4 +209,6 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
         page += 1
     if newest:
         w["last_workout_day"] = newest
+    if retry_from:  # the next sync looks back to the oldest workout whose file did not come in
+        w["last_workout_day"] = min(w.get("last_workout_day") or retry_from, retry_from)
     return count

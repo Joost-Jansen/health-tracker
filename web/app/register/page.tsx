@@ -73,7 +73,10 @@ function RegisterForm() {
       <p className="text-[12.5px] text-ink-muted">
         {t.auth.haveAccount} <Link href="/login/" className="underline underline-offset-2">{t.auth.login}</Link>
       </p>
-      <LanguageSwitch />
+      <div className="flex flex-wrap items-center gap-4">
+          <LanguageSwitch />
+          <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">{t.auth.privacy}</Link>
+        </div>
     </form>
   );
 }

@@ -57,7 +57,10 @@ export default function LoginPage() {
             <Link href="/register/" className="underline underline-offset-2">{config.data.first_user ? t.auth.createFirst : t.auth.createAccount}</Link>
           </p>
         )}
-        <LanguageSwitch />
+        <div className="flex flex-wrap items-center gap-4">
+          <LanguageSwitch />
+          <Link href="/privacy/" className="text-[12.5px] text-ink-muted underline underline-offset-2">{t.auth.privacy}</Link>
+        </div>
       </form>
     </main>
   );

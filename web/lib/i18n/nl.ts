@@ -109,6 +109,66 @@ export const nl = {
     passwordHint: "Minimaal 10 tekens.",
     invite: "Uitnodigingscode",
     haveAccount: "Al een account?",
+    privacy: "Privacy",
+  },
+
+  /** Public privacy statement (app/privacy). Generic: the same code runs for whoever hosts an installation. */
+  privacy: {
+    title: "Privacy",
+    updated: "Laatst bijgewerkt op 5 oktober 2026.",
+    intro: "health-tracker is een persoonlijk trainingsdashboard: je trainingen, slaap en herstel, je schema en je logboek. Deze installatie wordt beheerd door degene die hem host (\u201cde beheerder\u201d). Hieronder staat welke gegevens de app gebruikt, waarvoor, en wat je ermee kunt.",
+    sections: [
+      {
+        title: "Welke gegevens",
+        text: "",
+        items: [
+          "Je account: gebruikersnaam, eventueel een weergavenaam, je taal, en je wachtwoord, dat alleen als hash wordt bewaard.",
+          "Als je Garmin koppelt: je activiteiten (sport, tijden, afstand, hartslag, snelheid, hoogte, cadans en vermogen, GPS-route en het originele FIT-bestand) en je herstel per dag (slaap, rusthartslag, Body Battery, stress, stappen). Je Garmin-wachtwoord wordt alleen gebruikt om één keer in te loggen en niet bewaard; de sessie die Garmin teruggeeft wordt versleuteld opgeslagen.",
+          "Als je Wahoo koppelt: je afgeronde workouts en hun FIT-bestand, alleen-lezen. De app schrijft niets terug naar Wahoo.",
+          "Wat je zelf uploadt of invult: FIT-bestanden van andere apparaten, je hartslagzones, profielgegevens (geboortejaar, gewicht, lengte, rusthartslag), doelen, trainingsschema's, logboek en analyses.",
+          "Als je een AI-assistent koppelt: een agent-token, waarvan alleen een hash wordt bewaard.",
+        ],
+      },
+      {
+        title: "Waarvoor",
+        text: "Alleen om jou je eigen overzicht te tonen: je trainingen, zones, belasting en vorm, trends, rondjes en schema. Gezondheidsgegevens zoals hartslag en slaap gebruikt de app uitsluitend daarvoor, op jouw verzoek. Geen advertenties, geen profilering. Gegevens worden niet verkocht en niet gedeeld met anderen dan hieronder genoemd.",
+        items: [],
+      },
+      {
+        title: "Waar en wie erbij kan",
+        text: "Alle gegevens staan in de database van deze installatie, per gebruiker gescheiden: andere gebruikers kunnen jouw gegevens niet zien. De beheerder heeft als host technisch toegang tot de server.",
+        items: [],
+      },
+      {
+        title: "Andere partijen",
+        text: "",
+        items: [
+          "Garmin en Wahoo, als je ze koppelt: daar haalt de app je eigen gegevens op, met jouw toestemming. Ontkoppelen kan in de app; de toegang intrekken kan ook bij Garmin of Wahoo zelf.",
+          "Een AI-assistent die je zelf koppelt (bijvoorbeeld Claude via MCP): die ziet de gegevens die hij met jouw token opvraagt, onder de voorwaarden van die aanbieder. Een token trek je in onder Instellingen, Agents.",
+          "OpenStreetMap levert de kaarttegels; daarbij ziet de kaartserver welk gebied je bekijkt, niet je trainingen.",
+          "De hostingpartij waarop deze installatie draait.",
+        ],
+      },
+      {
+        title: "Hoe lang",
+        text: "Tot je ze verwijdert of je account laat verwijderen. Een koppeling met Garmin of Wahoo ontkoppelen wist de opgeslagen toegang; de gegevens die al binnen zijn blijven staan tot je account wordt verwijderd.",
+        items: [],
+      },
+      {
+        title: "Wat je kunt doen",
+        text: "",
+        items: [
+          "Koppelingen en agent-tokens beheer en verwijder je zelf onder Instellingen.",
+          "Voor inzage, correctie, een export of het verwijderen van je account met alle bijbehorende gegevens neem je contact op met de beheerder van deze installatie.",
+        ],
+      },
+      {
+        title: "Beveiliging",
+        text: "De verbinding loopt via HTTPS. Wachtwoorden en agent-tokens worden alleen als hash bewaard, de sessies bij Garmin en Wahoo versleuteld, en elke vraag aan de app ziet alleen de gegevens van wie hem stelt.",
+        items: [],
+      },
+    ],
+    login: "Inloggen",
   },
 
   /** Error codes of the API (api/errors.py), with the same parameters. */

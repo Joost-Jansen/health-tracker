@@ -119,6 +119,65 @@ export const en: Messages = {
     passwordHint: "At least 10 characters.",
     invite: "Invite code",
     haveAccount: "Already have an account?",
+    privacy: "Privacy",
+  },
+
+  privacy: {
+    title: "Privacy",
+    updated: "Last updated on 5 October 2026.",
+    intro: "health-tracker is a personal training dashboard: your workouts, sleep and recovery, your plan and your log. This installation is run by whoever hosts it (\u201cthe administrator\u201d). Below is what data the app uses, what for, and what you can do about it.",
+    sections: [
+      {
+        title: "What data",
+        text: "",
+        items: [
+          "Your account: username, an optional display name, your language, and your password, stored only as a hash.",
+          "If you connect Garmin: your activities (sport, times, distance, heart rate, speed, altitude, cadence and power, GPS track and the original FIT file) and your daily recovery (sleep, resting heart rate, Body Battery, stress, steps). Your Garmin password is used once to log in and is not stored; the session Garmin returns is stored encrypted.",
+          "If you connect Wahoo: your completed workouts and their FIT files, read-only. The app writes nothing back to Wahoo.",
+          "What you upload or enter yourself: FIT files from other devices, your heart-rate zones, profile data (birth year, weight, height, resting heart rate), goals, training plans, log and analyses.",
+          "If you connect an AI assistant: an agent token, of which only a hash is stored.",
+        ],
+      },
+      {
+        title: "What for",
+        text: "Only to show you your own overview: your workouts, zones, load and form, trends, routes and plan. Health data such as heart rate and sleep is used for that alone, at your request. No ads, no profiling. Data is not sold and not shared with anyone other than listed below.",
+        items: [],
+      },
+      {
+        title: "Where, and who can see it",
+        text: "All data is in this installation's database, separated per user: other users cannot see your data. As the host, the administrator has technical access to the server.",
+        items: [],
+      },
+      {
+        title: "Other parties",
+        text: "",
+        items: [
+          "Garmin and Wahoo, if you connect them: the app fetches your own data there, with your permission. You can disconnect in the app, or revoke access at Garmin or Wahoo themselves.",
+          "An AI assistant you connect yourself (for example Claude over MCP): it sees the data it requests with your token, under that provider's terms. Revoke a token under Settings, Agents.",
+          "OpenStreetMap provides the map tiles; its tile server sees which area you are viewing, not your workouts.",
+          "The hosting provider this installation runs on.",
+        ],
+      },
+      {
+        title: "How long",
+        text: "Until you delete it or have your account deleted. Disconnecting Garmin or Wahoo removes the stored access; data that already came in stays until your account is deleted.",
+        items: [],
+      },
+      {
+        title: "What you can do",
+        text: "",
+        items: [
+          "Manage and remove connections and agent tokens yourself under Settings.",
+          "For access, correction, an export, or deleting your account with all its data, contact the administrator of this installation.",
+        ],
+      },
+      {
+        title: "Security",
+        text: "The connection uses HTTPS. Passwords and agent tokens are stored only as hashes, the Garmin and Wahoo sessions encrypted, and every request to the app sees only the data of whoever makes it.",
+        items: [],
+      },
+    ],
+    login: "Log in",
   },
 
   errors: {

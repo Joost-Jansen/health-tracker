@@ -635,6 +635,11 @@ def upsert_activity(s: Scope, record: dict) -> str:
         match = _find_match(conn, s, record)
         if new_streams:
             owner = ((match or {}).get("data") or {}).get("owners", {}).get("streams")
+            if match and not owner:
+                # stored before owners were kept: streams already there came from the best of its other sources
+                has = conn.execute(select(streams.c.activity_id).where(streams.c.user_id == uid, streams.c.activity_id == match["id"])).first()
+                others = [k for k in (match["data"] or {}).get("sources", {}) if k != src]
+                owner = min(others, key=_rank) if has and others else None
             if match and owner and owner != src and _rank(owner) < _rank(src):
                 new_streams = None  # a higher-priority source already gave the streams
         if match is None:
@@ -717,6 +722,12 @@ def remove_source(s: Scope, source: str) -> dict:
             changed += 1
         conn.execute(delete(fit_files).where(fit_files.c.user_id == uid, fit_files.c.activity_id.like(f"{source}/%")))
     return {"removed": removed, "changed": changed}
+
+
+def get_activity(s: Scope, aid: str) -> dict | None:
+    with s.engine.connect() as conn:
+        data = conn.execute(select(activities.c.data).where(activities.c.user_id == s.user_id, activities.c.id == aid)).scalar_one_or_none()
+    return dict(data, id=aid) if data is not None else None
 
 
 def set_derived(s: Scope, aid: str, **fields) -> None:

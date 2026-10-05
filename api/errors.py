@@ -47,7 +47,8 @@ MESSAGES: dict[str, str] = {
     "garmin_rate_limited": "Garmin laat even geen nieuwe inlog toe (te veel pogingen). Probeer het over een kwartier opnieuw.",
     "garmin_failed": "Inloggen bij Garmin lukte niet. Probeer het later opnieuw.",
     "mfa_expired": "de MFA-stap is verlopen; log opnieuw in bij Garmin",
-    "garmin_not_connected": "koppel eerst Garmin",
+    "garmin_not_connected": "koppel eerst Garmin of Wahoo",
+    "wahoo_not_configured": "de server heeft geen Wahoo-app (WAHOO_CLIENT_ID en WAHOO_CLIENT_SECRET)",
     # zones and profile (api/settings_api.py)
     "zone_percentages": "vier oplopende percentages tussen 40 en 100",
     "unknown_sport": "onbekende sport {sport}",

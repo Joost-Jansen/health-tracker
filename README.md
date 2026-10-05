@@ -197,6 +197,8 @@ Every push to your fork's `main` redeploys `web`.
 | `TRAINING_USER`, `TRAINING_PASSWORD_HASH` | web | no | Alternative bootstrap: creates this admin on an empty database at startup, instead of registering in the browser. Ignored once any user exists | a bcrypt hash: `python -c "import bcrypt, getpass; print(bcrypt.hashpw(getpass.getpass().encode(), bcrypt.gensalt()).decode())"` |
 | `TRAINING_AGENT_TOKEN_HASH` | web | no | Legacy: SHA-256 of one agent token for the first admin. Prefer tokens created on the site | `tools/set_agent_token.py` |
 | `FEEDBACK_NTFY_URL` | web | no | An [ntfy](https://ntfy.sh) topic URL: a ping to your phone when someone sends feedback. Only the kind and a link go out, never the text | `https://ntfy.sh/<a long random topic>` |
+| `WAHOO_CLIENT_ID`, `WAHOO_CLIENT_SECRET` | web, sync | for Wahoo | The app from Wahoo's developer portal (scopes `workouts_read offline_data user_read`). Without them the Wahoo card says it is not set up | developers.wahooligan.com |
+| `WAHOO_REDIRECT_URI` | web | no | The callback registered at Wahoo; default: this server's `/api/connections/wahoo/callback` | `https://<your-app>/api/connections/wahoo/callback` |
 | `GARMINTOKENS` | sync | no | Legacy: an initial Garmin session for the first admin, used by the cron service if the stored one is missing or stale. Prefer connecting on the site | `tools/setup_garmin.py` |
 
 Never commit any of these; set them in Railway (or a git-ignored `.env.dev` locally).

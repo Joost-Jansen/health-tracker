@@ -1,4 +1,9 @@
-"""Connections (T19, "Koppelingen" in the Dutch UI): each user connects their own Garmin account on the site.
+"""Connections (T19, "Koppelingen" in the Dutch UI): each user connects their own Garmin and Wahoo accounts on the site.
+
+Wahoo uses its official OAuth: /wahoo/start gives the Wahoo login URL with a one-time state, Wahoo sends the browser
+back to /wahoo/callback, the tokens are stored encrypted and the first sync fetches the past year (tools/wahoo.py).
+Disconnecting revokes the access at Wahoo and removes what came in through it.
+
 
 The user types Garmin e-mail and password (and the MFA code when Garmin asks for one). The server logs in once and keeps
 only the encrypted session (`settings.garmin_tokens`, tools/secretbox.py); the password is never stored. Garmin has no
@@ -12,14 +17,22 @@ import time
 from datetime import date
 from typing import Callable
 
-from fastapi import APIRouter, Depends
+import os
+import secrets
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from api.errors import MESSAGES, ApiError
-from tools import db
+from tools import db, wahoo
+from tools.derive import derive
 from tools.secretbox import WrongKey, decrypt, encrypt
+from tools.sync import end_wahoo
 
 MFA_TTL_S = 10 * 60
+WAHOO_STATE_TTL_S = 15 * 60
+WAHOO_DONE = "/settings/connections/"
 FIRST_SYNC_DAYS = 365
 
 
@@ -74,8 +87,20 @@ class MfaCode(BaseModel):
     code: str
 
 
+def _readable(stored: str | None, key: str) -> bool | None:
+    if not (stored and key):
+        return None
+    try:
+        decrypt(stored, key)
+        return True
+    except WrongKey:
+        return False
+
+
 def status(scope: db.Scope, key: str, running: bool) -> dict:
     stored = db.get_setting(scope, "garmin_tokens")
+    stored_wahoo = db.get_setting(scope, wahoo.TOKENS_KEY)
+    wahoo_state = (db.get_setting(scope, "sync_state") or {}).get("wahoo") or {}
     key_ok = None
     if stored and key:
         try:
@@ -92,7 +117,15 @@ def status(scope: db.Scope, key: str, running: bool) -> dict:
             "last_sync": state.get("last_sync_local"),
             "last_failed": state.get("last_failed") or [],
             "syncing": running,
-        }
+        },
+        "wahoo": {
+            "available": wahoo.credentials() is not None,  # the server has a Wahoo app (WAHOO_CLIENT_ID/SECRET)
+            "connected": bool(stored_wahoo),
+            "readable": _readable(stored_wahoo, key),
+            "connected_at": (db.get_setting(scope, "wahoo_meta") or {}).get("connected_at"),
+            "last_workout_day": wahoo_state.get("last_workout_day"),
+            "failed": "wahoo" in (state.get("last_failed") or []),
+        },
     }
 
 
@@ -153,9 +186,65 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
         db.delete_setting(u.scope, "garmin_meta")
         return {"ok": True}
 
+    wahoo_states: dict[int, tuple[float, str]] = {}  # user id -> (time, state) of a Wahoo login under way
+
+    def wahoo_redirect_uri(request: Request) -> str:
+        return os.environ.get("WAHOO_REDIRECT_URI") or str(request.url_for("wahoo_callback"))
+
+    @r.get("/wahoo/start")
+    def wahoo_start(request: Request, u=Depends(person)):
+        creds = wahoo.credentials()
+        if not creds:
+            raise ApiError(503, "wahoo_not_configured")
+        if not key:
+            raise ApiError(500, "no_encryption_key")
+        state = secrets.token_urlsafe(24)
+        with guard:
+            wahoo_states[u.id] = (time.monotonic(), state)
+        return {"url": wahoo.authorize_url(creds[0], wahoo_redirect_uri(request), state)}
+
+    @r.get("/wahoo/callback", name="wahoo_callback")
+    def wahoo_callback(request: Request, code: str = "", state: str = "", error: str = "", u=Depends(person)):
+        """Wahoo sends the browser here after the login; back to the Connections page with ?wahoo=connected|<error>."""
+        with guard:
+            item = wahoo_states.pop(u.id, None)
+        if error:
+            return RedirectResponse(f"{WAHOO_DONE}?wahoo=denied", status_code=303)
+        if not item or time.monotonic() - item[0] > WAHOO_STATE_TTL_S or not secrets.compare_digest(item[1], state) or not code:
+            return RedirectResponse(f"{WAHOO_DONE}?wahoo=expired", status_code=303)
+        creds = wahoo.credentials()
+        if not creds or not key:
+            return RedirectResponse(f"{WAHOO_DONE}?wahoo=failed", status_code=303)
+        try:
+            tokens = wahoo.exchange_code(code, wahoo_redirect_uri(request), creds)
+        except Exception:
+            return RedirectResponse(f"{WAHOO_DONE}?wahoo=failed", status_code=303)
+        wahoo.save_tokens(u.scope, tokens, key)
+        db.set_setting(u.scope, "wahoo_meta", {"connected_at": time.strftime("%Y-%m-%d %H:%M")})
+        runner.start_user(u.id)  # the first Wahoo sync fetches the past year by itself
+        return RedirectResponse(f"{WAHOO_DONE}?wahoo=connected", status_code=303)
+
+    @r.delete("/wahoo")
+    def wahoo_disconnect(u=Depends(person)):
+        """Revoke the access at Wahoo (best effort: it may already be gone) and remove what came in through Wahoo."""
+        stored, creds = db.get_setting(u.scope, wahoo.TOKENS_KEY), wahoo.credentials()
+        if stored and creds and key:
+            try:
+                wahoo.WahooClient(wahoo.load_tokens(stored, key), creds).deauthorize()
+            except Exception as err:  # noqa: BLE001  revoked already, or Wahoo unreachable: the data still goes
+                print(f"wahoo: intrekken bij Wahoo mislukt ({type(err).__name__}: {err})", flush=True)
+        removed = end_wahoo(u.scope)
+        state = db.get_setting(u.scope, "sync_state") or {}
+        if state.pop("wahoo", None) is not None:
+            db.set_setting(u.scope, "sync_state", state)
+        if removed["removed"] or removed["changed"]:
+            derive(u.scope)
+        u.store.invalidate()
+        return {"ok": True, **removed}
+
     @r.post("/sync")
     def sync_now(u=Depends(current_user)):
-        if not db.get_setting(u.scope, "garmin_tokens"):
+        if not db.get_setting(u.scope, "garmin_tokens") and not db.get_setting(u.scope, wahoo.TOKENS_KEY):
             raise ApiError(409, "garmin_not_connected")
         started = runner.start_user(u.id)
         return {"started": started, **status(u.scope, key, True)}

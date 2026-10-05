@@ -66,7 +66,7 @@ class SyncRunner:
         if now.hour < DAILY_HOUR:
             return []
         today = now.date().isoformat()
-        connected = set(db.user_ids_with_setting(self.engine, "garmin_tokens"))
+        connected = set(db.user_ids_with_setting(self.engine, "garmin_tokens")) | set(db.user_ids_with_setting(self.engine, "wahoo_tokens"))
         out = []
         for u in db.list_users(self.engine):
             if u["id"] in connected and not u["suspended"] and (u["last_sync"] or "")[:10] < today:

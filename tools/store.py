@@ -17,10 +17,10 @@ from tools.sports import garmin_sport, strava_sport
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
 # `manual`: what the user corrected on the site (tools/distance.py), always first.
-FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit"), "distance_km": ("manual", "garmin", "strava", "wahoo", "fit")}
+FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo_api", "wahoo", "fit"), "distance_km": ("manual", "garmin", "strava", "wahoo_api", "wahoo", "fit")}
 # Uploaded FIT files (Wahoo, or any other device) come after the synced sources. A Wahoo cloud connection needs a
 # source name of its own, so that remove_source() on disconnect leaves the files someone uploaded themselves.
-DEFAULT_PRIORITY = ("garmin", "strava", "wahoo", "fit")
+DEFAULT_PRIORITY = ("garmin", "strava", "wahoo_api", "wahoo", "fit")  # wahoo_api: the Wahoo cloud connection (tools/wahoo.py)
 SCALAR_FIELDS = (
     "name",
     "distance_km",
@@ -155,9 +155,11 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
     return _drop_none(record)
 
 
-def from_fit(activity: dict, fit_file: str | None = None, filename: str | None = None) -> dict:
-    """A record from tools.fit.read_fit_activity. Source `wahoo` for a Wahoo file, else `fit`."""
-    source = "wahoo" if "wahoo" in activity.get("manufacturer", "") else "fit"
+def from_fit(activity: dict, fit_file: str | None = None, filename: str | None = None, source: str | None = None,
+             name: str | None = None, meta: dict | None = None) -> dict:
+    """A record from tools.fit.read_fit_activity. Source `wahoo` for an uploaded Wahoo file, else `fit`; the Wahoo
+    connection passes its own (`wahoo_api`), with the workout's name and id."""
+    source = source or ("wahoo" if "wahoo" in activity.get("manufacturer", "") else "fit")
     laps = []
     for lap in activity.get("laps") or []:
         km = (lap.get("distance_m") or 0) / 1000
@@ -174,7 +176,7 @@ def from_fit(activity: dict, fit_file: str | None = None, filename: str | None =
         "start_utc": activity["start_utc"],
         "start_local": activity["start_local"],
         "sport": sport,
-        "name": f"{'Wahoo' if source == 'wahoo' else 'FIT'} {label}",  # like Garmin's "Amsterdam Cycling"
+        "name": name or f"{'Wahoo' if source.startswith('wahoo') else 'FIT'} {label}",  # like Garmin's "Amsterdam Cycling"
         "distance_km": _round((activity.get("distance_m") or 0) / 1000, 2),
         "moving_time_s": _round(activity.get("timer_s")),
         "elapsed_time_s": _round(activity.get("elapsed_s") or activity.get("timer_s")),
@@ -188,7 +190,7 @@ def from_fit(activity: dict, fit_file: str | None = None, filename: str | None =
         "laps": laps or None,
         "fit_file": fit_file,
         "streams": activity.get("streams") or None,
-        "sources": {source: {"file": filename, "manufacturer": activity.get("manufacturer") or None}},
+        "sources": {source: {"file": filename, "manufacturer": activity.get("manufacturer") or None, **(meta or {})}},
     }
     return _drop_none(record)
 

@@ -142,6 +142,9 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | POST | `/api/connections/garmin` | `{email, password}` -> `{status: connected\|mfa}`; password only goes to Garmin, the session is stored encrypted |
 | POST | `/api/connections/garmin/mfa` | `{code}` (within 10 min) |
 | DELETE | `/api/connections/garmin` | disconnect (data stays) |
+| GET | `/api/connections/wahoo/start` | `{url}`: Wahoo's login page with a one-time state (15 min); 503 `wahoo_not_configured` without WAHOO_CLIENT_ID/SECRET |
+| GET | `/api/connections/wahoo/callback` | where Wahoo sends the browser back (`code`, `state`): tokens stored encrypted, first sync started; redirects to `/settings/connections/?wahoo=connected\|denied\|expired\|failed` |
+| DELETE | `/api/connections/wahoo` | revoke the access at Wahoo and remove what came in through it (source `wahoo_api`; uploaded files stay) -> `{ok, removed, changed}` |
 | POST | `/api/connections/sync` | sync now in the background |
 | GET/PUT | `/api/settings/zones` | `{percent[4], sports: {run\|ride\|swim: {max_hr, estimate}}}`; bounds computed, derive re-runs; GET adds `suggested_max` from the user's data |
 | GET/PUT | `/api/settings/profile` | `{birth_year?, weight_kg?, height_cm?, resting_hr?}` |

@@ -158,3 +158,20 @@ def test_remove_source_leaves_other_users_alone():
     db.upsert_activity(e, WAHOO_ONLY)
     db.remove_source(e, "wahoo")
     assert db.load_activities(e) == [] and len(db.load_activities(other)) == 1
+
+
+def test_streams_stored_before_owners_were_kept_stay_with_the_better_source(tmp_path):
+    e = db.connect(f"sqlite:///{tmp_path / 'o.db'}")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+    garmin = {"start_utc": "2026-10-02T13:59:00Z", "start_local": "2026-10-02T15:59:00", "sport": "ride", "distance_km": 52.2,
+              "streams": {"time": [0, 1], "heartrate": [120, 121]}, "sources": {"garmin": {"id": 1}}}
+    aid = db.upsert_activity(s, garmin)
+    with e.begin() as c:  # what an activity stored before owners were kept looks like
+        data = dict(c.execute(db.select(db.activities.c.data).where(db.activities.c.id == aid)).scalar_one())
+        data.pop("owners", None)
+        c.execute(db.activities.update().where(db.activities.c.id == aid).values(data=data))
+    wahoo = {**garmin, "distance_km": 52.0, "streams": {"time": [0, 1], "heartrate": [99, 99]}, "sources": {"wahoo_api": {"id": 7}}}
+    db.upsert_activity(s, wahoo)
+    assert db.load_streams(s, aid)["heartrate"] == [120, 121]
+    assert set(db.load_activities(s)[0]["sources"]) == {"garmin", "wahoo_api"}

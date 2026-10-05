@@ -134,3 +134,62 @@ def test_zones_and_profile_settings(make, engine):  # noqa: F811
     assert c.put("/api/settings/profile", json={"birth_year": 1990, "weight_kg": 78}).json() == {"birth_year": 1990, "weight_kg": 78}
     assert c.put("/api/settings/profile", json={"weight_kg": 10}).status_code == 422
     assert c.get("/api/settings/profile").json()["birth_year"] == 1990
+
+
+def test_wahoo_login_round_trip_stores_encrypted_tokens_and_starts_a_sync(make, engine, monkeypatch):  # noqa: F811
+    from urllib.parse import parse_qs, urlparse
+
+    from tools import wahoo
+
+    monkeypatch.setenv("WAHOO_CLIENT_ID", "cid")
+    monkeypatch.setenv("WAHOO_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("WAHOO_REDIRECT_URI", "https://app.example/api/connections/wahoo/callback")
+    exchanged = []
+    monkeypatch.setattr(wahoo, "exchange_code", lambda code, uri, creds: exchanged.append((code, uri)) or {"access_token": "a", "refresh_token": "r", "expires_at": 1})
+    app, c, key = make()
+    started = []
+    monkeypatch.setattr(app.state.sync, "start_user", lambda uid, since=None: started.append(uid) or True)
+    assert c.get("/api/connections").json()["wahoo"] == {"available": True, "connected": False, "readable": None, "connected_at": None,
+                                                        "last_workout_day": None, "failed": False}
+    url = c.get("/api/connections/wahoo/start").json()["url"]
+    q = parse_qs(urlparse(url).query)
+    assert q["client_id"] == ["cid"] and q["redirect_uri"] == ["https://app.example/api/connections/wahoo/callback"]
+    # a wrong state does not connect, and uses up the login
+    r = c.get("/api/connections/wahoo/callback", params={"code": "c1", "state": "wrong"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].endswith("?wahoo=expired") and not exchanged
+    url = c.get("/api/connections/wahoo/start").json()["url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    r = c.get("/api/connections/wahoo/callback", params={"code": "c1", "state": state}, follow_redirects=False)
+    assert r.headers["location"] == "/settings/connections/?wahoo=connected" and exchanged == [("c1", "https://app.example/api/connections/wahoo/callback")]
+    stored = db.get_setting(db.Scope(engine, 1), "wahoo_tokens")
+    assert "refresh_token" not in stored and wahoo.load_tokens(stored, key)["refresh_token"] == "r" and started == [1]
+    st = c.get("/api/connections").json()["wahoo"]
+    assert st["connected"] and st["readable"] is True and st["connected_at"]
+
+
+def test_wahoo_denied_at_wahoo_and_not_configured(make, monkeypatch):  # noqa: F811
+    monkeypatch.delenv("WAHOO_CLIENT_ID", raising=False)
+    app, c, key = make()
+    assert c.get("/api/connections/wahoo/start").json()["code"] == "wahoo_not_configured"
+    assert c.get("/api/connections").json()["wahoo"]["available"] is False
+    r = c.get("/api/connections/wahoo/callback", params={"error": "access_denied"}, follow_redirects=False)
+    assert r.headers["location"].endswith("?wahoo=denied")
+
+
+def test_disconnecting_wahoo_revokes_access_and_removes_only_what_came_through_it(make, engine, monkeypatch):  # noqa: F811
+    from tools import wahoo
+
+    monkeypatch.setenv("WAHOO_CLIENT_ID", "cid")
+    monkeypatch.setenv("WAHOO_CLIENT_SECRET", "secret")
+    revoked = []
+    monkeypatch.setattr(wahoo.WahooClient, "deauthorize", lambda self: revoked.append(self.tokens()["access_token"]))
+    app, c, key = make()
+    s = db.Scope(engine, 1)
+    wahoo.save_tokens(s, {"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, key)
+    db.upsert_activity(s, {"start_utc": "2026-09-20T08:00:00Z", "start_local": "2026-09-20T10:00:00", "sport": "ride", "distance_km": 40.0,
+                           "sources": {"wahoo_api": {"id": 2}}})
+    before = len(db.load_activities(s))
+    r = c.delete("/api/connections/wahoo").json()
+    assert r["ok"] and r["removed"] == 1 and revoked == ["a"]
+    assert db.get_setting(s, "wahoo_tokens") is None and len(db.load_activities(s)) == before - 1
+    assert c.get("/api/connections").json()["wahoo"]["connected"] is False

@@ -27,6 +27,7 @@ from tools import db, store
 from tools.derive import derive
 from tools.fit import read_fit_streams
 from tools.secretbox import WrongKey, decrypt, default_key, encrypt
+from tools import wahoo
 from tools.sports import garmin_sport
 from tools.store import from_garmin, from_strava, garmin_summary, wellness_from_garmin
 
@@ -320,8 +321,49 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
 # --- database mode (Railway cron) ----------------------------------------------------
 
 
+class _NoGarmin(Exception):
+    pass
+
+
+def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: date, since: date | None, factory=None) -> bool:
+    """The Wahoo half of a user's sync. False when it failed. Access revoked at Wahoo ends the connection and removes
+    what came in through it, as the privacy statement promises."""
+    creds = wahoo.credentials()
+    if not creds or not key:
+        print("wahoo: overgeslagen, WAHOO_CLIENT_ID/SECRET of TOKEN_ENCRYPTION_KEY ontbreekt")
+        return False
+    client = None
+    try:
+        tokens = wahoo.load_tokens(stored, key)
+        client = (factory or wahoo.WahooClient)(tokens, creds)
+        print(f"wahoo: {wahoo.sync_wahoo(s, client, state, today, since)} workouts")
+        return True
+    except WrongKey:
+        print("wahoo: opgeslagen koppeling is met een andere sleutel versleuteld; koppel Wahoo opnieuw op de site")
+        return False
+    except wahoo.WahooRevoked:
+        removed = end_wahoo(s)
+        client = None
+        print(f"wahoo: toegang ingetrokken bij Wahoo, koppeling beëindigd en Wahoo-data verwijderd ({removed})")
+        state.pop("wahoo", None)
+        return True
+    except Exception as err:
+        print(f"wahoo: MISLUKT ({type(err).__name__}: {err})")
+        return False
+    finally:
+        if client is not None:
+            wahoo.save_tokens(s, client.tokens(), key)  # Wahoo revokes the old pair once the new one is used
+
+
+def end_wahoo(s: db.Scope) -> dict:
+    """Forget the Wahoo connection and everything that came in through it (not the files the user uploaded)."""
+    db.delete_setting(s, wahoo.TOKENS_KEY)
+    db.delete_setting(s, "wahoo_meta")
+    return db.remove_source(s, wahoo.SOURCE)
+
+
 def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
-                read_streams=read_fit_streams, since: date | None = None) -> int:
+                read_streams=read_fit_streams, since: date | None = None, wahoo_factory=None) -> int:
     """One user: Garmin -> database, then derived data. `s` is that user's Scope. Tokens: the encrypted copy in the
     database wins over GARMINTOKENS, because Garmin rotates the refresh token and only the database copy is kept up to date.
     GARMINTOKENS (env) is only offered for the first admin (the account that existed before multi-user)."""
@@ -337,10 +379,13 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
         except WrongKey:
             print("garmin: opgeslagen sessie is met een andere sleutel versleuteld; koppel Garmin opnieuw op de site")
     candidates = [t for t in (stored_tokens, env_tokens) if t]
+    wahoo_stored = db.get_setting(s, wahoo.TOKENS_KEY)
     failed, client = [], None
     try:
         if not candidates:
-            raise RuntimeError("geen Garmin-koppeling: koppel Garmin op de site (Instellingen)")
+            if wahoo_stored or stored:  # only Wahoo connected (or a Garmin session this key cannot read): no Garmin run
+                raise _NoGarmin()
+            raise RuntimeError("geen koppeling: koppel Garmin of Wahoo op de site (Instellingen)")
         for i, tokens in enumerate(dict.fromkeys(candidates)):
             try:
                 client = client_factory(tokens)
@@ -353,6 +398,9 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
                     raise
                 print(f"garmin: opgeslagen sessie werkt niet meer ({type(err).__name__}), probeer GARMINTOKENS")
         print(f"garmin: {sync_garmin(DbSink(s), client, state, today, since, read_streams)} activiteiten")
+    except _NoGarmin:
+        if stored:
+            failed.append("garmin")
     except RateLimited:
         print("garmin: rate limit bereikt, volgende run gaat verder")
     except Exception as err:
@@ -364,6 +412,8 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
                 print(f"garmin {metric}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
             if key:
                 db.set_setting(s, "garmin_tokens", encrypt(client.tokens(), key))
+        if wahoo_stored and not _sync_wahoo_part(s, key, wahoo_stored, state, today, since, wahoo_factory):
+            failed.append("wahoo")
         state["last_sync_local"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
         if failed:
             state["last_failed"] = failed
@@ -378,7 +428,7 @@ def run_all_users(engine, key: str, env_tokens: str | None = None, **kw) -> int:
     """Sync every user with a Garmin connection (and the first admin, who may still rely on GARMINTOKENS).
     Suspended users are skipped. Returns 1 when any user failed."""
     first_admin = next((u["id"] for u in db.list_users(engine) if u["is_admin"]), None)
-    connected = set(db.user_ids_with_setting(engine, "garmin_tokens"))
+    connected = set(db.user_ids_with_setting(engine, "garmin_tokens")) | set(db.user_ids_with_setting(engine, wahoo.TOKENS_KEY))
     if env_tokens and first_admin:
         connected.add(first_admin)
     status = 0

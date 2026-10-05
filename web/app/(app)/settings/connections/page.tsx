@@ -11,7 +11,8 @@ import { api, ApiError } from "@/lib/api";
 import { errorText, useFormat, useT } from "@/lib/i18n";
 
 type Status = {
-  garmin: { connected: boolean; readable: boolean | null; connected_at: string | null; last_sync: string | null; last_failed: string[]; syncing: boolean };
+  garmin: { connected: boolean; readable: boolean | null; connected_at: string | null; last_sync: string | null; last_failed: string[]; syncing: boolean;
+    progress: { step: "garmin_activities" | "garmin_wellness" | "wahoo" | "derive"; done: number | null; total: number | null } | null };
   wahoo: { available: boolean; connected: boolean; readable: boolean | null; connected_at: string | null; last_workout_day: string | null; failed: boolean };
 };
 
@@ -83,9 +84,6 @@ function WahooCard({ s, syncing, onChange }: { s: Status["wahoo"]; syncing: bool
               <dd>{s.last_workout_day ? f.day(s.last_workout_day) : t.common.notYet}</dd>
             </dl>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" disabled={syncing} onClick={async () => { await api.post("/api/connections/sync"); onChange(); }}>
-                {syncing ? t.common.busy : t.connections.syncNow}
-              </Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={disconnect}>{t.connections.disconnect}</Button>
             </div>
           </>
@@ -144,6 +142,26 @@ function ConnectForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+function SyncProgress({ p }: { p: Status["garmin"]["progress"] }) {
+  const t = useT();
+  const m = t.connections.progress;
+  const pct = p?.total ? Math.min(100, Math.round(((p.done ?? 0) / p.total) * 100)) : null;
+  const label = !p ? m.starting
+    : p.step === "garmin_activities" ? m.garminActivities(p.done, p.total)
+    : p.step === "garmin_wellness" ? m.garminWellness(p.done, p.total)
+    : p.step === "wahoo" ? m.wahoo(p.done, p.total)
+    : m.derive;
+  return (
+    <div className="flex max-w-md flex-col gap-1.5 text-[12.5px] text-ink-muted" role="status" aria-live="polite">
+      <span>{label}{pct !== null && ` · ${pct}%`}</span>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunk">
+        <div className={`h-full rounded-full bg-brand transition-[width] duration-500 ${pct === null ? "w-1/3 animate-pulse" : ""}`}
+             style={pct === null ? undefined : { width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function ConnectionsPage() {
   const t = useT();
   const f = useFormat();
@@ -159,9 +177,23 @@ export default function ConnectionsPage() {
   };
   if (!q.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   const g = q.data.garmin;
+  const w = q.data.wahoo;
+  const sources = [g.connected && g.readable !== false && "Garmin", w.connected && w.readable !== false && "Wahoo"].filter(Boolean) as string[];
 
   return (
     <div className="flex flex-col gap-4">
+      {sources.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 text-[13px]">
+          <Button size="sm" variant="primary" disabled={g.syncing} onClick={async () => { await api.post("/api/connections/sync"); refresh(); }}>
+            {g.syncing ? t.common.busy : t.connections.syncNow}
+          </Button>
+          <span className="text-ink-muted">
+            {t.connections.syncAll(sources)}
+            {g.last_sync && <> · {t.connections.lastSync} {f.dateTime(g.last_sync)}</>}
+          </span>
+        </div>
+      )}
+      {g.syncing && <SyncProgress p={g.progress} />}
       <Card title="Garmin Connect">
         {!g.connected || g.readable === false ? (
           <>
@@ -183,9 +215,6 @@ export default function ConnectionsPage() {
               <dd>{g.last_sync ? f.dateTime(g.last_sync) : t.common.notYet}</dd>
             </dl>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" disabled={g.syncing} onClick={async () => { await api.post("/api/connections/sync"); refresh(); }}>
-                {g.syncing ? t.common.busy : t.connections.syncNow}
-              </Button>
               <Button size="sm" variant="ghost" onClick={async () => {
                 if (!confirm(t.connections.disconnectConfirm)) return;
                 await api.del("/api/connections/garmin");

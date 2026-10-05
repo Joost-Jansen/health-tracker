@@ -324,6 +324,17 @@ export const nl = {
     connected: "Gekoppeld",
     connectedSince: "Gekoppeld sinds",
     lastSync: "Laatste sync",
+    progress: {
+      starting: "Sync start…",
+      garminActivities: (done: number | null, total: number | null) =>
+        total ? `Garmin: activiteit ${Math.min((done ?? 0) + 1, total)} van ${total}` : "Garmin: activiteiten ophalen…",
+      garminWellness: (done: number | null, total: number | null) =>
+        total ? `Garmin: slaap en herstel, dag ${Math.min((done ?? 0) + 1, total)} van ${total}` : "Garmin: slaap en herstel…",
+      wahoo: (done: number | null, total: number | null) =>
+        total && done ? `Wahoo: workouts, ${done} van ${total} dagen terug` : "Wahoo: workouts ophalen…",
+      derive: "Zones, records en vorm berekenen…",
+    },
+    syncAll: (sources: string[]) => `Haalt ${sources.join(" en ")} op`,
     syncNow: "Nu synchroniseren",
     disconnect: "Ontkoppelen",
     disconnectConfirm: "Garmin ontkoppelen? Je opgehaalde data blijft staan; er komt alleen niets nieuws meer bij.",

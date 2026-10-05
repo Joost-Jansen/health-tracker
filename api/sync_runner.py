@@ -31,6 +31,7 @@ class SyncRunner:
         self._locks: dict[int, threading.Lock] = {}
         self._guard = threading.Lock()
         self.running: dict[int, str] = {}  # user id -> started at (ISO)
+        self.progress: dict[int, dict] = {}  # user id -> {step, done, total} of the running sync
 
     def _lock(self, user_id: int) -> threading.Lock:
         with self._guard:
@@ -44,12 +45,17 @@ class SyncRunner:
         self.running[user_id] = datetime.now(TZ).isoformat(timespec="seconds")
         try:
             kw = dict(self.sync_kwargs, **({"client_factory": self.client_factory} if self.client_factory else {}))
-            return run_db_sync(db.Scope(self.engine, user_id), self.key, None, since=since, **kw)
+
+            def progress(step: str, done: int | None = None, total: int | None = None) -> None:
+                self.progress[user_id] = {"step": step, "done": done, "total": total}
+
+            return run_db_sync(db.Scope(self.engine, user_id), self.key, None, since=since, progress=progress, **kw)
         except Exception as err:  # the sync records its own failures; this only guards the thread
             print(f"sync gebruiker {user_id}: MISLUKT ({type(err).__name__}: {err})", flush=True)
             return 1
         finally:
             self.running.pop(user_id, None)
+            self.progress.pop(user_id, None)
             self.stores.get(user_id).invalidate()
             lock.release()
 

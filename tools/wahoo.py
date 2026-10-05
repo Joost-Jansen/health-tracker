@@ -147,8 +147,10 @@ def save_tokens(s: db.Scope, tokens: dict, key: str) -> None:
     db.set_setting(s, TOKENS_KEY, encrypt(json.dumps(tokens), key))
 
 
-def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since: date | None = None, read_activity=None) -> int:
-    """New workouts since the last one seen (the past year the first time) -> activities. Returns how many."""
+def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since: date | None = None, read_activity=None,
+               progress=None) -> int:
+    """New workouts since the last one seen (the past year the first time) -> activities. Returns how many.
+    `progress("wahoo", days, total_days)`: how far back from today it is, newest first."""
     read_activity = read_activity or read_fit_activity
     w = state.setdefault("wahoo", {})
     if since:
@@ -158,6 +160,9 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
     else:
         cutoff = today - timedelta(days=FIRST_SYNC_DAYS)
     count, newest, page = 0, w.get("last_workout_day"), 1
+    span = max((today - cutoff).days, 1)
+    if progress:
+        progress("wahoo", 0, span)
     tries = w.setdefault("failed", {})  # workout id -> failed downloads; retried by the next syncs, three times at most
     retry_from = None
     while True:
@@ -169,6 +174,8 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
             if not day or day < cutoff.isoformat():
                 done = True  # newest first: everything after this is older
                 break
+            if progress:
+                progress("wahoo", min(max((today - date.fromisoformat(day)).days, 0), span), span)
             summary = wo.get("workout_summary")
             if not summary:
                 try:

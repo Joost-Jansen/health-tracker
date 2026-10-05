@@ -332,6 +332,17 @@ export const en: Messages = {
     connected: "Connected",
     connectedSince: "Connected since",
     lastSync: "Last sync",
+    progress: {
+      starting: "Starting sync…",
+      garminActivities: (done: number | null, total: number | null) =>
+        total ? `Garmin: activity ${Math.min((done ?? 0) + 1, total)} of ${total}` : "Garmin: fetching activities…",
+      garminWellness: (done: number | null, total: number | null) =>
+        total ? `Garmin: sleep and recovery, day ${Math.min((done ?? 0) + 1, total)} of ${total}` : "Garmin: sleep and recovery…",
+      wahoo: (done: number | null, total: number | null) =>
+        total && done ? `Wahoo: workouts, ${done} of ${total} days back` : "Wahoo: fetching workouts…",
+      derive: "Calculating zones, records and form…",
+    },
+    syncAll: (sources: string[]) => `Fetches ${sources.join(" and ")}`,
     syncNow: "Sync now",
     disconnect: "Disconnect",
     disconnectConfirm: "Disconnect Garmin? The data already fetched stays; nothing new is added.",

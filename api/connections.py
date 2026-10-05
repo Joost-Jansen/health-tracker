@@ -97,7 +97,7 @@ def _readable(stored: str | None, key: str) -> bool | None:
         return False
 
 
-def status(scope: db.Scope, key: str, running: bool) -> dict:
+def status(scope: db.Scope, key: str, running: bool, progress: dict | None = None) -> dict:
     stored = db.get_setting(scope, "garmin_tokens")
     stored_wahoo = db.get_setting(scope, wahoo.TOKENS_KEY)
     wahoo_state = (db.get_setting(scope, "sync_state") or {}).get("wahoo") or {}
@@ -117,6 +117,7 @@ def status(scope: db.Scope, key: str, running: bool) -> dict:
             "last_sync": state.get("last_sync_local"),
             "last_failed": state.get("last_failed") or [],
             "syncing": running,
+            "progress": progress if running else None,  # {step, done, total}: which part of the sync runs and how far
         },
         "wahoo": {
             "available": wahoo.credentials() is not None,  # the server has a Wahoo app (WAHOO_CLIENT_ID/SECRET)
@@ -150,7 +151,7 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
 
     @r.get("")
     def get_status(u=Depends(current_user)):
-        return status(u.scope, key, u.id in runner.running)
+        return status(u.scope, key, u.id in runner.running, runner.progress.get(u.id))
 
     @r.post("/garmin")
     def connect(body: GarminCredentials, u=Depends(person)):

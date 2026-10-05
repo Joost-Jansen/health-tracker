@@ -260,7 +260,13 @@ def _leg_window(leg: dict) -> tuple[datetime, datetime]:
     return start, start + timedelta(seconds=leg.get("elapsedDuration") or leg.get("duration") or 0)
 
 
-def sync_garmin(target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams) -> int:
+def _no_progress(step: str, done: int | None = None, total: int | None = None) -> None:
+    pass
+
+
+def sync_garmin(target, client, state: dict, today: date, since: date | None = None, read_streams=read_fit_streams,
+                progress=_no_progress) -> int:
+    """`progress(step, done, total)` reports how far it is, for the Connections page."""
     sink = as_sink(target)
     g = state.setdefault("garmin", {})
     default_start = since or today - timedelta(days=DEFAULT_BACKFILL_DAYS)
@@ -269,7 +275,10 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
     if since:
         act_start = min(act_start, since)
     count = 0
-    for activity in sorted(client.activities(act_start, today), key=lambda a: a["startTimeLocal"]):
+    progress("garmin_activities")
+    activities = sorted(client.activities(act_start, today), key=lambda a: a["startTimeLocal"])
+    for activity in activities:
+        progress("garmin_activities", count, len(activities))
         activity_id = activity["activityId"]
         year = activity["startTimeLocal"][:4]
         fit = sink.get_fit(activity_id, year)
@@ -312,6 +321,7 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
         well_start = min(well_start, since)
     day = well_start
     while day <= today:
+        progress("garmin_wellness", (day - well_start).days, (today - well_start).days + 1)
         sink.write_wellness(day.isoformat(), client.wellness(day.isoformat()))
         g["last_wellness_day"] = day.isoformat()
         day += timedelta(days=1)
@@ -325,7 +335,8 @@ class _NoGarmin(Exception):
     pass
 
 
-def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: date, since: date | None, factory=None) -> bool:
+def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: date, since: date | None, factory=None,
+                     progress=_no_progress) -> bool:
     """The Wahoo half of a user's sync. False when it failed. Access revoked at Wahoo ends the connection and removes
     what came in through it, as the privacy statement promises."""
     creds = wahoo.credentials()
@@ -336,7 +347,7 @@ def _sync_wahoo_part(s: db.Scope, key: str, stored: str, state: dict, today: dat
     try:
         tokens = wahoo.load_tokens(stored, key)
         client = (factory or wahoo.WahooClient)(tokens, creds)
-        print(f"wahoo: {wahoo.sync_wahoo(s, client, state, today, since)} workouts")
+        print(f"wahoo: {wahoo.sync_wahoo(s, client, state, today, since, progress=progress)} workouts")
         return True
     except WrongKey:
         print("wahoo: opgeslagen koppeling is met een andere sleutel versleuteld; koppel Wahoo opnieuw op de site")
@@ -363,7 +374,7 @@ def end_wahoo(s: db.Scope) -> dict:
 
 
 def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=None, today: date | None = None,
-                read_streams=read_fit_streams, since: date | None = None, wahoo_factory=None) -> int:
+                read_streams=read_fit_streams, since: date | None = None, wahoo_factory=None, progress=_no_progress) -> int:
     """One user: Garmin -> database, then derived data. `s` is that user's Scope. Tokens: the encrypted copy in the
     database wins over GARMINTOKENS, because Garmin rotates the refresh token and only the database copy is kept up to date.
     GARMINTOKENS (env) is only offered for the first admin (the account that existed before multi-user)."""
@@ -397,7 +408,7 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
                 if i == len(dict.fromkeys(candidates)) - 1:
                     raise
                 print(f"garmin: opgeslagen sessie werkt niet meer ({type(err).__name__}), probeer GARMINTOKENS")
-        print(f"garmin: {sync_garmin(DbSink(s), client, state, today, since, read_streams)} activiteiten")
+        print(f"garmin: {sync_garmin(DbSink(s), client, state, today, since, read_streams, progress)} activiteiten")
     except _NoGarmin:
         if stored:
             failed.append("garmin")
@@ -412,7 +423,7 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
                 print(f"garmin {metric}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
             if key:
                 db.set_setting(s, "garmin_tokens", encrypt(client.tokens(), key))
-        if wahoo_stored and not _sync_wahoo_part(s, key, wahoo_stored, state, today, since, wahoo_factory):
+        if wahoo_stored and not _sync_wahoo_part(s, key, wahoo_stored, state, today, since, wahoo_factory, progress):
             failed.append("wahoo")
         state["last_sync_local"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
         if failed:
@@ -420,6 +431,7 @@ def run_db_sync(s: db.Scope, key: str, env_tokens: str | None, client_factory=No
         else:
             state.pop("last_failed", None)
         db.set_setting(s, "sync_state", state)
+    progress("derive")
     print(f"derive: {derive(s)}")
     return 1 if failed else 0
 

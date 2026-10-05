@@ -207,3 +207,12 @@ def test_download_tries_three_times_on_a_server_error():
     slept = []
     c = wahoo.WahooClient({"access_token": "a", "refresh_token": "r", "expires_at": 9e9}, CREDS, http=http, now=lambda: 1000, sleep=slept.append)
     assert c.download("https://cdn/x.fit") == b"fit" and slept == [2, 4]
+
+
+def test_progress_says_how_far_back_the_sync_is():
+    e = db.connect("sqlite://")
+    db.create_schema(e)
+    steps = []
+    wahoo.sync_wahoo(db.Scope(e, 1), FakeWahoo(WORKOUTS), {}, date(2026, 10, 5), read_activity=lambda b: RIDES[b],
+                     progress=lambda step, done=None, total=None: steps.append((step, done, total)))
+    assert steps == [("wahoo", 0, 365), ("wahoo", 3, 365), ("wahoo", 15, 365)]

@@ -174,7 +174,8 @@ def sync_wahoo(s: db.Scope, client: WahooClient, state: dict, today: date, since
                 try:
                     summary = client.summary(wo["id"])
                 except WahooError as err:  # Wahoo refuses some workouts' summaries: skip that one, not the rest
-                    print(f"wahoo: workout {wo['id']} overgeslagen ({err})")
+                    print(f"wahoo: workout {wo['id']} van {wo.get('starts')} ({wo.get('name')!r}, type {wo.get('workout_type_id')}, "
+                          f"bron {wo.get('workout_token') or '-'}) overgeslagen ({err})")
                     continue
             url = ((summary or {}).get("file") or {}).get("url")
             if not url:

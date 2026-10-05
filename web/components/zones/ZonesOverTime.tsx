@@ -1,17 +1,18 @@
 "use client";
 
 // Trends: time per heart-rate zone over time. At the top the distribution per week or
-// month within the period chosen in the time bar, below it the current or the
-// previous period against the average of the X periods before.
+// month within the period chosen in the time bar, then the share in Z1-Z2 as a line against
+// the 80/20 aim, below it the current or the previous period against the average of the X periods before.
 
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import LineChart from "@/components/charts/LineChart";
 import { Select, Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
 import { useFormat, useT } from "@/lib/i18n";
 import { periodLabel } from "@/lib/i18n/period";
-import { ZONE_COLOUR, ZONES, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
+import { EASY_TARGET, ZONE_COLOUR, ZONES, easyPct, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
 import { compareZones, fmtPct, fmtPp } from "./compare";
 import EasyShare from "./EasyShare";
 import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
@@ -74,6 +75,20 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
 
   const cmp = useMemo(() => (h ? compareZones(h.items, x, which) : null), [h, x, which]);
 
+  // Z1-Z2 per period with heart-rate data, and a time-weighted average over the last ROLL periods (so a short
+  // week weighs less), which shows the trend through the ups and downs of single weeks.
+  const ROLL = period === "week" ? 4 : 3;
+  const easyLine = useMemo(() => {
+    const items = bars.filter((b) => b.total_s > 0);
+    const own = items.map((b) => ({ d: b.start, v: easyPct(b.pct) }));
+    const avg = items.map((b, i) => {
+      const win = items.slice(Math.max(0, i - ROLL + 1), i + 1);
+      const tot = win.reduce((s, w) => s + w.total_s, 0);
+      return { d: b.start, v: (win.reduce((s, w) => s + w.seconds.Z1 + w.seconds.Z2, 0) / tot) * 100 };
+    });
+    return { own, avg };
+  }, [bars, ROLL]);
+
   const switchPeriod = (p: ZonePeriod) => {
     setPeriod(p);
     setX(DEFAULT_X[p]);
@@ -123,6 +138,40 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
             ariaLabel={z.aria(period, bars.length, unit(period, bars.length))}
             summary={withData.length ? z.together(bars.length, unit(period, bars.length), avgOver(withData)) : z.noHrPeriod}
           />
+
+          {easyLine.own.length >= 2 && (
+            <div className="mt-5 border-t border-border pt-4">
+              <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="text-[13px] font-medium">{z.easyOverTime}</span>
+                <span className="flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--zone-2)" strokeWidth="2" /></svg>
+                    {z.easyPer(period)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-primary)" strokeWidth="2" /></svg>
+                    {z.easyAvg(ROLL, unit(period, ROLL))}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="1 4" strokeLinecap="round" /></svg>
+                    {z.easyTarget(EASY_TARGET)}
+                  </span>
+                </span>
+              </div>
+              <LineChart
+                endLabels={false}
+                height={180}
+                baseline={EASY_TARGET}
+                format={(v) => `${Math.round(v)}%`}
+                xFormat={period === "week" ? undefined : (d) => f.monthShort(d)}
+                ariaLabel={z.easyOverTimeAria(period)}
+                series={[
+                  { label: z.easyPer(period), colour: "var(--zone-2)", width: 1.5, points: easyLine.own },
+                  { label: z.easyAvg(ROLL, unit(period, ROLL)), colour: "var(--text-primary)", width: 2, points: easyLine.avg },
+                ]}
+              />
+            </div>
+          )}
 
           {cmp && (
             <div className="mt-5 border-t border-border pt-4">

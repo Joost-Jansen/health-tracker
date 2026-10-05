@@ -15,7 +15,7 @@ import ZoneChip from "./ZoneChip";
 
 const activityHref = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 const routeHref = (id: string) => `/routes/route/?id=${encodeURIComponent(id)}`;
-const RACE = /wedstrijd|race/i;
+const RACE = /\b(wedstrijd|race)\b(?!\s*-?\s*(tempo|pace))/i; // not "race pace"
 
 /** Link an activity to the session on `sessionDate`, or with null keep it out of the plan. */
 type OnLink = (activityId: string, sessionDate: string | null) => void;

@@ -10,7 +10,7 @@ import type { PlanSession } from "@/lib/training";
 import InfoPopover from "@/components/InfoPopover";
 import { type Week, kmBySport, sportColour } from "./plan";
 
-const RACE = /wedstrijd|race/i;
+const RACE = /\b(wedstrijd|race)\b(?!\s*-?\s*(tempo|pace))/i; // not "race pace"
 
 export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[]; today: string; raceDate: string | null }) {
   const t = useT();

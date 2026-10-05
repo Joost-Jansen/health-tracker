@@ -353,3 +353,9 @@ def test_a_session_is_a_race_when_one_of_its_parts_is():
 def test_dashboard_recent_uses_the_merged_items():
     d = build_dashboard([at("2026-09-29", "08:00"), at("2026-09-29", "08:35")], {}, ZONES, TODAY, last_sync="x")
     assert len(d["recent"]) == 1 and d["recent"][0]["parts"] == 2
+
+
+def test_a_marathon_pace_session_is_not_the_next_race():
+    sessions = [sess("2026-10-07", km=8, kind="marathontempo"), sess("2026-10-11", km=12, kind="race pace"), sess("2026-10-18", km=42.2, kind="wedstrijd")]
+    r = next_race({"race": ""}, sessions, date(2026, 10, 5))
+    assert r["date"] == "2026-10-18" and r["days"] == 13

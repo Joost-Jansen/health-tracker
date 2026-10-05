@@ -100,7 +100,8 @@ export function joinRace(name: string, date: string): string {
   return [name.trim(), date].filter(Boolean).join(", ");
 }
 
-const RACE_KIND = /wedstrijd|race|marathon|triathlon/i;
+/** Whole words, not a pace ("marathontempo", "race pace"); the same rule as api/dashboard.py RACE_KIND. */
+export const RACE_KIND = /\b(wedstrijd|race|marathon|triathlon)\b(?!\s*-?\s*(tempo|pace))/i;
 
 /** The plan's race: date from the race field, otherwise the last session of kind race (empty name:
  *  the page then says "the race" in the user's language). */

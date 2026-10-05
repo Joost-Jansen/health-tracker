@@ -371,3 +371,9 @@
 .ds-display { font-family: var(--font-display); font-weight: var(--fw-regular); letter-spacing: var(--ls-display); line-height: var(--lh-tight); }
 .ds-num { font-variant-numeric: tabular-nums; font-feature-settings: var(--num-tabular); }
 .ds-rule { height: 1px; background: var(--border-hairline); border: 0; margin: 0; }
+
+/* Tabs on a phone (components/ds/SubNav): their own row under the top bar, every tab a 44px target. */
+.ds-subnav { overflow-x: auto; background: var(--surface-page); border-bottom: 1px solid var(--border-hairline); padding: 0 var(--sp-3); }
+.ds-subnav .ds-tabs { display: flex; gap: 0; border-bottom: 0; min-width: max-content; }
+.ds-subnav .ds-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--sp-5); font-size: var(--fs-sm); white-space: nowrap; }
+.ds-subnav .ds-tab--active::after { left: var(--sp-5); right: var(--sp-5); bottom: 0; height: 2px; }

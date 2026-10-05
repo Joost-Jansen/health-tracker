@@ -218,7 +218,7 @@ export const textsEn = {
   trends: {
     loading: "Loading…",
     loadError: "Could not load the trends.",
-    periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "This year", "1J": "1Y", Alles: "All", Eigen: "Custom" } as Record<string, string>,
+    periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "YTD", "1J": "1Y", Alles: "All", Eigen: "Custom" } as Record<string, string>,
     timeFilter: {
       group: "Period for all charts",
       adjust: "Adjust",

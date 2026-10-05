@@ -136,6 +136,8 @@ export const en: Messages = {
     ideaPh: "What would you like to be able to do, and why?",
     addScreenshot: "Add screenshot",
     removeScreenshot: "Remove screenshot",
+    capturing: "Taking a screenshot of the page…",
+    screenshotNote: "A screenshot of this page goes along. Remove it if it shows something you'd rather not share.",
     context: "The page, your browser, screen size and recent error messages are sent along. That makes it easier to fix.",
     send: "Send",
     sending: "Sending…",
@@ -180,7 +182,7 @@ export const en: Messages = {
           "If you connect Wahoo: your completed workouts and their FIT files, read-only. The app writes nothing back to Wahoo.",
           "What you upload or enter yourself: FIT files from other devices, your heart-rate zones, profile data (birth year, weight, height, resting heart rate), goals, training plans, log and analyses.",
           "If you connect an AI assistant: an agent token, of which only a hash is stored.",
-          "Feedback you send: your message, an optional screenshot, the page you were on, your browser, screen size and recent error messages. Only the administrator sees it, and the AI assistant the administrator uses to work on it.",
+          "Feedback you send: your message, a screenshot of the page (taken when you open the feedback dialog; you see it and can remove it before sending), the page you were on, your browser, screen size and recent error messages. Only the administrator sees it, and the AI assistant the administrator uses to work on it.",
         ],
       },
       {

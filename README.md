@@ -69,8 +69,8 @@ profile documents. Agents write here too; every entry records who wrote it.
 the Garmin connection (including MFA), agent tokens with copy-ready MCP instructions, and an admin panel (users, roles,
 suspend, reset password, invite codes, registration mode).
 
-**Feedback.** Users report something broken or an idea from the sidebar, optionally with a screenshot; the page, browser,
-screen size and the last errors the browser hit go along. Admins answer in an inbox under Settings (status and a reply the
+**Feedback.** Users report something broken or an idea from the sidebar. A screenshot of the page is taken in the
+browser when the dialog opens (the user sees it and can remove it); the page, browser, screen size and the last errors the browser hit go along. Admins answer in an inbox under Settings (status and a reply the
 user sees), or let their agent do it over MCP (`list_feedback`, `update_feedback`). An optional ntfy ping says a report
 came in, without its content.
 

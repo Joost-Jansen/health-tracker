@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
+    "html-to-image": "^1.11.13",
     "leaflet": "^1.9.4",
     "marked": "^15.0.12",
     "next": "^16.2.10",

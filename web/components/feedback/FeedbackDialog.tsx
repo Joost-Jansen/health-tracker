@@ -4,13 +4,14 @@
 // The page, browser, screen and the last errors this tab hit (lib/recentErrors) go along, so a report is fixable
 // without a back-and-forth. A screenshot is scaled down in the browser before it is sent (api/feedback.py takes 3 MB).
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Dialog } from "@/components/ds";
 import { api } from "@/lib/api";
 import { errorText, useLocale, useT } from "@/lib/i18n";
 import { recentErrors } from "@/lib/recentErrors";
+import { captureViewport } from "@/lib/screenshot";
 
 type Kind = "bug" | "idea";
 const MAX_SIDE = 1600;
@@ -48,14 +49,29 @@ export default function FeedbackDialog({ open, onClose }: { open: boolean; onClo
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  // A picture of the page as it was when Feedback was clicked: the dialog is left out of it (lib/screenshot).
+  useEffect(() => {
+    if (!open || done) return;
+    let cancelled = false;
+    setCapturing(true);
+    captureViewport().then((img) => {
+      if (!cancelled && img) setShot(img);
+      if (!cancelled) setCapturing(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function close() {
     if (busy) return;
     onClose();
+    setShot(null);
     if (done) {
       setDone(false);
       setMessage("");
-      setShot(null);
       setKind("bug");
     }
   }
@@ -124,10 +140,15 @@ export default function FeedbackDialog({ open, onClose }: { open: boolean; onClo
               if (f) setShot(await shrink(f).catch(() => null));
             }}
           />
-          {shot ? (
-            <div className="flex items-center gap-3">
-              <img src={shot} alt="" className="h-16 rounded border border-border object-cover" />
-              <Button size="sm" variant="ghost" onClick={() => setShot(null)}>{m.removeScreenshot}</Button>
+          {capturing ? (
+            <p className="text-[12px] text-ink-muted">{m.capturing}</p>
+          ) : shot ? (
+            <div className="flex items-start gap-3">
+              <img src={shot} alt={m.screenshot} className="h-24 max-w-[45%] rounded border border-border object-cover object-top" />
+              <div className="flex flex-col items-start gap-1.5">
+                <p className="text-[12px] text-ink-muted">{m.screenshotNote}</p>
+                <Button size="sm" variant="ghost" onClick={() => setShot(null)}>{m.removeScreenshot}</Button>
+              </div>
             </div>
           ) : (
             <div>

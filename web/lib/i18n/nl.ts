@@ -126,6 +126,8 @@ export const nl = {
     ideaPh: "Wat zou je willen kunnen, en waarom?",
     addScreenshot: "Screenshot toevoegen",
     removeScreenshot: "Screenshot weghalen",
+    capturing: "Screenshot van de pagina maken…",
+    screenshotNote: "Een screenshot van deze pagina gaat mee. Haal hem weg als er iets op staat dat je liever niet deelt.",
     context: "De pagina, je browser, schermgrootte en recente foutmeldingen gaan mee. Dan is het makkelijker te maken.",
     send: "Versturen",
     sending: "Versturen…",
@@ -171,7 +173,7 @@ export const nl = {
           "Als je Wahoo koppelt: je afgeronde workouts en hun FIT-bestand, alleen-lezen. De app schrijft niets terug naar Wahoo.",
           "Wat je zelf uploadt of invult: FIT-bestanden van andere apparaten, je hartslagzones, profielgegevens (geboortejaar, gewicht, lengte, rusthartslag), doelen, trainingsschema's, logboek en analyses.",
           "Als je een AI-assistent koppelt: een agent-token, waarvan alleen een hash wordt bewaard.",
-          "Feedback die je stuurt: je bericht, eventueel een screenshot, de pagina waar je was, je browser, schermgrootte en recente foutmeldingen. Alleen de beheerder ziet het, en de AI-assistent die de beheerder gebruikt om eraan te werken.",
+          "Feedback die je stuurt: je bericht, een screenshot van de pagina (gemaakt als je de feedback opent; je ziet hem en kunt hem weghalen voor je verstuurt), de pagina waar je was, je browser, schermgrootte en recente foutmeldingen. Alleen de beheerder ziet het, en de AI-assistent die de beheerder gebruikt om eraan te werken.",
         ],
       },
       {

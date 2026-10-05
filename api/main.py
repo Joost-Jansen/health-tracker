@@ -95,7 +95,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]
             out["upcoming"] = [x for x in sessions if x["date"] >= day.isoformat()][:5]
             out["plan_title"] = plan["title"]
-            out["plan_week"] = plan_week(sessions, day, sync_day(s.last_sync))
+            out["plan_week"] = plan_week(sessions, s.activities, day, sync_day(s.last_sync))
             out["race"] = next_race(plan, sessions, day)
         return out
 

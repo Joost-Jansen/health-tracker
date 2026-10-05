@@ -114,8 +114,8 @@ export const textsEn = {
     },
     zoneFitMethod:
       "Time per heart-rate zone by your own zones. Easy sessions (up to Z2): time at or below the target zone counts, because easier is fine. Quality (Z3 and up): time within the target zone counts.",
-    matching: "A session counts as done once there is an activity of the same sport that day. A run in pieces (less than 30 minutes apart) counts as one session.",
-    volume: "Kilometres per week: planned against done. Sessions without a distance (only a duration) don't count here.",
+    matching: "A session counts as done once there is an activity of the same sport that day, or up to 2 days before or after while the session was still open. A run in pieces (less than 30 minutes apart) counts as one session. Unlink an activity, or link one to a session yourself. Kilometres per week count every activity of the sports in the plan, also those without a session.",
+    volume: "Kilometres per week: planned against done. Done counts every activity of that sport in the week, in a session or not. Sessions without a distance (only a duration) don't count for planned.",
   },
 
   onboarding: {
@@ -187,7 +187,7 @@ export const textsEn = {
       upcoming: (n: number) => `${n} to go`,
       unsynced: (n: number) => `${n} not synced yet`,
       ofPlanned: (done: string, planned: string) => `${done} of ${planned}`,
-      method: "Done only counts activities that belong to a session in the plan (same sport, same day).",
+      method: "Done per sport counts every activity of that sport this week, even when it belongs to no session. A session counts as done with an activity of the same sport that day, or up to 2 days before or after; link or unlink by hand on the plan page.",
     },
     race: {
       today: "Today",

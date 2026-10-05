@@ -1,18 +1,20 @@
 "use client";
 
 // Trends: time per heart-rate zone over time. At the top the distribution per week or
-// month within the period chosen in the time bar, below it the current or the
-// previous period against the average of the X periods before.
+// month within the period chosen in the time bar, then the share in Z1-Z2 as a line against
+// the 80/20 aim, below it the current or the previous period against the average of the X periods before.
 
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import LineChart from "@/components/charts/LineChart";
 import { Select, Tabs } from "@/components/ds";
 import { api } from "@/lib/api";
 import { useFormat, useT } from "@/lib/i18n";
 import { periodLabel } from "@/lib/i18n/period";
-import { ZONE_COLOUR, ZONES, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
+import { EASY_TARGET, ZONE_COLOUR, ZONES, easyPct, type Zone, type ZoneHistory, type ZonePeriod } from "@/lib/training";
 import { compareZones, fmtPct, fmtPp } from "./compare";
+import EasyShare from "./EasyShare";
 import ZoneStackChart, { type ZoneStackBar } from "./ZoneStackChart";
 
 const CHOICES: Record<ZonePeriod, number[]> = { week: [4, 8, 12, 26], month: [3, 6, 12] };
@@ -73,6 +75,20 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
 
   const cmp = useMemo(() => (h ? compareZones(h.items, x, which) : null), [h, x, which]);
 
+  // Z1-Z2 per period with heart-rate data, and a time-weighted average over the last ROLL periods (so a short
+  // week weighs less), which shows the trend through the ups and downs of single weeks.
+  const ROLL = period === "week" ? 4 : 3;
+  const easyLine = useMemo(() => {
+    const items = bars.filter((b) => b.total_s > 0);
+    const own = items.map((b) => ({ d: b.start, v: easyPct(b.pct) }));
+    const avg = items.map((b, i) => {
+      const win = items.slice(Math.max(0, i - ROLL + 1), i + 1);
+      const tot = win.reduce((s, w) => s + w.total_s, 0);
+      return { d: b.start, v: (win.reduce((s, w) => s + w.seconds.Z1 + w.seconds.Z2, 0) / tot) * 100 };
+    });
+    return { own, avg };
+  }, [bars, ROLL]);
+
   const switchPeriod = (p: ZonePeriod) => {
     setPeriod(p);
     setX(DEFAULT_X[p]);
@@ -82,7 +98,9 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
   const withData = bars.filter((b) => b.total_s > 0);
   const avgOver = (items: typeof bars) => {
     const tot = items.reduce((s, b) => s + b.total_s, 0);
-    return tot ? ZONES.map((z) => `${z} ${Math.round((items.reduce((s, b) => s + b.seconds[z], 0) / tot) * 100)}%`).join(" · ") : "";
+    if (!tot) return "";
+    const share = (z: Zone) => (items.reduce((s, b) => s + b.seconds[z], 0) / tot) * 100;
+    return `${z.easyShort} ${Math.round(share("Z1") + share("Z2"))}% (${ZONES.map((zn) => `${zn} ${Math.round(share(zn))}%`).join(" · ")})`;
   };
   const thisName = (which === "current" ? z.current : z.previous)[period];
   const avgName = z.avgPrev(x, unit(period, x));
@@ -121,6 +139,40 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
             summary={withData.length ? z.together(bars.length, unit(period, bars.length), avgOver(withData)) : z.noHrPeriod}
           />
 
+          {easyLine.own.length >= 2 && (
+            <div className="mt-5 border-t border-border pt-4">
+              <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="text-[13px] font-medium">{z.easyOverTime}</span>
+                <span className="flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--zone-2)" strokeWidth="2" /></svg>
+                    {z.easyPer(period)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-primary)" strokeWidth="2" /></svg>
+                    {z.easyAvg(ROLL, unit(period, ROLL))}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="1 4" strokeLinecap="round" /></svg>
+                    {z.easyTarget(EASY_TARGET)}
+                  </span>
+                </span>
+              </div>
+              <LineChart
+                endLabels={false}
+                height={180}
+                baseline={EASY_TARGET}
+                format={(v) => `${Math.round(v)}%`}
+                xFormat={period === "week" ? undefined : (d) => f.monthShort(d)}
+                ariaLabel={z.easyOverTimeAria(period)}
+                series={[
+                  { label: z.easyPer(period), colour: "var(--zone-2)", width: 1.5, points: easyLine.own },
+                  { label: z.easyAvg(ROLL, unit(period, ROLL)), colour: "var(--text-primary)", width: 2, points: easyLine.avg },
+                ]}
+              />
+            </div>
+          )}
+
           {cmp && (
             <div className="mt-5 border-t border-border pt-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
@@ -139,6 +191,7 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                 </label>
               </div>
 
+              {cmp.target.total_s > 0 && <EasyShare pct={cmp.target.pct} className="mb-3" />}
               <div className="mb-3 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5">
                 <MiniBar label={thisName} pct={cmp.target.total_s ? cmp.target.pct : null} />
                 <MiniBar label={avgName} pct={cmp.avgPct} />
@@ -176,6 +229,20 @@ export default function ZonesOverTime({ window: win, sport: pageSport }: { windo
                         </tr>
                       );
                     })}
+                    {(() => {
+                      const easy = (key: "pct" | "avgPct") => (cmp.rows[0][key] == null ? null : cmp.rows[0][key]! + cmp.rows[1][key]!);
+                      const [now, avg] = [easy("pct"), easy("avgPct")];
+                      return (
+                        <tr className="border-t border-border-strong" title={z.easyMethod}>
+                          <td className="py-1.5 font-medium">{z.easyShort}</td>
+                          <td className="py-1.5 text-right font-medium">{fmtPct(now)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">{fmtPct(avg)}</td>
+                          <td className="py-1.5 text-right">{fmtPp(now != null && avg != null ? now - avg : null, f)}</td>
+                          <td className="py-1.5 text-right">{f.duration(cmp.rows[0].seconds + cmp.rows[1].seconds)}</td>
+                          <td className="py-1.5 text-right text-ink-muted">{f.duration(cmp.rows[0].avgSeconds + cmp.rows[1].avgSeconds)}</td>
+                        </tr>
+                      );
+                    })()}
                     <tr className="border-t border-border-strong">
                       <td className="py-1.5 font-medium">{z.total}</td>
                       <td className="py-1.5" />

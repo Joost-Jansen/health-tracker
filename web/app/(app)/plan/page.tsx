@@ -15,7 +15,7 @@ import VolumeChart from "@/components/plan/VolumeChart";
 import WeekCard from "@/components/plan/WeekView";
 import { buildWeeks, planRace, todayIso } from "@/components/plan/plan";
 import { api } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { errorText, useT } from "@/lib/i18n";
 import type { Plan } from "@/lib/training";
 
 type ActiveResponse = { persistent: boolean; plan: Plan | null };
@@ -27,6 +27,14 @@ export default function PlanPage() {
   const [mode, setMode] = useState<Mode>("view");
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const q = useQuery({ queryKey: ["plan-active"], queryFn: () => api.get<ActiveResponse>("/api/plans/active") });
+  const link = useMutation({
+    mutationFn: ({ planId, activityId, sessionDate }: { planId: number; activityId: string; sessionDate: string | null }) =>
+      api.put<Plan>(`/api/plans/${planId}/links/${encodeURIComponent(activityId)}`, { session_date: sessionDate }),
+    onSuccess: (p) => {
+      qc.setQueryData<ActiveResponse>(["plan-active"], (old) => ({ persistent: old?.persistent ?? true, plan: p }));
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
   const finish = useMutation({
     mutationFn: (id: number) => api.patch(`/api/plans/${id}`, { status: "finished" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["plan-active"] }),
@@ -43,7 +51,7 @@ export default function PlanPage() {
 
   const plan = q.data?.plan ?? null;
   const today = todayIso();
-  const weeks = useMemo(() => buildWeeks(plan?.sessions ?? []), [plan]);
+  const weeks = useMemo(() => buildWeeks(plan?.sessions ?? [], plan?.weeks), [plan]);
   const race = useMemo(() => planRace(plan?.race, plan?.sessions ?? []), [plan]);
   useEffect(() => setToggled({}), [plan?.id]);
 
@@ -119,6 +127,7 @@ export default function PlanPage() {
       {pastCount > 0 && pastCount === weeks.length && (
         <p className="text-[13px] text-ink-muted">{t.plan.allPast}</p>
       )}
+      {link.isError && <p className="text-[12.5px] text-loss">{errorText(link.error, t, t.common.saveFailed)}</p>}
       <div className="flex flex-col gap-3">
         {weeks.map((w, i) => (
           <WeekCard
@@ -130,6 +139,7 @@ export default function PlanPage() {
             raceDate={race.date}
             open={isOpen(i)}
             onToggle={() => setToggled((t) => ({ ...t, [w.monday]: !isOpen(i) }))}
+            onLink={(activityId, sessionDate) => link.mutate({ planId: plan.id, activityId, sessionDate })}
           />
         ))}
       </div>

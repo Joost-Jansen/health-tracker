@@ -10,7 +10,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
-import { ZONE_COLOUR, ZONES, type ZoneHistoryItem } from "@/lib/training";
+import { EASY_TARGET, ZONE_COLOUR, ZONES, easyPct, type ZoneHistoryItem } from "@/lib/training";
 
 export type ZoneStackBar = ZoneHistoryItem & {
   /** Short label under the bar. */
@@ -57,6 +57,7 @@ export default function ZoneStackChart({
             <span className="text-[13px]">
               <span className="font-semibold">{shown.label}</span>
               <span className="text-ink-muted"> · {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}{shown.partial ? ` · ${t.zones.running}` : ""}</span>
+              {shown.total_s > 0 && <span className="font-medium"> · {t.zones.easyShort} {Math.round(easyPct(shown.pct))}%</span>}
             </span>
             {shown.total_s > 0 && (
               <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
@@ -76,6 +77,11 @@ export default function ZoneStackChart({
         )}
       </div>
 
+      {/* Z1 and Z2 sit at the bottom, so where their top meets the dashed line the 80/20 aim is met. */}
+      <div className="relative">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-[var(--text-primary)] opacity-70" style={{ bottom: `${EASY_TARGET}%` }}>
+        <span className="absolute -top-[9px] right-0 rounded bg-surface px-1 text-[10.5px] leading-[16px] text-[var(--text-primary)]">{EASY_TARGET}%</span>
+      </div>
       <div role="group" aria-label={ariaLabel} className="flex h-[150px] items-stretch gap-[3px] sm:h-[180px]" onMouseLeave={() => setActive(null)}>
         {bars.map((bar, i) => (
           <button
@@ -110,6 +116,7 @@ export default function ZoneStackChart({
           </button>
         ))}
       </div>
+      </div>
 
       {/* Flex instead of text-center: a label wider than its bar then sticks out equally on both sides
           (text always overflows to the right), and the first and last label stay inside the card. */}
@@ -132,6 +139,10 @@ export default function ZoneStackChart({
             {z}
           </span>
         ))}
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="inline-block w-3 border-t border-dashed border-[var(--text-primary)]" />
+          {t.zones.easyLine(EASY_TARGET)}
+        </span>
         {bars.some((b) => b.partial) && <span>· {t.zones.lighter}</span>}
       </div>
     </div>

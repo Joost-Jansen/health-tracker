@@ -219,41 +219,128 @@ def zone_compliance(activity: dict, target: str | None) -> float | None:
     return round(sum(secs.get(z, 0) for z in ok) / total * 100)
 
 
-def match_sessions(sessions: list[dict], activities: list[dict], today: date) -> list[dict]:
-    """Every session with a status: gedaan (activity of that sport on that day), gemist (past, none), vandaag,
-    gepland or rust. One activity is matched to at most one session; with several candidates the closest in
-    distance wins. Split runs on one day are summed."""
+NEAR_DAYS = 2  # an activity this many days before or after an open session of its sport counts for that session
+CANDIDATE_DAYS = 7  # activities the user can link to an open session by hand
+
+
+def _day_gap(a: dict, day: str) -> int:
+    return abs((date.fromisoformat(a["start_local"][:10]) - date.fromisoformat(day)).days)
+
+
+def match_sessions(sessions: list[dict], activities: list[dict], today: date, links: dict[str, str | None] | None = None) -> list[dict]:
+    """Every session with a status: done, missed (past, none), today, planned or rest. One activity counts for at
+    most one session, in this order:
+
+    1. `links`, what the user decided: activity id -> the date of the session of its sport it belongs to, or None
+       for "not part of the plan" (`match` "manual").
+    2. An activity of the same sport that day (`match` "day"); with several candidates the closest in distance
+       wins, and split runs on one day are summed.
+    3. An activity up to NEAR_DAYS before or after a still open session of its sport (`match` "near"): the
+       session was done a day early or late. The nearest day wins, then the closest distance.
+
+    Open sessions get `candidates`: unused activities of their sport within CANDIDATE_DAYS, to link by hand."""
+    links = links or {}
+    by_id = {a["id"]: a for a in activities}
+    excluded = {aid for aid, day in links.items() if day is None}
+    ordered = sorted(sessions, key=lambda s: (s["date"], s.get("id") or 0))
+    chosen: dict[int, tuple[list[dict], str]] = {}  # index in `ordered` -> (activities, how)
+    used: set[str] = set()
+
+    def open_of(sport: str, day: str | None = None) -> list[int]:
+        return [i for i, s in enumerate(ordered) if s["sport"] == sport and i not in chosen and (day is None or s["date"] == day)]
+
+    def closest(idx: list[int], a: dict) -> int:
+        return min(idx, key=lambda i: abs((a.get("distance_km") or 0) - (ordered[i].get("distance_km") or 0)))
+
+    # 1. the user's own links (pieces of one session linked to the same day are summed)
+    manual: dict[int, list[dict]] = defaultdict(list)
+    for aid, day in sorted(links.items(), key=lambda x: (x[1] or "", x[0])):
+        a = by_id.get(aid)
+        if not a or day is None:
+            continue
+        idx = [i for i in open_of(a["sport"], day) if i not in manual] or [i for i in manual if ordered[i]["date"] == day and ordered[i]["sport"] == a["sport"]]
+        if idx:
+            manual[closest(idx, a)].append(a)
+            used.add(aid)
+    chosen.update({i: (acts, "manual") for i, acts in manual.items()})
+
+    def free(a: dict) -> bool:
+        return a["id"] not in used and a["id"] not in excluded
+
+    # 2. same day
     by_day: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for a in activities:
         by_day[(a["start_local"][:10], a["sport"])].append(a)
-    used: set[str] = set()
+    for i, s in enumerate(ordered):
+        if s["sport"] == "rest" or i in chosen:
+            continue
+        cands = [a for a in by_day.get((s["date"], s["sport"]), []) if free(a)]
+        if not cands:
+            continue
+        if s.get("distance_km"):
+            cands.sort(key=lambda a: abs((a.get("distance_km") or 0) - s["distance_km"]))
+        others_planned = sum(1 for x in sessions if x is not s and x["date"] == s["date"] and x["sport"] == s["sport"])
+        picked = cands if not others_planned else cands[:1]  # split run: the pieces are one session
+        chosen[i] = (picked, "day")
+        used.update(a["id"] for a in picked)
+
+    # 3. a day or two early or late
+    pairs = [
+        (_day_gap(a, s["date"]), abs((a.get("distance_km") or 0) - (s.get("distance_km") or 0)), s["date"], i, a["id"])
+        for i, s in enumerate(ordered)
+        if s["sport"] != "rest" and i not in chosen
+        for a in activities
+        if a["sport"] == s["sport"] and free(a) and 0 < _day_gap(a, s["date"]) <= NEAR_DAYS
+    ]
+    for _, _, _, i, aid in sorted(pairs):
+        if i not in chosen and aid not in used:
+            chosen[i] = ([by_id[aid]], "near")
+            used.add(aid)
+
     out = []
-    for s in sorted(sessions, key=lambda s: (s["date"], s.get("id") or 0)):
+    for i, s in enumerate(ordered):
         row = dict(s)
         if s["sport"] == "rest":
             row["status"] = "rest"
-            out.append(row)
-            continue
-        cands = [a for a in by_day.get((s["date"], s["sport"]), []) if a["id"] not in used]
-        if cands:
-            if s.get("distance_km"):
-                cands.sort(key=lambda a: abs((a.get("distance_km") or 0) - s["distance_km"]))
-            same_sport_left = [a for a in cands if a is not cands[0]]
-            others_planned = sum(1 for x in sessions if x is not s and x["date"] == s["date"] and x["sport"] == s["sport"])
-            chosen = [cands[0]] + (same_sport_left if not others_planned else [])  # split run: the pieces are one session
-            used.update(a["id"] for a in chosen)
-            km = round(sum(a.get("distance_km") or 0 for a in chosen), 2)
-            secs = sum(a.get("moving_time_s") or 0 for a in chosen)
-            merged = {"hr_zones_s": {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in chosen) for z in NAMES}}
+        elif i in chosen:
+            acts, how = chosen[i]
+            km = round(sum(a.get("distance_km") or 0 for a in acts), 2)
+            secs = sum(a.get("moving_time_s") or 0 for a in acts)
+            merged = {"hr_zones_s": {z: sum((a.get("hr_zones_s") or {}).get(z, 0) for a in acts) for z in NAMES}}
             row.update(
                 status="done",
-                activity_ids=[a["id"] for a in chosen],
-                done={"distance_km": km, "moving_time_s": secs, "avg_hr": chosen[0].get("avg_hr"), "zone_pct": zone_compliance(merged, s.get("target_zone"))},
+                match=how,
+                activity_ids=[a["id"] for a in acts],
+                done={
+                    "date": acts[0]["start_local"][:10],
+                    "distance_km": km,
+                    "moving_time_s": secs,
+                    "avg_hr": acts[0].get("avg_hr"),
+                    "zone_pct": zone_compliance(merged, s.get("target_zone")),
+                },
             )
         else:
             day = date.fromisoformat(s["date"])
             row["status"] = "missed" if day < today else "today" if day == today else "planned"
+            near = sorted((a for a in activities if a["sport"] == s["sport"] and a["id"] not in used and _day_gap(a, s["date"]) <= CANDIDATE_DAYS), key=lambda a: (_day_gap(a, s["date"]), a["start_local"]))
+            row["candidates"] = [
+                {"id": a["id"], "date": a["start_local"][:10], "distance_km": a.get("distance_km"), "moving_time_s": a.get("moving_time_s")} for a in near
+            ]
         out.append(row)
+    return out
+
+
+def activity_weeks(activities: list[dict], sports: set[str]) -> dict[str, dict[str, dict]]:
+    """Per week (its Monday) and sport: the km and moving time of every activity of `sports`, whether or not it
+    belongs to a session. The week's volume counts everything you did."""
+    out: dict[str, dict[str, dict]] = defaultdict(dict)
+    for a in activities:
+        if a["sport"] not in sports:
+            continue
+        d = date.fromisoformat(a["start_local"][:10])
+        row = out[(d - timedelta(days=d.weekday())).isoformat()].setdefault(a["sport"], {"km": 0.0, "s": 0})
+        row["km"] += a.get("distance_km") or 0
+        row["s"] += a.get("moving_time_s") or 0
     return out
 
 
@@ -281,28 +368,45 @@ def suggest_routes(sessions: list[dict], routes: list[dict], today: date) -> Non
             s["route_suggestion"] = {**r, "names": [names[p] for p in r["parts"]]}
 
 
-def weekly_summary(sessions: list[dict]) -> list[dict]:
+def weekly_summary(sessions: list[dict], activities: list[dict] = ()) -> list[dict]:
+    """Every week from the first to the last session: planned and done sessions, and per sport (`sports`) the
+    planned km against the km of all activities of that sport that week, in a session or not."""
+    if not sessions:
+        return []
+    days = sorted(date.fromisoformat(s["date"]) for s in sessions)
+    sports = {s["sport"] for s in sessions if s["sport"] != "rest"}
+    done = activity_weeks(list(activities), sports)
     weeks: dict[str, dict] = {}
+    monday = days[0] - timedelta(days=days[0].weekday())
+    while monday <= days[-1]:
+        wk = monday.isoformat()
+        weeks[wk] = {"week": wk, "planned_km": 0.0, "done_km": 0.0, "planned": 0, "done": 0, "missed": 0, "sports": {}}
+        for sport, v in done.get(wk, {}).items():
+            weeks[wk]["sports"][sport] = {"planned_km": 0.0, "done_km": v["km"]}
+        monday += timedelta(days=7)
     for s in sessions:
-        d = date.fromisoformat(s["date"])
-        wk = (d - timedelta(days=d.weekday())).isoformat()
-        w = weeks.setdefault(wk, {"week": wk, "planned_km": 0.0, "done_km": 0.0, "planned": 0, "done": 0, "missed": 0})
         if s["sport"] == "rest":
             continue
+        d = date.fromisoformat(s["date"])
+        w = weeks[(d - timedelta(days=d.weekday())).isoformat()]
         w["planned"] += 1
         w["planned_km"] += s.get("distance_km") or 0
+        w["sports"].setdefault(s["sport"], {"planned_km": 0.0, "done_km": 0.0})["planned_km"] += s.get("distance_km") or 0
         if s.get("status") == "done":
             w["done"] += 1
-            w["done_km"] += s["done"]["distance_km"]
         elif s.get("status") == "missed":
             w["missed"] += 1
-    return [{**w, "planned_km": round(w["planned_km"], 1), "done_km": round(w["done_km"], 1)} for w in sorted(weeks.values(), key=lambda w: w["week"])]
+    for w in weeks.values():
+        w["done_km"] = sum(v["done_km"] for v in w["sports"].values())
+        w["sports"] = {k: {"planned_km": round(v["planned_km"], 1), "done_km": round(v["done_km"], 1)} for k, v in w["sports"].items()}
+        w["planned_km"], w["done_km"] = round(w["planned_km"], 1), round(w["done_km"], 1)
+    return list(weeks.values())
 
 
 def enrich(plan: dict, activities: list[dict], routes: list[dict], today: date) -> dict:
-    sessions = match_sessions(plan.get("sessions") or [], activities, today)
+    sessions = match_sessions(plan.get("sessions") or [], activities, today, plan.get("links"))
     suggest_routes(sessions, routes, today)
-    return {**plan, "sessions": sessions, "weeks": weekly_summary(sessions)}
+    return {**plan, "sessions": sessions, "weeks": weekly_summary(sessions, activities)}
 
 
 # --- API ----------------------------------------------------------------------------------
@@ -333,6 +437,12 @@ class PlanPatch(BaseModel):
     race: str | None = None
     notes: str | None = None
     status: str | None = None
+
+
+class LinkIn(BaseModel):
+    """The date of the session (of the activity's sport) the activity belongs to; None: not part of the plan."""
+
+    session_date: str | None = None
 
 
 class ImportIn(BaseModel):
@@ -408,6 +518,25 @@ def make_router(today: Callable[[], date], current_user: Callable) -> APIRouter:
     def put_sessions(plan_id: int, body: list[SessionIn], u=Depends(current_user)):
         must(u, plan_id)
         db.replace_sessions(u.scope, plan_id, [_check_session(s.model_dump()) for s in body])
+        return full(u, must(u, plan_id))
+
+    @r.put("/api/plans/{plan_id}/links/{activity_id}")
+    def put_link(plan_id: int, activity_id: str, body: LinkIn, u=Depends(current_user)):
+        """Link an activity to a session by hand, or with `session_date` null keep it out of the plan."""
+        plan = must(u, plan_id)
+        a = next((a for a in u.store.activities if a["id"] == activity_id), None)
+        if not a:
+            raise ApiError(404, "activity_not_found")
+        if body.session_date is not None and not any(s["date"] == body.session_date and s["sport"] == a["sport"] for s in plan["sessions"]):
+            raise ApiError(422, "no_session_to_link", date=body.session_date, sport=a["sport"])
+        db.set_plan_link(u.scope, plan_id, activity_id, body.session_date)
+        return full(u, must(u, plan_id))
+
+    @r.delete("/api/plans/{plan_id}/links/{activity_id}")
+    def delete_link(plan_id: int, activity_id: str, u=Depends(current_user)):
+        """Back to automatic matching for this activity."""
+        must(u, plan_id)
+        db.clear_plan_link(u.scope, plan_id, activity_id)
         return full(u, must(u, plan_id))
 
     @r.put("/api/plans/{plan_id}/table")

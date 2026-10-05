@@ -65,6 +65,7 @@ MESSAGES: dict[str, str] = {
     "invalid_date": "ongeldige datum: {date}",
     "invalid_plan_status": "status moet een van {options} zijn",
     "no_sessions": "geen sessies gevonden",
+    "no_session_to_link": "geen sessie {sport} op {date} in het schema",
     # routes (api/routes_api.py)
     "route_not_found": "rondje niet gevonden",
     "unknown_route": "onbekend rondje",

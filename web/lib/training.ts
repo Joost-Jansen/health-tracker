@@ -14,6 +14,12 @@ export const ZONE_COLOUR: Record<Zone, string> = {
   Z5: "var(--zone-5)",
 };
 
+/** Endurance rule of thumb (80/20): about 80% of the time easy, in Z1-Z2. Below EASY_LOW it deserves a look
+ *  (the same line as the Trends insight easy_share, api/trends.py). */
+export const EASY_TARGET = 80;
+export const EASY_LOW = 75;
+export const easyPct = (pct: Record<Zone, number>) => pct.Z1 + pct.Z2;
+
 /** Dutch sport names (lib/sports.ts); the site takes its names from lib/i18n (t.sport) in the user's language. */
 export const SPORT_LABEL: Record<string, string> = Object.fromEntries(Object.entries(SPORTS).map(([k, v]) => [k, v.nl]));
 
@@ -217,13 +223,27 @@ export type PlanSession = {
   route_id?: string | null;
   status?: SessionStatus;
   activity_ids?: string[];
-  done?: { distance_km: number; moving_time_s: number; avg_hr?: number; zone_pct: number | null };
+  /** How the activity was matched (api/plans.py match_sessions): that day, a day or two early or late, or by the user. */
+  match?: "day" | "near" | "manual";
+  /** `date`: the day the activity was done. */
+  done?: { date: string; distance_km: number; moving_time_s: number; avg_hr?: number; zone_pct: number | null };
+  /** Open sessions: unused activities of the same sport within a week, to link by hand. */
+  candidates?: { id: string; date: string; distance_km?: number | null; moving_time_s?: number | null }[];
   route_suggestion?: { parts: string[]; names: string[]; total_km: number; deviation_km: number; within_tolerance: boolean; days_since: number };
   /** The loop chosen in the plan (`route_id`), when it is one of the user's loops (T24). */
   route?: { id: string; name: string; distance_km?: number | null };
 };
 
-export type PlanWeek = { week: string; planned_km: number; done_km: number; planned: number; done: number; missed: number };
+/** `done_km` (also per sport) counts every activity of a sport in the plan that week, in a session or not. */
+export type PlanWeek = {
+  week: string;
+  planned_km: number;
+  done_km: number;
+  planned: number;
+  done: number;
+  missed: number;
+  sports: Record<string, { planned_km: number; done_km: number }>;
+};
 
 export type Plan = {
   id: number;
@@ -236,9 +256,11 @@ export type Plan = {
   created_at: string;
   sessions: PlanSession[];
   weeks: PlanWeek[];
+  /** What the user decided: activity id -> the date of its session, or null for "not part of the plan". */
+  links?: Record<string, string | null>;
 };
 
-export type PlanListItem = Omit<Plan, "sessions" | "weeks">;
+export type PlanListItem = Omit<Plan, "sessions" | "weeks" | "links">;
 
 // ── Routes (T7) ──────────────────────────────────────────────────────────────
 

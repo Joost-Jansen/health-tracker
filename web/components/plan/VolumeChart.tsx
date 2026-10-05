@@ -4,7 +4,7 @@
 // That shows the build-up or taper at a glance, and how well you follow it. Per sport, because 50 km cycling and
 // 10 km running do not add up to anything meaningful.
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
 import type { PlanSession } from "@/lib/training";
 import InfoPopover from "@/components/InfoPopover";
@@ -22,6 +22,17 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
     return Object.entries(all).filter(([, v]) => v.planned > 0).sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned)).map(([s]) => s);
   }, [weeks]);
   const [pick, setPick] = useState<string | null>(null);
+  // A long plan in a narrow card leaves a few pixels per week: then labels are thinned out instead of overlapping
+  // (the tooltip on each bar still has the numbers).
+  const barsRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = barsRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const sport = pick && sports.includes(pick) ? pick : sports[0];
   if (!sport) return null;
 
@@ -36,6 +47,11 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
   const colour = sportColour(sport);
   const total = rows.reduce((s, r) => s + r.planned, 0);
   const done = rows.reduce((s, r) => s + r.done, 0);
+  const tight = rows.length > 10;
+  const colW = width ? width / rows.length : 60;
+  const values: "full" | "short" | "current" = colW >= 60 ? "full" : colW >= 30 ? "short" : "current";
+  const step = Math.max(1, Math.ceil(44 / colW)); // a date label is about 40px wide
+  const nearMarker = (i: number) => [i - 1, i + 1].some((j) => rows[j] && (rows[j].current || rows[j].race));
 
   return (
     <section className="flex flex-col rounded border border-border bg-surface p-4 sm:p-[18px]">
@@ -64,12 +80,20 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
       <p className="mb-3 text-[12px] tabular-nums text-ink-muted">
         {v.doneOf(fmtNum(done), fmtNum(total), sport)}
       </p>
-      <div className="flex h-[132px] items-end gap-2 sm:gap-3 lg:h-auto lg:min-h-[132px] lg:flex-1" role="list" aria-label={v.aria(sport)}>
+      <div ref={barsRef} className={`flex h-[132px] items-end lg:h-auto lg:min-h-[132px] lg:flex-1 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`} role="list" aria-label={v.aria(sport)}>
         {rows.map((r) => (
           <div key={r.monday} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={v.bar(f.dayMonth(r.monday), fmtNum(r.done), fmtNum(r.planned))}>
-            <span className="mb-1 text-[11.5px] tabular-nums text-ink-muted">
-              {r.started && r.done > 0 ? <><span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/</> : null}
-              {r.raceKm > 0 && r.planned > r.raceKm ? <>{fmtNum(r.planned - r.raceKm)}<span className="text-brand"> + {fmtNum(r.raceKm)}</span></> : fmtNum(r.planned)}
+            <span className="mb-1 whitespace-nowrap text-[11.5px] tabular-nums text-ink-muted">
+              {values === "full" ? (
+                <>
+                  {r.started && r.done > 0 ? <><span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span>/</> : null}
+                  {r.raceKm > 0 && r.planned > r.raceKm ? <>{fmtNum(r.planned - r.raceKm)}<span className="text-brand"> + {fmtNum(r.raceKm)}</span></> : fmtNum(r.planned)}
+                </>
+              ) : values === "short" || r.current ? (
+                r.started && r.done > 0 ? <span className="font-semibold text-[var(--text-primary)]">{fmtNum(r.done)}</span> : fmtNum(r.planned)
+              ) : (
+                "\u00a0"
+              )}
             </span>
             <div
               className="relative w-full max-w-[56px] overflow-hidden rounded-t-[4px]"
@@ -87,10 +111,10 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
           </div>
         ))}
       </div>
-      <div className="mt-1.5 flex gap-2 border-t border-border pt-1.5 sm:gap-3">
-        {rows.map((r) => (
-          <span key={r.monday} className={`min-w-0 flex-1 truncate text-center text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}>
-            {r.race ? v.race : r.current ? v.now : f.dayMonth(r.monday)}
+      <div className={`mt-1.5 flex border-t border-border pt-1.5 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`}>
+        {rows.map((r, i) => (
+          <span key={r.monday} className={`flex min-w-0 flex-1 justify-center whitespace-nowrap text-[11px] ${r.current ? "font-semibold text-[var(--text-primary)]" : "text-ink-muted"}`}>
+            {r.race ? v.race : r.current ? v.now : step === 1 || (i % step === 0 && !nearMarker(i)) ? f.dayMonth(r.monday) : ""}
           </span>
         ))}
       </div>

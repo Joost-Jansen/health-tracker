@@ -151,7 +151,7 @@ export const nl = {
       },
       {
         title: "Hoe lang",
-        text: "Tot je ze verwijdert of je account laat verwijderen. Een koppeling met Garmin of Wahoo ontkoppelen wist de opgeslagen toegang; de gegevens die al binnen zijn blijven staan tot je account wordt verwijderd.",
+        text: "Tot je ze verwijdert of je account laat verwijderen. Garmin ontkoppelen wist de opgeslagen toegang; je trainingen die al binnen zijn blijven staan. Wahoo ontkoppelen, of de toegang intrekken bij Wahoo zelf, wist ook alles wat via Wahoo binnenkwam: ritten die alleen van Wahoo kwamen helemaal, en bij ritten die ook op Garmin staan het deel van Wahoo. FIT-bestanden die je zelf uploadt zijn van jou en blijven staan tot je ze laat verwijderen. Op verzoek krijg je je gegevens te zien of worden ze gewist.",
         items: [],
       },
       {

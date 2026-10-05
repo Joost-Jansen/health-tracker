@@ -44,7 +44,7 @@ from sqlalchemy.engine import Engine
 
 from tools.routes import english_default_name
 from tools.sports import sport_of
-from tools.store import activity_id, merge, prepare, same_start, source_distance
+from tools.store import _rank, activity_id, merge, prepare, remove_source as _strip_source, same_start, source_distance
 
 SCHEMA_VERSION = 5
 meta = MetaData()
@@ -523,14 +523,23 @@ def upsert_activity(s: Scope, record: dict) -> str:
     new_streams = record.pop("streams", None)
     uid = s.user_id
     with s.engine.begin() as conn:
+        (src,) = record["sources"]
         match = _find_match(conn, s, record)
+        if new_streams:
+            owner = ((match or {}).get("data") or {}).get("owners", {}).get("streams")
+            if match and owner and owner != src and _rank(owner) < _rank(src):
+                new_streams = None  # a higher-priority source already gave the streams
         if match is None:
             aid = activity_id(record)
             merged = merge({}, record)
+            if new_streams:
+                merged["owners"]["streams"] = src
             conn.execute(insert(activities).values(user_id=uid, id=aid, start_local=merged["start_local"], start_utc=merged["start_utc"], sport=merged["sport"], data=merged))
         else:
             aid = match["id"]
             merged = merge(match["data"], record)
+            if new_streams:
+                merged["owners"]["streams"] = src
             conn.execute(update(activities).where(activities.c.user_id == uid, activities.c.id == aid).values(data=merged, sport=merged["sport"]))
         if new_streams:
             conn.execute(delete(streams).where(streams.c.user_id == uid, streams.c.activity_id == aid))
@@ -569,6 +578,37 @@ def set_manual_distance(s: Scope, aid: str, km: float | None) -> dict | None:
         data = {**data, "sources": sources, "distance_km": round(km, 2) if km is not None else None}
         conn.execute(update(activities).where(*where).values(data=data))
     return dict(data, id=aid)
+
+
+def remove_source(s: Scope, source: str) -> dict:
+    """Everything `source` gave, gone: activities only it had, and its part of merged ones.
+
+    For ending a connection (a user who revokes Wahoo access, say). Fields, laps and streams another source gave
+    stay; FIT files stored under `<source>/` go. Zones and routes are the caller's to recompute (tools.derive).
+    """
+    uid = s.user_id
+    removed = changed = 0
+    with s.engine.begin() as conn:
+        rows = conn.execute(select(activities.c.id, activities.c.data).where(activities.c.user_id == uid)).all()
+        for aid, data in rows:
+            if source not in (data or {}).get("sources", {}):
+                continue
+            where_streams = (streams.c.user_id == uid, streams.c.activity_id == aid)
+            kept = _strip_source(data, source)
+            if kept is None:
+                conn.execute(delete(streams).where(*where_streams))
+                conn.execute(delete(fit_files).where(fit_files.c.user_id == uid, fit_files.c.activity_id.in_([aid, f"upload/{aid}"])))
+                conn.execute(delete(activities).where(activities.c.user_id == uid, activities.c.id == aid))
+                removed += 1
+                continue
+            if (data.get("owners") or {}).get("streams") == source:
+                conn.execute(delete(streams).where(*where_streams))
+            if kept.get("fit_file", "").startswith(f"{source}/"):
+                kept.pop("fit_file")
+            conn.execute(update(activities).where(activities.c.user_id == uid, activities.c.id == aid).values(data=kept))
+            changed += 1
+        conn.execute(delete(fit_files).where(fit_files.c.user_id == uid, fit_files.c.activity_id.like(f"{source}/%")))
+    return {"removed": removed, "changed": changed}
 
 
 def set_derived(s: Scope, aid: str, **fields) -> None:

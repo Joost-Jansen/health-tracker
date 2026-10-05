@@ -71,3 +71,13 @@ def test_schema_5_gives_stored_open_water_swims_their_timer_time(tmp_path):
     db.create_schema(e)
     a = db.load_activities(s)[0]
     assert (a["id"], a["moving_time_s"], a["open_water"], a["sources"]["garmin"]["fields"]["moving_time_s"]) == (aid, 2723, True, 2723)
+
+
+def test_removing_the_only_source_also_removes_your_correction(tmp_path):
+    e = db.connect(f"sqlite:///{tmp_path / 'r.db'}")
+    db.create_schema(e)
+    s = db.Scope(e, 1)
+    aid = db.upsert_activity(s, from_garmin(ows(0.02, 584.0, 2400.0), None))
+    db.set_manual_distance(s, aid, 2.0)
+    assert db.remove_source(s, "garmin") == {"removed": 1, "changed": 0}
+    assert db.load_activities(s) == []

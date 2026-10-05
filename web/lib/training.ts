@@ -36,6 +36,12 @@ export type ActivitySummary = {
   max_hr?: number;
   elevation_gain_m?: number;
   hr_zones_s?: ZoneSeconds;
+  /** Open water (tools/distance.py): a doubtful GPS distance is left out (`distance_km` empty, the GPS value in
+   *  `gps_distance_km`); `distance_manual` when you corrected it. */
+  open_water?: boolean;
+  distance_doubtful?: boolean;
+  gps_distance_km?: number;
+  distance_manual?: boolean;
 };
 
 export type ZoneShare = { seconds: ZoneSeconds; total_s: number; pct: Record<Zone, number> };

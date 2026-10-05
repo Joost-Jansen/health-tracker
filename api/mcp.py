@@ -25,6 +25,7 @@ from api.readiness import as_text as readiness_text, readiness
 from api.routes_api import suggest
 from api.trends import build_trends
 from tools import db
+from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
 
 PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
@@ -123,11 +124,22 @@ def _clock(seconds) -> str:
 def _pace(a: dict) -> str:
     if not a.get("distance_km") or not a.get("moving_time_s"):
         return "-"
-    if a["sport"] == "ride":
+    kind = effort_kind(a["sport"])
+    if kind == "speed":
         return f"{a['distance_km'] / a['moving_time_s'] * 3600:.1f} km/u"
-    if a["sport"] == "swim":
+    if kind == "swim":
         return f"{_clock(a['moving_time_s'] / a['distance_km'] / 10)}/100m"
+    if kind == "row":
+        return f"{_clock(a['moving_time_s'] / a['distance_km'] / 2)}/500m"
     return f"{_clock(a['moving_time_s'] / a['distance_km'])}/km"
+
+
+def _distance_note(a: dict) -> str:
+    if a.get("distance_doubtful"):
+        return f" (GPS gaf {a.get('gps_distance_km') or 0} km: onbetrouwbaar in open water, telt niet mee)"
+    if a.get("distance_manual"):
+        return " (afstand door gebruiker gecorrigeerd)"
+    return ""
 
 
 def _zones(z: dict | None) -> str:
@@ -139,7 +151,7 @@ def activities_md(items: list[dict]) -> str:
     lines = ["| Id | Datum | Sport | Naam | km | Tijd | Tempo | HR | Zones |", "|---|---|---|---|---|---|---|---|---|"]
     for a in items:
         lines.append(
-            f"| {a['id']} | {a['start_local'][:16].replace('T', ' ')} | {a['sport']} | {a.get('name') or ''} | {a.get('distance_km') or '-'} | "
+            f"| {a['id']} | {a['start_local'][:16].replace('T', ' ')} | {a['sport']} | {a.get('name') or ''} | {a.get('distance_km') or ('GPS?' if a.get('distance_doubtful') else '-')} | "
             f"{_clock(a.get('moving_time_s'))} | {_pace(a)} | {a.get('avg_hr') or '-'} | {_zones(a.get('hr_zones_s'))} |"
         )
     return "\n".join(lines)
@@ -148,7 +160,7 @@ def activities_md(items: list[dict]) -> str:
 def activity_md(a: dict) -> str:
     out = [
         f"# {a.get('name') or a['sport']} ({a['id']})",
-        f"{a['start_local']} · {a['sport']} · {a.get('distance_km') or '-'} km · {_clock(a.get('moving_time_s'))} bewegend"
+        f"{a['start_local']} · {a['sport']} · {a.get('distance_km') or '-'} km{_distance_note(a)} · {_clock(a.get('moving_time_s'))} bewegend"
         + (f" ({_clock(a['elapsed_time_s'])} totaal)" if a.get("elapsed_time_s") else "")
         + f" · {_pace(a)} · HR {a.get('avg_hr') or '-'} (max {a.get('max_hr') or '-'})",
         f"Zones: {_zones(a.get('hr_zones_s'))}" + (" (zones voor deze sport zijn geschat)" if a.get("zone_estimate") else "") + (f", grenzen {a['zone_bounds']}" if a.get("zone_bounds") else ""),

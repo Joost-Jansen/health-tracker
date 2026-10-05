@@ -75,6 +75,7 @@ MESSAGES: dict[str, str] = {
     "document_not_found": "document bestaat niet",
     "unknown_document": "onbekend document",
     "activity_not_found": "activiteit niet gevonden",
+    "invalid_distance": "afstand tussen {min} en {max} km",
     "max_periods": "maximaal {max} perioden",
     # FIT upload (api/uploads.py)
     "upload_empty": "leeg bestand",

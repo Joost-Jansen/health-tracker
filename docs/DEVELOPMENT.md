@@ -62,13 +62,17 @@ Docker check before touching the Dockerfile: `docker build -t health-tracker:tes
    group for each code; `tests/test_sports.py` checks all of Garmin's types (`tests/garmin_activity_types.json`) are
    there. A multisport activity (triathlon, brick, swimrun) is stored as its legs, without the transitions; the legs
    share the parent's FIT file, each with its own time window (`tools/sync.py` `multisport_legs`).
-7. **No personal text in the UI**: explanations about health and performance live in `web/lib/texts.ts` and take the
+7. **Open water**: an open-water swim takes the timer time (Garmin's moving time is broken there) and a pace outside
+   1:00-4:00/100m means its GPS distance is wrong: `tools/distance.py` `counted` (applied in `api/data.py`) then gives it
+   no distance, so totals, paces and plans leave it out; the GPS value stays as `gps_distance_km`. The user's
+   correction is source `manual`, first for `distance_km`, so a later sync keeps it.
+8. **No personal text in the UI**: explanations about health and performance live in `web/lib/texts.ts` and take the
    user's own numbers as parameters.
-8. **Two languages**: every text in the UI comes from `useT()` (`web/lib/i18n`), never a string in a component; numbers
+9. **Two languages**: every text in the UI comes from `useT()` (`web/lib/i18n`), never a string in a component; numbers
    and dates go through `useFormat()`. `npm run check:i18n` (also run by pytest) must stay green.
-9. **Frontend**: reuse `web/components/ds`, `Card`, `charts/*` and the CSS tokens in `web/app/globals.css` (`--sage-*`,
+10. **Frontend**: reuse `web/components/ds`, `Card`, `charts/*` and the CSS tokens in `web/app/globals.css` (`--sage-*`,
    `--zone-1..5`, `--chart-*`). Light and dark mode must both work, and phone width without horizontal scroll.
-10. **Commits**: small and descriptive.
+11. **Commits**: small and descriptive.
 
 ## Languages
 
@@ -154,6 +158,7 @@ Existing:
 | POST | `/api/activities/upload?name=&recompute=true` | one FIT file (or a zip with one) as the raw body: a ride or run from a Wahoo or any other device. Merged into an activity that starts within 2 min (Garmin stays leading), else added; `{status: added\|merged, id, sport, start_local, distance_km, source: wahoo\|fit, merged_with[]}`. Errors: `upload_empty`, `upload_too_large`, `fit_unreadable` |
 | POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
+| PATCH | `/api/activities/{id}` | `{distance_km: number\|null}`: the real distance (0.01-1000 km) when GPS got it wrong; null removes the correction; returns the detail |
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |

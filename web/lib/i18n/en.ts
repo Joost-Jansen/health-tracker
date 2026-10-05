@@ -239,6 +239,7 @@ export const en: Messages = {
     document_not_found: "Document does not exist.",
     unknown_document: "Unknown document.",
     activity_not_found: "Activity not found.",
+    invalid_distance: (p: { min: number; max: number }) => `Distance between ${p.min} and ${p.max} km.`,
     max_periods: (p: { max: number }) => `At most ${p.max} periods.`,
   },
 
@@ -365,6 +366,7 @@ export const en: Messages = {
   },
 
   history: {
+    gpsDoubtful: "GPS distance unreliable in open water: not counted. Open the swim to enter the real distance.",
     periods: { all: "All", "30": "30 days", "90": "90 days", "365": "Year" },
     loadFailed: "Could not load the activities.",
     sport: "Sport",
@@ -401,6 +403,18 @@ export const en: Messages = {
     notFound: "Activity not found.",
     none: "No activity selected.",
     afterMultisport: "After swimming or cycling",
+    distanceFix: {
+      doubtful: (gps: string, time: string) => `GPS measured ${gps} in ${time} of swimming. That can't be right: GPS is unreliable in open water, so this swim counts without a distance.`,
+      corrected: "You corrected this distance.",
+      openWater: "Measured with GPS in open water, which can be off.",
+      fix: "Enter the real distance",
+      change: "Change",
+      undo: (gps: string | null) => (gps ? `Back to GPS (${gps})` : "Remove correction"),
+      label: "Distance (km)",
+      save: "Save",
+      cancel: "Cancel",
+      failed: "Enter a distance in km, for example 2.0.",
+    },
     drift: (pct: string) => `Drift ${pct}%`,
     rank: (rank: number, of: number) => `${ordinal(rank)} of ${of} on this loop`,
     fastest: (pace: string, day: string) => `Fastest time ${pace} on ${day}.`,

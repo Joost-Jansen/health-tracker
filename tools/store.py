@@ -16,7 +16,8 @@ from tools.sports import garmin_sport, strava_sport
 
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
-FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit")}
+# `manual`: what the user corrected on the site (tools/distance.py), always first.
+FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo", "fit"), "distance_km": ("manual", "garmin", "strava", "wahoo", "fit")}
 # Uploaded FIT files (Wahoo, or any other device) come after the synced sources.
 DEFAULT_PRIORITY = ("garmin", "strava", "wahoo", "fit")
 SCALAR_FIELDS = (
@@ -87,6 +88,14 @@ def _elapsed_s(activity: dict) -> float | None:
     return elapsed or duration
 
 
+def _moving_s(activity: dict) -> float | None:
+    """Garmin's moving time, except for an open-water swim: there it is broken (3 minutes for a 45-minute swim), the
+    timer time is right."""
+    if (activity.get("activityType") or {}).get("typeKey") == "open_water_swimming":
+        return activity.get("duration") or activity.get("movingDuration")
+    return activity.get("movingDuration") or activity.get("duration")
+
+
 def garmin_summary(detail: dict) -> dict:
     """An activity from Garmin's detail endpoint (get_activity: summaryDTO, activityTypeDTO), as the activity list
     gives it, so from_garmin reads both. Multisport legs only come this way."""
@@ -125,9 +134,10 @@ def from_garmin(activity: dict, splits: dict | None, fit_file: str | None = None
         "start_utc": activity["startTimeGMT"].replace(" ", "T") + "Z",
         "start_local": activity["startTimeLocal"].replace(" ", "T"),
         "sport": garmin_sport(activity.get("activityType")),
+        "open_water": (activity.get("activityType") or {}).get("typeKey") == "open_water_swimming" or None,
         "name": activity.get("activityName"),
         "distance_km": _round((activity.get("distance") or 0) / 1000, 2),
-        "moving_time_s": _round(activity.get("movingDuration") or activity.get("duration")),
+        "moving_time_s": _round(_moving_s(activity)),
         "elapsed_time_s": _round(_elapsed_s(activity)),
         "elevation_gain_m": activity.get("elevationGain"),
         "avg_hr": _round(activity.get("averageHR")),
@@ -170,6 +180,7 @@ def from_fit(activity: dict, fit_file: str | None = None, filename: str | None =
         "avg_cadence_spm": _round(cadence),
         "avg_power_w": _round(activity.get("avg_power")),
         "indoor": activity.get("indoor") or None,
+        "open_water": activity.get("open_water") or None,
         "laps": laps or None,
         "fit_file": fit_file,
         "streams": activity.get("streams") or None,
@@ -233,6 +244,16 @@ def prepare(record: dict) -> dict:
 
 def activity_id(record: dict) -> str:
     return record["start_local"][:16].replace("T", "_").replace(":", "") + "_" + record["sport"]
+
+
+def source_distance(sources: dict) -> float | None:
+    """The distance the sources give, in priority order (without a correction: what the device measured)."""
+    for src in FIELD_PRIORITY["distance_km"]:
+        km = ((sources.get(src) or {}).get("fields") or {}).get("distance_km")
+        if km is not None:
+            return km
+    raw = (sources.get("garmin") or {}).get("raw") or {}
+    return round(raw["distance"] / 1000, 2) if raw.get("distance") else None
 
 
 def same_start(a: dict, b: dict) -> bool:

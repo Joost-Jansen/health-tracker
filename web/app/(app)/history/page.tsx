@@ -101,6 +101,7 @@ function ListView() {
                   </span>
                   <span className="col-start-2 tabular-nums text-ink-muted sm:col-start-auto">
                     {a.distance_km ? `${f.km(a.distance_km)} · ${f.intensity(a)}` : f.duration(a.moving_time_s)}
+                    {a.distance_doubtful && <span title={t.history.gpsDoubtful}> · GPS?</span>}
                     {a.avg_hr ? ` · ${a.avg_hr} bpm` : ""}
                   </span>
                   <span className="col-start-2 sm:col-start-auto"><ZoneStrip a={a} /></span>

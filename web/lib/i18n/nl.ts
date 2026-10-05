@@ -231,6 +231,7 @@ export const nl = {
     document_not_found: "Document bestaat niet.",
     unknown_document: "Onbekend document.",
     activity_not_found: "Activiteit niet gevonden.",
+    invalid_distance: (p: { min: number; max: number }) => `Afstand tussen ${p.min} en ${p.max} km.`,
     max_periods: (p: { max: number }) => `Maximaal ${p.max} perioden.`,
   },
 
@@ -358,6 +359,7 @@ export const nl = {
   },
 
   history: {
+    gpsDoubtful: "GPS-afstand onbetrouwbaar in open water: telt niet mee. Open de zwemtraining om de echte afstand in te vullen.",
     periods: { all: "Alles", "30": "30 dagen", "90": "90 dagen", "365": "Jaar" },
     loadFailed: "Kon de activiteiten niet laden.",
     sport: "Sport",
@@ -394,6 +396,18 @@ export const nl = {
     notFound: "Activiteit niet gevonden.",
     none: "Geen activiteit gekozen.",
     afterMultisport: "Na zwemmen of fietsen",
+    distanceFix: {
+      doubtful: (gps: string, time: string) => `GPS mat ${gps} in ${time} zwemmen. Dat kan niet kloppen: GPS is onbetrouwbaar in open water, dus deze zwemtraining telt mee zonder afstand.`,
+      corrected: "Deze afstand heb je zelf gecorrigeerd.",
+      openWater: "Gemeten met GPS in open water, dat kan ernaast zitten.",
+      fix: "Vul de echte afstand in",
+      change: "Wijzigen",
+      undo: (gps: string | null) => (gps ? `Terug naar GPS (${gps})` : "Correctie weghalen"),
+      label: "Afstand (km)",
+      save: "Opslaan",
+      cancel: "Annuleren",
+      failed: "Vul een afstand in km in, bijvoorbeeld 2,0.",
+    },
     drift: (pct: string) => `Drift ${pct}%`,
     rank: (rank: number, of: number) => `${rank}e van ${of} op dit rondje`,
     fastest: (pace: string, day: string) => `Snelste keer ${pace} op ${day}.`,

@@ -147,6 +147,7 @@ def read_fit_activity(data: bytes) -> dict:
         "manufacturer": str(file_id.get("manufacturer") or "").lower(),
         "sport": fit_sport(sport_raw, sub),
         "indoor": "indoor" in sub or "virtual" in sub or "treadmill" in sub,
+        "open_water": sport_raw == "swimming" and sub == "open_water",
         "start_utc": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "start_local": start_local.strftime("%Y-%m-%dT%H:%M:%S"),
         "distance_m": session.get("total_distance"),

@@ -56,6 +56,21 @@ def garmin_sport(activity_type: dict | None) -> str:
     return OLD_GARMIN_KEYS.get(key) or _SUFFIX.sub("", key)
 
 
+# How effort reads (the same rule as web/lib/sports.ts effortKind): pace on foot, per 100 m swimming, per 500 m
+# rowing, speed for everything else.
+PACE_SPORTS = {"run", "walking", "hiking", "rucking", "steps", "wheelchair_push_run", "wheelchair_push_walk", "para_sports"}
+
+
+def effort_kind(code: str) -> str:
+    if code in PACE_SPORTS:
+        return "pace"
+    if code == "swim":
+        return "swim"
+    if code in ("rowing", "indoor_rowing"):
+        return "row"
+    return "speed"
+
+
 STRAVA_SPORTS = {
     "Run": "run", "TrailRun": "run", "VirtualRun": "run",
     "Ride": "ride", "VirtualRide": "ride", "GravelRide": "ride", "MountainBikeRide": "ride",

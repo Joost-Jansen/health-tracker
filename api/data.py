@@ -8,6 +8,7 @@ from __future__ import annotations
 import time
 
 from tools import db
+from tools.distance import counted
 
 
 TTL = 60
@@ -34,7 +35,8 @@ class DataStore:
 
     @property
     def activities(self) -> list[dict]:
-        return self._cached("activities", lambda: db.load_activities(self.engine))
+        # a doubtful GPS distance (open water) counts as none: totals, paces and plans leave it out (tools/distance.py)
+        return self._cached("activities", lambda: [counted(a) for a in db.load_activities(self.engine)])
 
     @property
     def wellness(self) -> dict:

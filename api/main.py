@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from api import agent_tokens, connections, errors, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
 from api.errors import ApiError
@@ -30,6 +31,13 @@ from tools import db
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
+
+
+MIN_KM, MAX_KM = 0.01, 1000  # a corrected distance
+
+
+class ActivityCorrection(BaseModel):
+    distance_km: float | None = None
 
 
 @dataclass
@@ -123,6 +131,16 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         if out is None:
             raise ApiError(404, "activity_not_found")
         return out
+
+    @app.patch("/api/activities/{activity_id}")
+    def correct_activity(activity_id: str, body: ActivityCorrection, u=Depends(current_user)):
+        """The real distance of an activity whose GPS got it wrong (an open-water swim); null removes the correction."""
+        if body.distance_km is not None and not MIN_KM <= body.distance_km <= MAX_KM:
+            raise ApiError(422, "invalid_distance", min=MIN_KM, max=MAX_KM)
+        if db.set_manual_distance(u.scope, activity_id, body.distance_km) is None:
+            raise ApiError(404, "activity_not_found")
+        u.store.invalidate()
+        return activity_detail(activity_id, u.store.activities, u.store.streams, u.store.zones, u.store.routes)
 
     @app.get("/api/heatmap")
     def heatmap_route(sport: str | None = "run", u=Depends(current_user)):

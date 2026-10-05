@@ -27,7 +27,8 @@ LOAD_MIN_CTL = 5.0  # below this (hardly any training) a ratio swings wildly on 
 RACE_KIND = re.compile(r"wedstrijd|race|marathon|triathlon", re.I)
 # Dates in the free race field, in the order api.plans.parse_date tries them: 2026-10-18, 18-10(-2026), 18 okt (2026).
 RACE_FIELD_DATES = (r"\d{4}-\d{1,2}-\d{1,2}", r"\b\d{1,2}[-/.]\d{1,2}(?:[-/.]\d{2,4})?\b", r"\b\d{1,2}\s+[a-z]{3}[a-z]*\.?(?:\s+\d{4})?")
-SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s")
+SUMMARY_FIELDS = ("id", "start_local", "sport", "name", "distance_km", "moving_time_s", "avg_hr", "max_hr", "elevation_gain_m", "hr_zones_s",
+                  "open_water", "distance_doubtful", "gps_distance_km", "distance_manual")  # tools/distance.py
 
 
 def _day(a: dict) -> date:

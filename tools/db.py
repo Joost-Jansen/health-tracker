@@ -44,9 +44,9 @@ from sqlalchemy.engine import Engine
 
 from tools.routes import english_default_name
 from tools.sports import sport_of
-from tools.store import activity_id, merge, prepare, same_start
+from tools.store import activity_id, merge, prepare, same_start, source_distance
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -309,6 +309,20 @@ def _migrate_v4(conn) -> None:
             conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(sport=sport, data=data))
 
 
+def _migrate_v5(conn) -> None:
+    """Open-water swims: the timer time instead of Garmin's moving time, which is broken there (tools/store.py)."""
+    for row in conn.execute(select(activities.c.user_id, activities.c.id, activities.c.data).where(activities.c.sport == "swim")).mappings().all():
+        data = row["data"] or {}
+        garmin = (data.get("sources") or {}).get("garmin") or {}
+        raw = garmin.get("raw") or {}
+        if (raw.get("activityType") or {}).get("typeKey") != "open_water_swimming" or not raw.get("duration"):
+            continue
+        fields = {**(garmin.get("fields") or {}), "moving_time_s": round(raw["duration"])}
+        sources = {**data["sources"], "garmin": {**garmin, "fields": fields}}
+        data = {**data, "sources": sources, "open_water": True, "moving_time_s": round(raw["duration"])}  # garmin leads for time
+        conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(data=data))
+
+
 def create_schema(engine: Engine) -> dict | None:
     """Create missing tables; migrate a single-user (v1) database to multi-user, Dutch stored values to English (v3)
     and stored sports to the codes of tools/sports.py (v4).
@@ -324,6 +338,8 @@ def create_schema(engine: Engine) -> dict | None:
             _migrate_v3(conn)
         if version is None or int(version) < 4:
             _migrate_v4(conn)
+        if version is None or int(version) < 5:
+            _migrate_v5(conn)
         if version != SCHEMA_VERSION:
             conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
@@ -534,6 +550,25 @@ def delete_activity_by_source(s: Scope, source: str, source_id, day: str) -> Non
             if str(((data or {}).get("sources") or {}).get(source, {}).get("id")) == str(source_id):
                 conn.execute(delete(streams).where(streams.c.user_id == s.user_id, streams.c.activity_id == aid))
                 conn.execute(delete(activities).where(activities.c.user_id == s.user_id, activities.c.id == aid))
+
+
+def set_manual_distance(s: Scope, aid: str, km: float | None) -> dict | None:
+    """The distance the user entered (source `manual`, first for distance_km); None removes the correction.
+    Returns the activity, or None when it is not this user's."""
+    where = (activities.c.user_id == s.user_id, activities.c.id == aid)
+    with s.engine.begin() as conn:
+        data = conn.execute(select(activities.c.data).where(*where)).scalar_one_or_none()
+        if data is None:
+            return None
+        sources = dict(data.get("sources") or {})
+        if km is None:
+            sources.pop("manual", None)
+            km = source_distance(sources)
+        else:
+            sources["manual"] = {"fields": {"distance_km": round(km, 2)}}
+        data = {**data, "sources": sources, "distance_km": round(km, 2) if km is not None else None}
+        conn.execute(update(activities).where(*where).values(data=data))
+    return dict(data, id=aid)
 
 
 def set_derived(s: Scope, aid: str, **fields) -> None:

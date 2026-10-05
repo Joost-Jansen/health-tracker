@@ -2,6 +2,6 @@
 
 import DocEditor from "@/components/log/DocEditor";
 
-export default function DoelenPage() {
+export default function GoalsPage() {
   return <DocEditor docKey="goals" />;
 }

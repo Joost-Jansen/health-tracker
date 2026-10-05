@@ -1,6 +1,6 @@
 "use client";
 
-// Logboek: wat er per coachingsessie is besproken en besloten, door jezelf of een AI-assistent.
+// Log: what was discussed and decided per coaching session, by yourself or an AI assistant.
 
 import Entries from "@/components/log/Entries";
 

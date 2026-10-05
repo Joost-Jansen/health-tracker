@@ -1,8 +1,8 @@
 "use client";
 
-// Eén activiteit: kaart gekleurd per zone, hartslag/tempo/hoogte, tijd per zone, kilometers en ronden,
-// en wat de data erover zegt (drift, vergelijking met eerdere keren op hetzelfde rondje, meerkamp op die dag).
-// Statische export: het id staat in de query (?id=...), niet in het pad.
+// One activity: map coloured per zone, heart rate/pace/altitude, time per zone, kilometres and laps,
+// and what the data says about it (drift, comparison with earlier runs on the same route, multisport on that day).
+// Static export: the id is in the query (?id=...), not in the path.
 
 import { Suspense, useState } from "react";
 import Link from "next/link";

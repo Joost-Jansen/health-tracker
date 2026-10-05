@@ -1,7 +1,7 @@
 "use client";
 
-// Historie: alle activiteiten, te filteren op sport, periode en naam, per maand gegroepeerd.
-// Tweede aanzicht: de heatmap van alle routes.
+// History: all activities, filterable by sport, period and name, grouped per month.
+// Second view: the heatmap of all routes.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -129,7 +129,7 @@ function HeatView() {
   );
 }
 
-export default function HistoriePage() {
+export default function HistoryPage() {
   const t = useT();
   const [view, setView] = useState("list");
   return (

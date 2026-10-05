@@ -1,6 +1,6 @@
-// Lopen of fietsen op de Rondjes-pagina's: vaste waarden, opmaak en links per sport. Lopen toont tempo (5:08/km),
-// fietsen snelheid (28,4 km/u). De API geeft per rondje en per keer tempo in s/km; snelheid rekenen we daaruit.
-// De woorden ("gelopen", "gefietst") staan in lib/i18n (routes.words).
+// Running or cycling on the Routes pages: constants, formatting and links per sport. Running shows pace (5:08/km),
+// cycling speed (28,4 km/u). The API gives pace in s/km per route and per run; we compute speed from that.
+// The words ("gelopen", "gefietst") are in lib/i18n (routes.words).
 
 import type { Format } from "@/lib/i18n";
 import type { RouteSport, RouteSummary } from "@/lib/training";
@@ -19,9 +19,9 @@ export const listHref = (sport: RouteSport) => (sport === "ride" ? "/routes/?spo
 
 export const kmhFromPace = (paceSPerKm?: number | null) => (paceSPerKm ? 3600 / paceSPerKm : null);
 
-/** Tempo bij lopen, snelheid bij fietsen, uit een tempo in s/km. */
+/** Pace for running, speed for cycling, from a pace in s/km. */
 export const fmtEffort = (f: Format, sport: RouteSport, paceSPerKm?: number | null) => (sport === "ride" ? f.kmh(kmhFromPace(paceSPerKm)) : f.pace(paceSPerKm));
 
-/** "5:08/km" of "28,4 km/u" voor een rondje. */
+/** "5:08/km" or "28,4 km/u" for a route. */
 export const fmtTypical = (f: Format, r: Pick<RouteSummary, "sport" | "median_pace" | "median_speed_kmh">) =>
   asSport(r.sport) === "ride" ? f.kmh(r.median_speed_kmh) : r.median_pace ? `${r.median_pace}/km` : "–";

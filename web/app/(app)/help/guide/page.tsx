@@ -1,8 +1,8 @@
 "use client";
 
-// Help, Handleiding : aan de slag, je gegevens binnenhalen, zones, hoe de
-// cijfers werken, waar je wat vindt. Dezelfde stappen en teksten als in de rondleiding (components/onboarding/steps.tsx);
-// uitleg over gezondheid en prestaties uit lib/texts.ts (t.texts).
+// Help, Guide: getting started, bringing in your data, zones, how the
+// numbers work, where to find what. The same steps and texts as in the tour (components/onboarding/steps.tsx);
+// explanations about health and performance from lib/texts.ts (t.texts).
 
 import Card from "@/components/Card";
 import { A, stepExplain } from "@/components/onboarding/steps";
@@ -26,7 +26,7 @@ function Part({ id, title, children }: { id: string; title: string; children: Re
   );
 }
 
-export default function Handleiding() {
+export default function HelpGuide() {
   const t = useT();
   const m = t.help.manual;
   const T = t.texts;

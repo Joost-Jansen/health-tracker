@@ -1,6 +1,6 @@
 "use client";
 
-// Koppelingen: je eigen Garmin-account. Je wachtwoord gaat alleen naar Garmin; de site bewaart de sessie versleuteld.
+// Connections: your own Garmin account. Your password only goes to Garmin; the site stores the session encrypted.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -60,7 +60,7 @@ function ConnectForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export default function KoppelingenPage() {
+export default function ConnectionsPage() {
   const t = useT();
   const f = useFormat();
   const qc = useQueryClient();

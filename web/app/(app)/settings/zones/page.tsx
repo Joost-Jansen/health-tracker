@@ -1,7 +1,7 @@
 "use client";
 
-// Zones en profiel: je eigen hartslagzones per sport (als % van je max) en een paar vaste gegevens. Alles op de site
-// rekent met deze zones; na opslaan wordt de tijd per zone van al je activiteiten opnieuw berekend.
+// Zones and profile: your own heart-rate zones per sport (as % of your max) and a few fixed facts. Everything on the site
+// calculates with these zones; after saving, the time per zone of all your activities is recalculated.
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

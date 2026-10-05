@@ -1,7 +1,7 @@
 "use client";
 
-// Vandaag: hoe de week en de maand er in zones uitzien, hoeveel je deed tegenover je gewone week,
-// hoe fris je bent, en je laatste activiteiten en herstel.
+// Vandaag (today): what the week and the month look like in zones, how much you did against your usual week,
+// how fresh you are, and your latest activities and recovery.
 
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -63,7 +63,7 @@ export default function DashboardPage() {
   if (!q.data) return <p className="text-sm text-ink-muted">{m.loadFailed}</p>;
   const d = q.data;
 
-  // Tot /api/zones er is, de huidige periode uit het dashboard; daarna blijft de vorige staan tijdens het laden.
+  // Until /api/zones is there, the current period from the dashboard; after that the previous one stays while loading.
   const zp = zq.data;
   const zones = zp ? zp.zones : d.zones[period];
   const zonesCurrent = zp ? zp.is_current : true;
@@ -75,9 +75,9 @@ export default function DashboardPage() {
   const syncDay = /^\d{4}-\d{2}-\d{2}/.test(d.last_sync ?? "") ? d.last_sync.slice(0, 10) : null;
   const syncAge = syncDay ? dayNo(d.today) - dayNo(syncDay) : 0;
   const lastSync = syncDay ? `${f.weekdayDay(syncDay)}${d.last_sync.length > 10 ? `, ${d.last_sync.slice(11, 16)}` : ""}` : t.common.notYet;
-  // De lopende week (ma t/m vandaag) tegenover het gemiddelde van de vier hele weken ervoor.
+  // The current week (Monday up to today) against the average of the four whole weeks before it.
   const weekThrough = f.date(d.today, { weekday: "long" });
-  // Herstel: alle zeven dagen, ook die zonder meting, zodat een gat zichtbaar is in plaats van weg te vallen.
+  // Recovery: all seven days, including those without a measurement, so a gap is visible instead of dropping out.
   const recoveryByDay = new Map(d.recovery.days.map((w) => [w.date, w]));
   const recoveryDays = Array.from({ length: 7 }, (_, i) => isoOf(dayNo(d.today) - i));
 
@@ -94,7 +94,7 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      {/* Alleen kaarten met iets te zeggen: zonder nachtdata, vorm of schema valt de kaart weg en vult de rest de rij. */}
+      {/* Only cards with something to say: without night data, form or plan the card drops out and the rest fills the row. */}
       {(d.readiness || form) && (
         <div className={`grid gap-4 ${d.readiness && form ? "lg:grid-cols-[1.25fr_1fr]" : ""}`}>
           {d.readiness && <ReadinessCard r={d.readiness} />}

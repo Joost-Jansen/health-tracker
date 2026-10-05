@@ -1,6 +1,6 @@
 "use client";
 
-// De schil van elke pagina achter de login: zijbalk, bovenbalk, inhoud.
+// The shell of every page behind the login: sidebar, top bar, content.
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,7 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     queryFn: () => api.get<Me>("/api/me"),
     retry: false,
   });
-  // Onboarding: welke pagina's van "Rondkijken" je opende; banner en rondleiding hieronder.
+  // Onboarding: which pages of "Rondkijken" (look around) you opened; banner and tour below.
   useRecordVisit(pathname, !!me.data);
   useAccountLocale(me.data?.locale);
 
@@ -82,12 +82,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="w-full max-w-content flex-1 px-4 pb-20 pt-4 sm:px-6 lg:px-page lg:pt-5">
-          {/* Alleen boven een pagina die nog leeg is, en tot je hem wegklikt. */}
+          {/* Only above a page that is still empty, and until you dismiss it. */}
           <StartBanner enabled />
           {children}
         </main>
       </div>
-      {/* De eerste keer: hoe je de site gebruikt, en de stappen die daarbij horen. */}
+      {/* The first time: how you use the site, and the steps that go with it. */}
       <Welcome enabled />
     </div>
   );

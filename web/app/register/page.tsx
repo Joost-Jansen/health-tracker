@@ -1,7 +1,7 @@
 "use client";
 
-// Account aanmaken. Kan alleen als de beheerder registratie open heeft gezet of je een uitnodigingslink hebt;
-// op een lege installatie wordt de eerste gebruiker beheerder.
+// Create an account. Only possible when the admin has opened registration or you have an invite link;
+// on an empty install the first user becomes admin.
 
 import { Suspense, useState } from "react";
 import Link from "next/link";

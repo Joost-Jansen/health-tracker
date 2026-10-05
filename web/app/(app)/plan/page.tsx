@@ -1,8 +1,8 @@
 "use client";
 
-// Schema: het actieve trainingsplan. Kop met doel en aftellen naar de wedstrijd, kilometers per week (gepland
-// tegen gedaan), en per week de dagen met hun sessies naast wat je echt deed. Maken en bewerken met de
-// schema-editor; plakken uit een tabel blijft als tweede route. Coachingagents schrijven via dezelfde API.
+// Plan: the active training plan. Head with goal and countdown to the race, kilometres per week (planned
+// against done), and per week the days with their sessions next to what you actually did. Create and edit with the
+// plan editor; pasting from a table remains as a second route. Coaching agents write via the same API.
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

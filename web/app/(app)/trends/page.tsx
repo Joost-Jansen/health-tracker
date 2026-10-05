@@ -1,13 +1,13 @@
 "use client";
 
-// Trends: inzichten (op het eigen doel uit het schema), vorm, volume per week per sport, tijd per zone over tijd,
-// Z2-tempo, VO2max, langste run per week, herstel (met HRV als die er is), slaap tegen belasting, records en
-// wedstrijden.
+// Trends: insights (on your own goal from the plan), form, volume per week per sport, time per zone over time,
+// Z2 pace, VO2max, longest run per week, recovery (with HRV when available), sleep against load, records and
+// races.
 //
-// Eén tijdvenster voor de hele pagina (TimeFilterBar, plakt onder de bovenbalk; staat in de adresbalk), en één
-// sportfilter (ook in de adresbalk). Elke grafiek deelt die tijdas; schuiven of zoomen in één grafiek verzet het
-// venster voor alle. Hardloopkaarten (tempo, records, voorspellingen) staan er alleen bij "Alle sporten" of
-// "Hardlopen". Alle tekst komt uit lib/texts.ts (T.trends).
+// One time window for the whole page (TimeFilterBar, sticks under the top bar; lives in the address bar), and one
+// sport filter (also in the address bar). Every chart shares that time axis; panning or zooming in one chart moves the
+// window for all. Running cards (pace, records, predictions) only show with "Alle sporten" (all sports) or
+// "Hardlopen" (running). All text comes from lib/texts.ts (T.trends).
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -50,7 +50,7 @@ export default function TrendsPage() {
   const { sport, choose: chooseSport, all } = useSportFilter();
 
   const t = q.data;
-  // Het venster loopt van de eerste meting (welke reeks ook) tot vandaag.
+  // The window runs from the first measurement (of whatever series) to today.
   const first = useMemo(() => {
     if (!t) return "";
     const starts = [t.form[0]?.date, t.weekly[0]?.week, t.z2_pace[0]?.week, t.vo2max[0]?.date, t.recovery_daily?.[0]?.date, t.recovery_weekly[0]?.week, t.longest_runs?.[0]?.week].filter(Boolean) as string[];
@@ -62,7 +62,7 @@ export default function TrendsPage() {
   const from = win.from;
   const shared = { window: win, domain: { from: first, to: last }, onWindow: range.change, onReset: range.reset };
 
-  // Sporten met data, de drie hoofdsporten eerst.
+  // Sports with data, the three main sports first.
   const sports = useMemo(() => {
     const seen = new Set<string>();
     for (const w of t?.weekly ?? []) for (const s of Object.keys(w.sports)) seen.add(s);
@@ -92,8 +92,8 @@ export default function TrendsPage() {
         points: t.weekly.map((w) => ({ d: w.week, v: Object.entries(w.sports).filter(([s]) => !MAIN.includes(s)).reduce((sum, [, v]) => sum + val(v), 0) })),
       });
     }
-    // Gemiddelde per week over de hele weken in het venster: de lopende week telt niet mee (die is nog niet af
-    // en zou het gemiddelde omlaag trekken), en het aantal weken is wat er echt is, niet de vensterbreedte / 7.
+    // Average per week over the whole weeks in the window: the current week does not count (it is not finished yet
+    // and would pull the average down), and the number of weeks is what is really there, not the window width / 7.
     const monday = (() => {
       const d = new Date(t.today + "T12:00:00");
       d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -113,7 +113,7 @@ export default function TrendsPage() {
   const form = inRange(t.form);
   const peakCtl = form.length ? form.reduce((b, r) => (r.ctl > b.ctl ? r : b), form[0]) : null;
   const now = t.form[t.form.length - 1];
-  // Uren als u:mm (fmtClock gaf onder het uur m:ss, waardoor 30 minuten als "30 u" las).
+  // Hours as h:mm (below an hour fmtClock gave m:ss, so 30 minutes read as "30 h").
   const fmtVol = (v: number) => {
     if (metric !== "hours") return fmtKm(v);
     const min = Math.round(v * 60);
@@ -324,7 +324,7 @@ export default function TrendsPage() {
         </Card>
       )}
 
-      {/* Records over de hele breedte: het verloop per afstand heeft ruimte nodig. */}
+      {/* Records across the full width: the progression per distance needs room. */}
       <div className="grid gap-4">
         {running && (
           <Card title={TT.records.title}>

@@ -1,6 +1,6 @@
 "use client";
 
-// Account: je naam zoals de site en coachingagents je noemen, je wachtwoord en de taal van de site.
+// Account: your name as the site and coaching agents call you, your password and the language of the site.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

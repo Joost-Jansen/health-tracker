@@ -1,6 +1,6 @@
 "use client";
 
-// Analyses: langere stukken over een periode of een vraag, meestal door een coachingagent geschreven.
+// Analyses: longer pieces about a period or a question, usually written by a coaching agent.
 
 import Entries from "@/components/log/Entries";
 

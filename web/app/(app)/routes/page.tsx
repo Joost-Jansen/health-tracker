@@ -1,8 +1,8 @@
 "use client";
 
-// Rondjes: lopen of fietsen. "Rondje voor X km" (vaste rondjes en combinaties vanaf dezelfde start, het langst
-// niet gelopen/gefietst eerst) en alle herkende rondjes met hun vorm, beste tijd en of je er sneller op wordt.
-// De sport staat in de url (?sport=ride), zodat terug vanaf een rondje op dezelfde sport uitkomt.
+// Routes: running or cycling. "A route of X km" (recurring routes and combinations from the same start, the one
+// longest not run/ridden first) and all recognised routes with their shape, best time and whether you are getting faster.
+// The sport is in the url (?sport=ride), so going back from a route lands on the same sport.
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -113,8 +113,8 @@ function Suggest({ sport, routes }: { sport: RouteSport; routes: RouteSummary[] 
 function Trend({ r }: { r: RouteSummary }) {
   const t = useT();
   const f = useFormat();
-  // Efficiëntie (meter per hartslag) corrigeert voor hoe hard je liep; tempo alleen zegt weinig als je
-  // het rondje soms rustig en soms snel loopt.
+  // Efficiency (metres per heartbeat) corrects for how hard you ran; pace alone says little when you
+  // sometimes run the route easy and sometimes fast.
   if (r.recent_efficiency && r.earlier_efficiency) {
     const pct = ((r.recent_efficiency - r.earlier_efficiency) / r.earlier_efficiency) * 100;
     if (Math.abs(pct) < 1.5) return <span className="text-ink-muted">{t.routes.efficiencySame}</span>;
@@ -203,7 +203,7 @@ function WithSport() {
   return <Routes sport={sport} onSport={(s) => router.replace(listHref(s), { scroll: false })} />;
 }
 
-export default function RondjesPage() {
+export default function RoutesPage() {
   const t = useT();
   return (
     <Suspense fallback={<p className="text-sm text-ink-muted">{t.common.loading}</p>}>

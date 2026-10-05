@@ -1,6 +1,6 @@
 "use client";
 
-// Beheer (alleen beheerders): gebruikers, registratie en uitnodigingen.
+// Admin (admins only): users, registration and invites.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -176,7 +176,7 @@ function Registration() {
   );
 }
 
-export default function BeheerPage() {
+export default function AdminPage() {
   const t = useT();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me") });
   if (!me.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;

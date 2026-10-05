@@ -1,7 +1,7 @@
 "use client";
 
-// Eén rondje: kaart, tempo (lopen) of snelheid (fietsen) door de tijd met trendlijn, en elke keer dat je het
-// liep of fietste. Hernoemen kan hier.
+// One route: map, pace (running) or speed (cycling) over time with a trend line, and every time you
+// ran or rode it. It can be renamed here.
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -148,7 +148,7 @@ function WithId() {
   return id ? <Detail id={id} /> : <p className="text-sm text-ink-muted">{t.routes.noneChosen}</p>;
 }
 
-export default function RondjePage() {
+export default function RoutePage() {
   const t = useT();
   return (
     <Suspense fallback={<p className="text-sm text-ink-muted">{t.common.loading}</p>}>

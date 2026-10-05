@@ -1,7 +1,7 @@
 "use client";
 
-// Help, Claude als coach: wat Claude met je data kan, hoe je hem koppelt (MCP of tools/tr.py) en wat je moet weten
-// over het token. De knoppen en commando's zelf staan bij Instellingen, Agents.
+// Help, Claude as coach: what Claude can do with your data, how to connect it (MCP or tools/tr.py) and what to know
+// about the token. The buttons and commands themselves are under Settings, Agents.
 
 import Card from "@/components/Card";
 import { ButtonLink } from "@/components/ds";

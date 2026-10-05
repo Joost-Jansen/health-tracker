@@ -1,7 +1,7 @@
 "use client";
 
-// Help, Aan de slag: de checklist uit je eigen data, hoe je de site gebruikt (alleen de
-// site of ook met Claude), en de rondleiding opnieuw. De handleiding en de uitleg over Claude staan in de tabs ernaast.
+// Help, getting started: the checklist from your own data, how you use the site (the site
+// only or also with Claude), and restarting the tour. The guide and the explanation about Claude are in the tabs next to it.
 
 import Card from "@/components/Card";
 import { Button, ButtonLink, Tabs } from "@/components/ds";
@@ -27,7 +27,7 @@ export default function HelpStart() {
           <Tabs variant="segmented" ariaLabel={h.usingAria} items={CHOICES.map((c) => ({ id: c, label: t.onboarding.choices[c].title }))}
             value={o.choice ?? "site"} onChange={(v) => set.mutate({ choice: v as Choice })} />
           <Button size="sm" variant="ghost" disabled={set.isPending} onClick={() => {
-            try { sessionStorage.removeItem(PAUSED_KEY); } catch { /* geen opslag */ }
+            try { sessionStorage.removeItem(PAUSED_KEY); } catch { /* no storage */}
             set.mutate({ done: false, step: 0 });
           }}>
             {h.restart}

@@ -20,8 +20,8 @@ export const viewport: Viewport = {
   ],
 };
 
-// Voor de eerste verf, zodat een opgeslagen themakeuze nooit het andere thema laat flitsen. Ook <html lang> volgt
-// meteen de taal van dit apparaat (lib/i18n/locale.ts); de Nederlandse statische export is de standaard.
+// Before the first paint, so a saved theme choice never flashes the other theme. <html lang> also follows
+// the language of this device right away (lib/i18n/locale.ts); the Dutch static export is the default.
 const themeInit = `
 try {
   var t = localStorage.getItem("theme");

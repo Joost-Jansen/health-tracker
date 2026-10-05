@@ -1,6 +1,6 @@
 "use client";
 
-// Inloggen. Papieren grond, het woordmerk in de displayletter, en verder alleen wat er moet staan.
+// Log in. Paper ground, the wordmark in the display face, and otherwise only what needs to be there.
 
 import { useState } from "react";
 import Link from "next/link";

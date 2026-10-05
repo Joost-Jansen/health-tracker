@@ -1,7 +1,7 @@
 "use client";
 
-// Instellingen: toegang voor coachingagents. Een token maak je hier; daarmee praat Claude met je data
-// (MCP-connector in de Claude-app, Claude Code, of tools/tr.py). Alleen de hash wordt bewaard.
+// Settings: access for coaching agents. You create a token here; with it Claude talks to your data
+// (MCP connector in the Claude app, Claude Code, or tools/tr.py). Only the hash is stored.
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

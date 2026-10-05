@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,7 +8,9 @@ from api.main import Settings, create_app
 from scripts.seed_demo import seed
 from tools import db
 
-END = date(2026, 10, 3)
+# Today, like the real seed default: the dashboard hides readiness when the last sync is older than yesterday,
+# so a fixed date would make this test fail as soon as the calendar moves on.
+END = datetime.now(ZoneInfo("Europe/Amsterdam")).date()
 
 
 @pytest.fixture(scope="module")

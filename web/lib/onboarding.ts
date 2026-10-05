@@ -1,5 +1,5 @@
-// Waar een gebruiker staat: hoe hij de site gebruikt, of de rondleiding klaar is, en per stap of hij al gedaan is.
-// Bij het account bewaard (api/onboarding.py), dus ook op een ander apparaat. De status komt uit de eigen data (Garmin-koppeling, sync, trainingen, zones, tokens, doelen, schema).
+// Where a user stands: how they use the site, whether the tour is done, and per step whether it is done.
+// Stored with the account (api/onboarding.py), so also on another device. The status comes from their own data (Garmin connection, sync, workouts, zones, tokens, goals, plan).
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -24,13 +24,13 @@ export type OnboardingStatus = {
 export type Onboarding = {
   choice: Choice | null;
   done: boolean;
-  /** 0 is de keuze, 1 de eerste stap van de rondleiding. */
+  /** 0 is the choice, 1 the first step of the tour. */
   step: number;
   hidden: Banner[];
   visited: Page[];
   status: OnboardingStatus;
   steps: Record<StepId, boolean>;
-  /** Garmin gekoppeld, eerste sync binnen en zones ingesteld. */
+  /** Garmin connected, first sync in and zones set. */
   required_done: boolean;
 };
 
@@ -41,7 +41,7 @@ export function useOnboarding(enabled = true) {
     queryKey: ["onboarding"],
     queryFn: () => api.get<Onboarding>("/api/onboarding"),
     enabled,
-    // Tijdens de eerste sync (en zolang die nog moet beginnen) bijhouden, zodat de stap vanzelf afvinkt.
+    // Poll during the first sync (and while it has yet to start), so the step ticks itself off.
     refetchInterval: (q) => {
       const d = q.state.data;
       if (!d) return false;
@@ -58,11 +58,11 @@ export function useSetOnboarding() {
   });
 }
 
-/** De keuzes; titel en uitleg staan in lib/i18n (onboarding.choices). */
+/** The choices; title and explanation are in lib/i18n (onboarding.choices). */
 export const CHOICES: Choice[] = ["site", "claude"];
 
-/** De stappen in de volgorde van de checklist. `optional`: niet nodig om de site te laten werken. Namen en de
- *  naam van de pagina waar je heen gaat staan in lib/i18n (onboarding.steps). */
+/** The steps in checklist order. `optional`: not needed to make the site work. Names and the
+ *  name of the page you go to are in lib/i18n (onboarding.steps). */
 export const STEPS: { id: StepId; optional: boolean; href: string; claude?: boolean }[] = [
   { id: "garmin", optional: false, href: "/settings/connections/" },
   { id: "sync", optional: false, href: "/settings/connections/" },
@@ -74,13 +74,14 @@ export const STEPS: { id: StepId; optional: boolean; href: string; claude?: bool
   { id: "plan", optional: true, href: "/plan/" },
 ];
 
-/** Hoort deze stap bij hoe je de site gebruikt? Zonder keuze: alles behalve Claude, tenzij al gedaan. */
+/** Does this step belong to how you use the site? Without a choice: everything except Claude, unless already done. */
 export function stepShown(step: { id: StepId; claude?: boolean }, o: Pick<Onboarding, "choice" | "steps">): boolean {
   return !step.claude || o.choice === "claude" || o.steps[step.id];
 }
 
-/** De pagina's van de stap Rondkijken (naam en wat je er vindt: lib/i18n onboarding.pages). Vandaag telt niet mee:
- *  daar kom je toch binnen. */
+/** The pages of the Rondkijken (look around) step (name and what you find there: lib/i18n onboarding.pages). Vandaag
+ *  does not count: you land there anyway. The ids are stored per user (`visited`), so they keep their Dutch names
+ *  ("rondjes", "historie") while the pages live on English paths; tests/test_web_routes.py checks both sides. */
 export const PAGES: { id: Page; href: string }[] = [
   { id: "dashboard", href: "/dashboard/" },
   { id: "trends", href: "/trends/" },

@@ -105,18 +105,18 @@ export function fmtDayMonth(ts: string): string {
   return `${d.getDate()} ${NL_MONTHS[d.getMonth()]}`;
 }
 
-/** "14:35" — klokstand in de tijdzone van de lezer, voor de intraday-as. */
+/** "14:35": clock time in the reader's time zone, for the intraday axis. */
 export function fmtTime(ts: string): string {
   const d = parseTimestamp(ts);
   if (!d) return ts;
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** "9:00" binnen de dag zelf, "vorig slot" voor het punt van de vorige sessie.
+/** "9:00" within the day itself, "vorig slot" (previous close) for the point of the previous session.
  *
- *  De intradaylijn begint bij het slot van gisteren — daar wordt de dag tegen
- *  afgezet — en dat punt als "17:25" labelen naast de "17:25" van vandaag leest
- *  als een fout in plaats van als een referentie. */
+ *  The intraday line starts at yesterday's close (the day is measured against
+ *  it), and labelling that point "17:25" next to today's "17:25" reads as an
+ *  error instead of as a reference. */
 export function fmtIntradayLabel(ts: string, sessionOf: string): string {
   const a = parseTimestamp(ts);
   const b = parseTimestamp(sessionOf);
@@ -124,7 +124,7 @@ export function fmtIntradayLabel(ts: string, sessionOf: string): string {
   return a.toDateString() === b.toDateString() ? fmtTime(ts) : "vorig slot";
 }
 
-/** "27 feb 2023" — day + Dutch month + year, voor spans over meerdere jaren. */
+/** "27 feb 2023": day + Dutch month + year, for spans over several years. */
 export function fmtDayMonthYear(ts: string): string {
   const d = parseTimestamp(ts);
   if (!d) return ts;

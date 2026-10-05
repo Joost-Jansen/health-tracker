@@ -1,16 +1,16 @@
-// De verticale as van een lijngrafiek: ronde waarden om op te labelen, en het
-// aantal decimalen dat daarbij hoort.
+// The vertical axis of a line chart: round values to label, and the
+// number of decimals that goes with them.
 //
-// Stond in ValueChart.tsx, waar het is geschreven; de koersgrafiek op een
-// positiepagina heeft dezelfde as nodig en een tweede kopie van `niceTicks` is
-// precies de soort verdubbeling die na één aanpassing twee grafieken met een
-// verschillende schaal oplevert.
+// Lived in ValueChart.tsx, where it was written; the price chart on a
+// position page needs the same axis, and a second copy of `niceTicks` is
+// exactly the kind of duplication that, after one change, gives two charts
+// with a different scale.
 
-/** Ronde tussenwaarden binnen [lo, hi], altijd 1/2/2,5/5 × 10ⁿ.
+/** Round intermediate values within [lo, hi], always 1/2/2.5/5 × 10ⁿ.
  *
- *  De stap wordt niet uit (hi − lo)/n afgeleid maar gekozen: de fijnste stap die
- *  nog hoogstens `max` labels oplevert. Een afgeleide stap kan er net naast
- *  zitten en dan blijven er twee labels over voor de hele hoogte. */
+ *  The step is not derived from (hi − lo)/n but chosen: the finest step that
+ *  still gives at most `max` labels. A derived step can be just off, and then
+ *  only two labels are left for the whole height. */
 export function niceTicks(lo: number, hi: number, max = 5): number[] {
   if (!Number.isFinite(hi - lo) || hi <= lo) return [];
   const top = Math.floor(Math.log10(hi - lo));
@@ -23,8 +23,8 @@ export function niceTicks(lo: number, hi: number, max = 5): number[] {
   const step = steps.find((s) => count(s) <= max) ?? steps[steps.length - 1];
 
   const ticks: number[] = [];
-  // De epsilon vangt de drijvende-kommaresten op waardoor een tick die precies
-  // op `hi` valt er anders net buiten zou vallen.
+  // The epsilon catches the floating-point remainders that would otherwise push
+  // a tick that falls exactly on `hi` just outside.
   for (let t = Math.ceil(lo / step) * step; t <= hi + step * 1e-9; t += step) {
     ticks.push(Math.abs(t) < step * 1e-9 ? 0 : t);
   }

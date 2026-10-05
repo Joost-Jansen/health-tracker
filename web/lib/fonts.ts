@@ -1,29 +1,29 @@
-// De drie letterfamilies van het Meridian-ontwerp.
+// The three type families of the Meridian design.
 //
-// Meridian schrijft Söhne (interface), Founders Grotesk Text (grote getallen)
-// en Söhne Mono voor. Dat zijn Klim-lettertypes waarvan het handoff-pakket
-// alleen *proefversies* meelevert; die mogen niet mee naar een publieke site.
-// Dit zijn de gratis vervangers, met dezelfde rolverdeling:
+// Meridian prescribes Söhne (interface), Founders Grotesk Text (large numbers)
+// and Söhne Mono. Those are Klim typefaces of which the handoff package only
+// ships *trial versions*; those may not go to a public site.
+// These are the free replacements, with the same division of roles:
 //
-//   Inter          → Söhne          neutrale, geëngineerde interface-grotesk
-//   Hanken Grotesk → Founders Text  warmer en iets eigenzinniger op groot
-//                                   formaat, met een echte Light (300) — dat is
-//                                   precies wat het heldengetal nodig heeft
-//   IBM Plex Mono  → Söhne Mono     tickers, ISIN's, tijdstippen
+//   Inter          → Söhne          neutral, engineered interface grotesque
+//   Hanken Grotesk → Founders Text  warmer and a bit quirkier at large
+//                                   sizes, with a real Light (300): exactly
+//                                   what the hero number needs
+//   IBM Plex Mono  → Söhne Mono     tickers, ISINs, times
 //
-// Wil je later alsnog de echte Klim-snedes: vervang de bestanden in `fonts/`
-// en de paden hieronder. Verder verandert er niets — de rest van de app leest
-// alleen --font-sans / --font-display / --font-mono.
+// If you want the real Klim cuts later: replace the files in `fonts/`
+// and the paths below. Nothing else changes: the rest of the app only reads
+// --font-sans / --font-display / --font-mono.
 //
-// Alleen de latin-subset. Die dekt het hele Nederlandse alfabet inclusief de
-// accenten (é ë ï ö ü staan in Latin-1); voor een enkel Oost-Europees teken in
-// een fondsnaam valt de browser terug op de systeemletter. Dat kost 103 kB in
-// plaats van 226 kB, op elke pagina.
+// Only the latin subset. It covers the whole Dutch alphabet including the
+// accents (é ë ï ö ü are in Latin-1); for the odd Eastern European character in
+// a fund name the browser falls back to the system font. That costs 103 kB
+// instead of 226 kB, on every page.
 //
-// next/font/local en niet next/font/google: de bestanden staan in de repo, dus
-// de Docker-build heeft geen netwerk nodig en de gebruiker geen verbinding met
-// Google. Next bundelt ze in .next/static/media, en dát pad kopieert de
-// Dockerfile al — een public/-map zou hij overslaan.
+// next/font/local and not next/font/google: the files are in the repo, so
+// the Docker build needs no network and the user no connection to
+// Google. Next bundles them into .next/static/media, and the Dockerfile already
+// copies that path; a public/ folder would be skipped.
 
 import localFont from "next/font/local";
 
@@ -51,5 +51,5 @@ export const plexMono = localFont({
   fallback: ["ui-monospace", "SF Mono", "Menlo", "monospace"],
 });
 
-/** De drie klassen die Next op <html> wil zien staan. */
+/** The three classes Next wants on <html>. */
 export const fontVariables = `${interSans.variable} ${hankenDisplay.variable} ${plexMono.variable}`;

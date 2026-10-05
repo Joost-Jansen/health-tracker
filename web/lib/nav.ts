@@ -1,4 +1,5 @@
-// De navigatie van de site, op één plek. De namen staan in lib/i18n (nav.items, nav.tabs); localizeNav vult ze in.
+// The site's navigation, in one place. The names are in lib/i18n (nav.items, nav.tabs); localizeNav fills them in.
+// The ids are catalog keys (and some are Dutch, e.g. "rondjes"); the hrefs are the English paths.
 
 import type { Messages } from "@/lib/i18n";
 
@@ -47,7 +48,7 @@ export const NAV: NavGroup[] = [
         ],
       },
       {
-        // Eén plek voor alle uitleg: de checklist, de handleiding en Claude als coach.
+        // One place for all explanations: the checklist, the guide and Claude as coach.
         id: "help",
         label: "",
         href: "/help/",

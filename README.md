@@ -1,6 +1,6 @@
 # health-tracker
 
-**A self-hosted training platform on top of your Garmin data, built so that both you and an AI coach (Claude, over MCP) work from the same numbers.**
+**A self-hosted training platform on top of your Garmin data, built so that both you and an AI coach (Claude, ChatGPT or any other MCP client) work from the same numbers.**
 
 ![The Today page with readiness, training load, this week of the plan, upcoming sessions and form](docs/screenshots/dashboard.jpg)
 
@@ -263,14 +263,72 @@ The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON respon
 Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
 `create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 
-- **Claude app / claude.ai:** Settings, Connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`.
-  The token is part of that URL, so treat the URL as a password; revoke the token on the site if it leaks.
-- **Claude Code:**
+Any MCP client works: the token goes in `Authorization: Bearer <token>`, or in the URL (`https://<your-domain>/api/mcp/<token>`) for a client
+that only takes a URL. The token is then part of that URL, so treat the URL as a password; revoke the token on the site
+if it leaks. Settings, Agents shows the steps for the assistant you pick, with the token filled in. Open the one you
+need:
 
-  ```bash
-  claude mcp add --transport http --scope user health-tracker https://<your-domain>/api/mcp \
-    --header "Authorization: Bearer <token>"
-  ```
+<details><summary><b>Claude app / claude.ai</b></summary>
+
+Settings, Connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`.
+</details>
+
+<details><summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add --transport http --scope user health-tracker https://<your-domain>/api/mcp \
+  --header "Authorization: Bearer <token>"
+```
+</details>
+
+<details><summary><b>ChatGPT</b></summary>
+
+On the web, switch on Developer mode under Settings (Apps or Connectors, Advanced), create a connector with URL
+`https://<your-domain>/api/mcp/<token>` and authentication "No authentication".
+</details>
+
+<details><summary><b>Codex</b> (CLI and IDE extension)</summary>
+
+In `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.health-tracker]
+url = "https://<your-domain>/api/mcp"
+http_headers = { "Authorization" = "Bearer <token>" }
+```
+</details>
+
+<details><summary><b>GitHub Copilot in VS Code</b></summary>
+
+Command Palette, "MCP: Open User Configuration", and add under `servers`:
+
+```json
+"health-tracker": { "type": "http", "url": "https://<your-domain>/api/mcp", "headers": { "Authorization": "Bearer <token>" } }
+```
+</details>
+
+<details><summary><b>GitHub Copilot CLI</b></summary>
+
+```bash
+copilot mcp add --transport http health-tracker https://<your-domain>/api/mcp/<token>
+```
+</details>
+
+<details><summary><b>Cursor</b></summary>
+
+In `~/.cursor/mcp.json`, under `mcpServers`:
+
+```json
+"health-tracker": { "url": "https://<your-domain>/api/mcp", "headers": { "Authorization": "Bearer <token>" } }
+```
+</details>
+
+<details><summary><b>Gemini CLI</b></summary>
+
+```bash
+gemini mcp add --transport http --scope user --header "Authorization: Bearer <token>" health-tracker https://<your-domain>/api/mcp
+```
+</details>
 
 - **CLI / scripts:** `TRAINING_API_URL=https://<your-domain> TRAINING_API_TOKEN=<token> python tools/tr.py context`
   (standard library only). See `python tools/tr.py --help` for plans, log entries, analyses and documents.

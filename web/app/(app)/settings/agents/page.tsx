@@ -1,14 +1,16 @@
 "use client";
 
-// Settings: access for coaching agents. You create a token here; with it Claude talks to your data
-// (MCP connector in the Claude app, Claude Code, or tools/tr.py). Only the hash is stored.
+// Settings: access for coaching agents. You create a token here; with it an AI assistant talks to your data
+// over MCP (Claude, ChatGPT, Codex, Copilot, Cursor, Gemini or any other MCP client), or tools/tr.py does.
+// Only the hash is stored. You pick the assistant and see only its steps.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import { Button } from "@/components/ds";
 import { api } from "@/lib/api";
 import { errorText, useFormat, useT } from "@/lib/i18n";
+import type { Messages } from "@/lib/i18n/nl";
 import { rich } from "@/lib/i18n/rich";
 
 type TokenRow = { id: string; name: string; created_at: string };
@@ -37,12 +39,75 @@ function Copy({ label, value, secret = false }: { label: string; value: string; 
   );
 }
 
+const SITE = "health-tracker";
+
+// Where you connect the assistant. Every client gets the same server: streamable HTTP with the token as a Bearer
+// header, or in the URL for a client that only takes a URL (a connector in a web app).
+const CLIENTS = ["claude", "claude-code", "chatgpt", "codex", "vscode", "copilot-cli", "cursor", "gemini", "other"] as const;
+type Client = (typeof CLIENTS)[number];
+const NAMES: Record<Client, string> = {
+  claude: "Claude",
+  "claude-code": "Claude Code",
+  chatgpt: "ChatGPT",
+  codex: "Codex",
+  vscode: "GitHub Copilot in VS Code",
+  "copilot-cli": "GitHub Copilot CLI",
+  cursor: "Cursor",
+  gemini: "Gemini CLI",
+  other: "MCP",
+};
+
+function clientLabel(c: Client, t: Messages) {
+  return c === "claude" ? t.agents.clients.claude : c === "other" ? t.agents.clients.other : NAMES[c];
+}
+
+function howTo(c: Client, t: Messages, origin: string, token: string): { intro: ReactNode; snippets: { label: string; value: string }[] } {
+  const a = t.agents;
+  const url = `${origin}/api/mcp`;
+  const urlToken = `${url}/${token}`;
+  const bearer = `Bearer ${token}`;
+  const json = (o: object) => JSON.stringify(o, null, 2);
+  switch (c) {
+    case "claude":
+      return {
+        intro: rich(a.appText, { link: (x) => <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">{x}</a> }),
+        snippets: [{ label: a.connectorUrl, value: urlToken }],
+      };
+    case "claude-code":
+      return { intro: a.runOnce, snippets: [{ label: a.command, value: `claude mcp add --transport http --scope user ${SITE} ${url} --header "Authorization: ${bearer}"` }] };
+    case "chatgpt":
+      return { intro: a.chatgpt, snippets: [{ label: a.connectorUrl, value: urlToken }] };
+    case "codex":
+      return { intro: a.codex, snippets: [{ label: "config.toml", value: `[mcp_servers.${SITE}]\nurl = "${url}"\nhttp_headers = { "Authorization" = "${bearer}" }` }] };
+    case "vscode":
+      return { intro: a.vscode, snippets: [{ label: "mcp.json", value: json({ servers: { [SITE]: { type: "http", url, headers: { Authorization: bearer } } } }) }] };
+    case "copilot-cli":
+      return { intro: a.copilotCli, snippets: [{ label: a.command, value: `copilot mcp add --transport http ${SITE} ${urlToken}` }] };
+    case "cursor":
+      return { intro: a.cursor, snippets: [{ label: "mcp.json", value: json({ mcpServers: { [SITE]: { url, headers: { Authorization: bearer } } } }) }] };
+    case "gemini":
+      return { intro: a.runOnce, snippets: [{ label: a.command, value: `gemini mcp add --transport http --scope user --header "Authorization: ${bearer}" ${SITE} ${url}` }] };
+    case "other":
+      return {
+        intro: a.other,
+        snippets: [
+          { label: "URL", value: url },
+          { label: "Header", value: `Authorization: ${bearer}` },
+          { label: a.urlWithToken, value: urlToken },
+        ],
+      };
+  }
+}
+
 export default function AgentsPage() {
   const t = useT();
   const f = useFormat();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["agent-tokens"], queryFn: () => api.get<TokenRow[]>("/api/agent-tokens") });
-  const [name, setName] = useState("Claude");
+  const [client, setClient] = useState<Client>("claude");
+  // The name follows the chosen assistant until you type one yourself.
+  const [typed, setTyped] = useState<string | null>(null);
+  const name = typed ?? NAMES[client];
   const [made, setMade] = useState<NewToken | null>(null);
   const [error, setError] = useState<string | null>(null);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -64,29 +129,35 @@ export default function AgentsPage() {
           {t.agents.intro1} {t.agents.intro2}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input className="ds-input w-56" value={name} onChange={(e) => setName(e.target.value)} aria-label={t.agents.tokenName} />
+          <select className="ds-select h-9 w-56 pl-2.5 text-[13px]" value={client} onChange={(e) => setClient(e.target.value as Client)} aria-label={t.agents.assistant}>
+            {CLIENTS.map((c) => (
+              <option key={c} value={c}>{clientLabel(c, t)}</option>
+            ))}
+          </select>
+          <input className="ds-input w-56" value={name} onChange={(e) => setTyped(e.target.value)} aria-label={t.agents.tokenName} />
           <Button variant="primary" size="sm" onClick={create} disabled={!name.trim()}>{t.agents.newToken}</Button>
           {error && <span className="text-[12.5px] text-loss">{error}</span>}
         </div>
+        <p className="mt-1.5 text-[12px] text-ink-muted">{t.agents.assistantHint}</p>
       </Card>
 
       {made && (
         <Card title={t.agents.madeTitle(made.name)} action={<Button size="sm" variant="ghost" onClick={() => setMade(null)}>{t.common.done}</Button>}>
           <div className="flex flex-col gap-4">
             <Copy label={t.agents.token} value={made.token} secret />
-            <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.appTitle}</h3>
-              <p className="mb-2 text-[12.5px] text-ink-muted">
-                {rich(t.agents.appText, {
-                  link: (c) => <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">{c}</a>,
-                })}
-              </p>
-              <Copy label={t.agents.connectorUrl} value={`${origin}/api/mcp/${made.token}`} secret />
-            </div>
-            <div>
-              <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.codeTitle}</h3>
-              <Copy label={t.agents.runOnce} value={`claude mcp add --transport http --scope user health-tracker ${origin}/api/mcp --header "Authorization: Bearer ${made.token}"`} secret />
-            </div>
+            {(() => {
+              const how = howTo(client, t, origin, made.token);
+              return (
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-[13px] font-semibold">{clientLabel(client, t)}</h3>
+                  <p className="text-[12.5px] text-ink-muted">{how.intro}</p>
+                  {how.snippets.map((x) => (
+                    <Copy key={x.label} label={x.label} value={x.value} secret />
+                  ))}
+                  <p className="text-[12px] text-ink-muted">{t.agents.otherAssistant}</p>
+                </div>
+              );
+            })()}
             <div>
               <h3 className="mb-1.5 text-[13px] font-semibold">{t.agents.cliTitle}</h3>
               <p className="mb-2 text-[12.5px] text-ink-muted">

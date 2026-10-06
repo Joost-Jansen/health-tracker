@@ -1,7 +1,8 @@
-"""MCP server (Model Context Protocol, streamable HTTP, JSON responses) so Claude can use the training data as tools.
+"""MCP server (Model Context Protocol, streamable HTTP, JSON responses) so an AI assistant can use the training data
+as tools. Any MCP client works: Claude, ChatGPT, Codex, Copilot, Cursor, Gemini, ...
 
     POST /api/mcp            Authorization: Bearer <agent token>     (Claude Code: claude mcp add --transport http ...)
-    POST /api/mcp/<token>    token in the path, for clients that cannot send headers (claude.ai custom connector)
+    POST /api/mcp/<token>    token in the path, for clients that only take a URL (a connector in claude.ai or ChatGPT)
 
 Stateless: every request is one JSON-RPC message (or a batch). No server-sent events, no sessions.
 Tools read and write the same data as the website: what an agent changes, the user sees on the site.
@@ -29,7 +30,7 @@ from tools import db
 from tools.sports import effort_kind
 from tools.summarize import last_90_days_md, this_week_md
 
-PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
+PROTOCOLS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 INSTRUCTIONS = (
     "Trainingsdata van {name} (Garmin: lopen, fietsen, zwemmen; slaap en herstel), de doelen, het trainingsschema en het logboek. "
     "Begin een coachingsessie met get_context. Antwoord in het Nederlands, scheid observatie, interpretatie en advies, "

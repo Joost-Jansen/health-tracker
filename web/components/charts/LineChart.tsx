@@ -41,7 +41,8 @@ export type LineSeries = {
   fill?: boolean;
 };
 
-const NO_REFS: { value: number; colour: string; label: string }[] = [];
+type Reference = { value: number; colour: string; label: string; dash?: string };
+const NO_REFS: Reference[] = [];
 
 // A gutter on the right for the y labels, a line at the bottom for the dates.
 const PAD = { top: 14, right: 52, bottom: 20 };
@@ -68,7 +69,7 @@ export default function LineChart({
   /** Dotted line at this value, for example 100 (index) or 0 (%). */
   baseline?: number;
   /** Goal lines, dashed in their own colour, with a short label at the left (none when empty): always in view. */
-  references?: { value: number; colour: string; label: string }[];
+  references?: Reference[];
   format: (v: number) => string;
   height?: number;
   /** Names at the end of each line instead of a legend. */
@@ -238,10 +239,7 @@ export default function LineChart({
         )}
 
         {references.map((r) => (
-          <g key={r.label}>
-            <line x1="0" x2={plotW} y1={y(r.value)} y2={y(r.value)} stroke={r.colour} strokeWidth="1" strokeDasharray="4 4" opacity="0.8" />
-            {r.label && <text x="2" y={y(r.value) - 4} fontSize="10.5" fill={r.colour}>{r.label}</text>}
-          </g>
+          <line key={r.label || r.value} x1="0" x2={plotW} y1={y(r.value)} y2={y(r.value)} stroke={r.colour} strokeWidth="1.5" strokeDasharray={r.dash ?? "6 4"} />
         ))}
 
         {series.map((s, si) => {
@@ -309,6 +307,14 @@ export default function LineChart({
               />
             ))}
           </g>
+        )}
+        {/* goal labels last, with a halo in the card's colour, so no line runs through them */}
+        {references.map((r) =>
+          r.label ? (
+            <text key={r.label} x="4" y={y(r.value) - 5} fontSize="11" fontWeight="600" fill={r.colour} stroke="var(--surface-card)" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">
+              {r.label}
+            </text>
+          ) : null,
         )}
       </svg>
 

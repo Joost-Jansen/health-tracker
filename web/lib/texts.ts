@@ -142,6 +142,20 @@ export const T = {
     wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
   },
 
+  /** Gezondheid (api/daily.py): what the night's heart rate says, without judging one night. */
+  nightHr: {
+    /** The last two hours of sleep against the rest of the night, in beats per minute. */
+    night(rise: number, last: number, before: number): string {
+      if (rise >= 8)
+        return `In de laatste twee uur slaap lag je hartslag gemiddeld ${rise} slagen hoger dan in de rest van de nacht (${last} tegen ${before} bpm). Dat is meer dan de paar slagen die tegen het wakker worden gewoon zijn.`;
+      if (rise >= 3)
+        return `In de laatste twee uur slaap lag je hartslag ${rise} slagen hoger dan in de rest van de nacht (${last} tegen ${before} bpm). Dat is gewoon: tegen de ochtend is er meer REM-slaap en maakt je lichaam zich klaar om wakker te worden.`;
+      return `Je hartslag bleef tot het wakker worden ongeveer even laag (laatste twee uur ${last}, daarvoor ${before} bpm).`;
+    },
+    explain:
+      "In een rustige nacht zakt de hartslag in de eerste helft naar zijn laagste punt en blijft daar tot kort voor het wakker worden. Het einde van de nacht is vooral REM-slaap: dan droom je het levendigst en is de hartslag hoger en onrustiger, dus een paar slagen erbij is gewoon. Een duidelijke stijging ruim voor het wakker worden hangt vaak samen met lange of heftige REM-fases (levendig dromen), een verstopte neus of opkomende verkoudheid, alcohol, laat of zwaar eten, een late zware training, een warme slaapkamer of stress. Zie je het vaker, kijk dan wat die avonden gemeen hadden.",
+  },
+
   /** Vandaag (dashboard). The API gives codes and numbers; the sentences are here. */
   today: {
     readiness: {
@@ -155,15 +169,18 @@ export const T = {
       /** Without night data and without deviating signals: what is there is fine. */
       unknown: (labels: string[]) => `${list(labels)} ${labels.length > 1 ? "zijn" : "is"} in orde; zonder nachtdata is herstel lastig te beoordelen.`,
       noNight: "Geen slaap of rusthartslag van afgelopen nacht (horloge niet gedragen of nog niet gesynct).",
-      label: { resting_hr: "Rusthartslag", sleep_h: "Slaap", body_battery: "Body Battery", tsb: "Vorm" } as Record<string, string>,
+      label: { resting_hr: "Rusthartslag", respiration: "Ademhaling (nacht)", sleep_h: "Slaap", body_battery: "Body Battery", tsb: "Vorm" } as Record<string, string>,
+      /** Resting HR, the heart rate while asleep and night breathing all up together (api/readiness.py illness_hint). */
+      illness: "Rusthartslag, hartslag in de slaap en ademhaling liggen samen boven je normaal. Die combinatie zie je vaak een dag of twee voor een verkoudheid: houd het rustig en kijk hoe je je voelt.",
       value(key: string, v: number): string {
         if (key === "resting_hr") return `${v} bpm`;
+        if (key === "respiration") return `${num(v)} /min`;
         if (key === "sleep_h") return `${v.toFixed(1).replace(".", ",")} u`;
         if (key === "tsb") return `${v > 0 ? "+" : ""}${Math.round(v)}`;
         return String(v);
       },
       note(code: string, p: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number }): string {
-        if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${p.delta ?? 0} t.o.v. normaal (${p.baseline})`;
+        if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${num(p.delta ?? 0)} t.o.v. normaal (${num(p.baseline ?? 0)})`;
         if (code === "sleep")
           return [p.score ? `score ${p.score}` : "", p.baseline ? `normaal ${p.baseline.toFixed(1).replace(".", ",")} u` : ""].filter(Boolean).join(", ");
         if (code === "highest") return p.days_ago === 0 ? "hoogste vandaag" : p.days_ago === 1 ? "hoogste gisteren" : `hoogste op ${fmtDate(p.date ?? "")}`;
@@ -238,6 +255,7 @@ export const T = {
 
   /** Trends page: time bar, sport filter, insights (codes from api/trends.py), charts and explanations. */
   trends: {
+    tabs: { aria: "Onderdeel van Trends", training: "Training", performance: "Prestaties", recovery: "Herstel" },
     loading: "Laden…",
     loadError: "Kon de trends niet laden.",
 
@@ -382,6 +400,13 @@ export const T = {
       stress: "Stress",
       hrv: "HRV (nacht)",
       hrvNote: "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen.",
+      resp: "Ademhaling in de slaap",
+      sleepStress: "Stress in de slaap",
+      bbCharged: "Body Battery opgeladen in de slaap",
+      spo2: "Zuurstof in de slaap (SpO2)",
+      normal: (v: string) => `Je normaal: ${v} (mediaan 60 dagen).`,
+      respNote: "Ademhaling in rust is van nacht tot nacht heel stabiel; één of twee ademhalingen per minuut meer valt al op, bijvoorbeeld na een zware dag of als je iets onder de leden hebt.",
+      openDay: "Klik op een dag in een grafiek om die dag in detail te zien onder Gezondheid.",
     },
 
     sleepLoad: {

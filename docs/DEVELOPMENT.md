@@ -24,7 +24,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `api/` | FastAPI app (`create_app` factory), auth, dashboard aggregation |
 | `web/` | Next.js 16 + Tailwind, static export. Own design system, sage theme. One folder per page in `web/app/(app)/`; `web/app/(redirects)/` only holds the old Dutch paths (see "Old paths") |
 | `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
-| `tools/sync.py`, `tools/fit.py`, `tools/store.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules |
+| `tools/sync.py`, `tools/fit.py`, `tools/store.py`, `tools/intraday.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules, Garmin's series through the day (heart rate, stress, Body Battery, breathing, SpO2, sleep stages) |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data |
 | `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
@@ -160,12 +160,13 @@ Existing:
 | POST | `/api/login` | body `{username,password}`; sets httpOnly cookie `training_session` |
 | POST | `/api/logout` | clears cookie |
 | GET | `/api/me` | `{username}` |
-| GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key, value, level, note: {code, params}}]}` (codes, no sentences). |
+| GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key: resting_hr\|respiration\|sleep_h\|body_battery\|tsb, value, level, note: {code, params}}], illness_hint}` (codes, no sentences). |
 | GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first; runs with implausible wrist HR carry `hr_flags: [low_start\|flat\|dropout]` |
 | POST | `/api/activities/upload?name=&recompute=true` | one FIT file (or a zip with one) as the raw body: a ride or run from a Wahoo or any other device. Merged into an activity that starts within 2 min (Garmin stays leading), else added; `{status: added\|merged, id, sport, start_local, distance_km, source: wahoo\|fit, merged_with[]}`. Errors: `upload_empty`, `upload_too_large`, `fit_unreadable` |
 | POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
 | PATCH | `/api/activities/{id}` | `{distance_km: number\|null}`: the real distance (0.01-1000 km) when GPS got it wrong; null removes the correction; returns the detail |
+| GET | `/api/wellness/day?day=YYYY-MM-DD` | one day of health data (the Health page; without `day` the latest): `{day, prev, next, latest, from, to, series {hr, stress, bb, resp, spo2: [minute, value][]}, sleep {start, end, stages [{start, end, stage: deep\|light\|rem\|awake}]}, next_sleep_start, summary (the day's wellness row), normals {resting_hr, sleep_hr, sleep_h, sleep_resp, sleep_stress, bb_charged_sleep, spo2_avg, stress_avg} (60-day medians), hr_min, hr_max, night {lowest, lowest_at, avg, last_avg, before_avg, rise, minutes}}`; minutes after local midnight, the evening before negative. The series come from table `intraday` (tools/intraday.py), fetched with wellness: the first time the last 14 days, at most 90 days back |
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
@@ -178,7 +179,7 @@ More (types in `web/lib/training.ts`):
 
 | Method | Path | Returns |
 |---|---|---|
-| GET | `/api/trends` (also `recovery_daily: {date, resting_hr, sleep_h, body_battery_high, stress_avg, hrv}[]`, one row per day, oldest first) | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` Also: `recent_records`, `goal {km, seconds, date, text}` (from the active plan; null without one), `longest_runs`, `hr_flags [{id, date, name, reasons}]`, `form_until`, `stopped_at_sync`; `records[*].source: split\|race`; `insights [{level, code, params}]` (codes, no sentences). |
+| GET | `/api/trends` (also `recovery_daily: {date, resting_hr, sleep_h, body_battery_high, stress_avg, hrv, sleep_resp, sleep_stress, bb_charged_sleep, spo2_avg}[]`, one row per day, oldest first; `recovery_normals` the 60-day median of each) | `{form: FormRow[], weekly: {week, sports: Record<sport,{km,seconds,count}>}[], z2_pace: {week, pace_s_per_km, runs}[], vo2max: {date, value}[], recovery_weekly: {week, resting_hr, sleep_h, body_battery_high, stress_avg}[], records: Record<"1k"|"5k"|"10k"|"21k", {date, seconds, activity_id}[]>, races: {date, name, sport, seconds, distance_km}[]}` Also: `recent_records`, `goal {km, seconds, date, text}` (from the active plan; null without one), `longest_runs`, `hr_flags [{id, date, name, reasons}]`, `form_until`, `stopped_at_sync`; `records[*].source: split\|race`; `insights [{level, code, params}]` (codes, no sentences). |
 | GET | `/api/routes?sport=run\|ride`, `/api/routes/suggest?km=&sport=&tolerance=&start=`, GET/PATCH `/api/routes/{id}` | routes (`r<n>` runs, `f<n>` rides; `median_pace` for runs, `median_speed_kmh` for rides) and suggestions of one sport (`km` ≤ 300); summaries include `distance_variants` |
 | GET | `/api/routes/candidates?sport=run\|ride` | `{candidates: [{sport, outcome: same\|candidate, confidence, reason_code, reason, a, b}], last_sync}`; each side `{id, kind: route\|activity, name, distance_km, runs, last_run?\|date?, track (≤ 150 points)}`; answered pairs are left out |
 | POST | `/api/routes/candidates` | body `{a, b, same}`; records the decision (setting `route_decisions`), applies a merge right away; returns `{applied, applied_on_next_sync, route, remaining}`; 404 if the pair is not open |
@@ -187,7 +188,7 @@ More (types in `web/lib/training.ts`):
 
 `api/mcp.py`: Model Context Protocol over streamable HTTP (stateless, JSON responses, no SSE). `POST /api/mcp` with
 `Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers.
-Tools: `get_context`, `list_activities`, `get_activity`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
+Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
 (markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 Results are markdown text (trends as JSON). Writes are authored `agent`.
 

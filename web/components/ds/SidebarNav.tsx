@@ -23,10 +23,11 @@ import Link from "next/link";
 import type { NavGroup } from "@/lib/nav";
 import { useT } from "@/lib/i18n";
 import Logomark from "@/components/ds/Logomark";
-import { ChartLineIcon, ClipboardIcon, HelpIcon, LayoutIcon, MapIcon, NewspaperIcon, RouteIcon, SettingsIcon } from "@/components/icons";
+import { ChartLineIcon, ClipboardIcon, HeartIcon, HelpIcon, LayoutIcon, MapIcon, NewspaperIcon, RouteIcon, SettingsIcon } from "@/components/icons";
 
 const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> = {
   layout: LayoutIcon,
+  heart: HeartIcon,
   clipboard: ClipboardIcon,
   map: MapIcon,
   route: RouteIcon,

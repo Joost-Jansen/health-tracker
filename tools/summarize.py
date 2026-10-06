@@ -117,8 +117,8 @@ def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync:
         "",
         "## Herstel, laatste 7 dagen",
         "",
-        "| Datum | Slaap (u) | Slaapscore | HRV | Rust-HR | Body Battery max | Readiness |",
-        "|---|---|---|---|---|---|---|",
+        "| Datum | Slaap (u) | Slaapscore | HRV | Rust-HR | HR slaap | Adem slaap (/min) | Slaapstress | Body Battery max | Readiness |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for offset in range(6, -1, -1):
         d = (today - timedelta(days=offset)).isoformat()
@@ -126,7 +126,8 @@ def this_week_md(activities: list[dict], wellness: dict, today: date, last_sync:
         if w:
             lines.append(
                 f"| {d} | {_fmt(w.get('sleep_h'))} | {_fmt(w.get('sleep_score'))} | {_fmt(w.get('hrv_last_night'))} | "
-                f"{_fmt(w.get('resting_hr'))} | {_fmt(w.get('body_battery_high'))} | {_fmt(w.get('readiness_score'))} |"
+                f"{_fmt(w.get('resting_hr'))} | {_fmt(w.get('sleep_hr'))} | {_fmt(w.get('sleep_resp'))} | {_fmt(w.get('sleep_stress'))} | "
+                f"{_fmt(w.get('body_battery_high'))} | {_fmt(w.get('readiness_score'))} |"
             )
     return "\n".join(lines) + "\n"
 

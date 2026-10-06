@@ -9,7 +9,7 @@ Layout:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.sports import garmin_sport, strava_sport
@@ -326,7 +326,14 @@ def load_activities(root: Path) -> list[dict]:
     return [json.loads(p.read_text()) for p in sorted(_activities_dir(root).glob("*/*.json"))]
 
 
+def _local_clock(ms) -> str | None:
+    """Garmin's "...TimestampLocal" (local wall time as epoch ms) as "2026-10-04T23:10"."""
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M") if ms else None
+
+
 def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | None, readiness: list | None) -> dict:
+    """The day's summary values from the responses the sync already fetches (no extra calls): sleep (get_sleep_data:
+    dailySleepDTO and the top-level bodyBatteryChange), HRV, the user summary (get_user_summary) and readiness."""
     sleep_dto = (sleep or {}).get("dailySleepDTO") or {}
     hrv_sum = (hrv or {}).get("hrvSummary") or {}
     summary = summary or {}
@@ -335,12 +342,31 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
     def hours(seconds):
         return round(seconds / 3600, 2) if seconds else None
 
+    def minutes(seconds):
+        return round(seconds / 60) if isinstance(seconds, (int, float)) and seconds >= 0 else None
+
+    def num(v, digits=0):
+        return (round(v, digits) if digits else round(v)) if isinstance(v, (int, float)) and v > 0 else None
+
+    moderate, vigorous = summary.get("moderateIntensityMinutes"), summary.get("vigorousIntensityMinutes")
+
     has_sleep = bool(sleep_dto.get("sleepTimeSeconds"))
     values = _drop_none(
         {
             "sleep_h": hours(sleep_dto.get("sleepTimeSeconds")),
             "deep_sleep_h": hours(sleep_dto.get("deepSleepSeconds")),
             "rem_sleep_h": hours(sleep_dto.get("remSleepSeconds")),
+            "light_sleep_h": hours(sleep_dto.get("lightSleepSeconds")),
+            "awake_h": hours(sleep_dto.get("awakeSleepSeconds")) if has_sleep else None,
+            "sleep_start": _local_clock(sleep_dto.get("sleepStartTimestampLocal")) if has_sleep else None,
+            "sleep_end": _local_clock(sleep_dto.get("sleepEndTimestampLocal")) if has_sleep else None,
+            "sleep_stress": num(sleep_dto.get("avgSleepStress"), 1),
+            "sleep_resp": num(sleep_dto.get("averageRespirationValue"), 1),
+            "sleep_resp_low": num(sleep_dto.get("lowestRespirationValue"), 1),
+            # the night's SpO2 from the sleep, else the day's from the summary; only when the watch measured it
+            "spo2_avg": num(sleep_dto.get("averageSpO2Value") or summary.get("averageSpo2")),
+            "spo2_low": num(sleep_dto.get("lowestSpO2Value") or summary.get("lowestSpo2")),
+            "bb_charged_sleep": num((sleep or {}).get("bodyBatteryChange") or sleep_dto.get("bodyBatteryChange")) if has_sleep else None,
             "sleep_score": ((sleep_dto.get("sleepScores") or {}).get("overall") or {}).get("value"),
             "hrv_last_night": hrv_sum.get("lastNightAvg"),
             "hrv_weekly_avg": hrv_sum.get("weeklyAvg"),
@@ -351,6 +377,18 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
             "body_battery_low": summary.get("bodyBatteryLowestValue"),
             "stress_avg": summary.get("averageStressLevel"),
             "steps": summary.get("totalSteps"),
+            "bb_charged": summary.get("bodyBatteryChargedValue"),
+            "bb_drained": summary.get("bodyBatteryDrainedValue"),
+            "stress_rest_min": minutes(summary.get("restStressDuration")),
+            "stress_low_min": minutes(summary.get("lowStressDuration")),
+            "stress_medium_min": minutes(summary.get("mediumStressDuration")),
+            "stress_high_min": minutes(summary.get("highStressDuration")),
+            # Garmin counts a vigorous minute double towards the weekly goal; the total follows that convention
+            "intensity_min": (moderate or 0) + 2 * (vigorous or 0) if moderate is not None or vigorous is not None else None,
+            "intensity_moderate_min": moderate,
+            "intensity_vigorous_min": vigorous,
+            "floors": num(summary.get("floorsAscended")) if summary.get("floorsAscended") is not None else None,
+            "active_kcal": num(summary.get("activeKilocalories")),
             "readiness_score": ready.get("score"),
             "readiness_level": ready.get("level"),
         }

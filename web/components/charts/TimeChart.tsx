@@ -123,6 +123,7 @@ export default function TimeChart({
   totalLabel,
   clock = false,
   empty,
+  onPick,
 }: {
   series: ChartSeries[];
   ariaLabel: string;
@@ -154,6 +155,8 @@ export default function TimeChart({
   /** Values are seconds (pace, time): ticks on round clock values. */
   clock?: boolean;
   empty?: string;
+  /** A click (without dragging) or Enter on a day: that day, e.g. to open it in detail. */
+  onPick?: (day: string) => void;
 }) {
   // A callback ref via state: the chart can be empty at first and only get an element later,
   // and then the measurement and the wheel handler still have to attach.
@@ -511,6 +514,7 @@ export default function TimeChart({
     if (g?.kind === "pan") {
       gesture.current = null;
       if (g.moved) commit(live.current.view);
+      else if (onPick && hover !== null) onPick(isoDay(Math.round(hover)));
     } else if (g?.kind === "pinch" && pointers.current.size < 2) {
       gesture.current = null;
       commit(live.current.view);
@@ -538,6 +542,9 @@ export default function TimeChart({
       return;
     } else if (e.key === "Escape") {
       setHover(null);
+      return;
+    } else if (e.key === "Enter" && onPick && hover !== null) {
+      onPick(isoDay(Math.round(hover)));
       return;
     }
     if (next) {

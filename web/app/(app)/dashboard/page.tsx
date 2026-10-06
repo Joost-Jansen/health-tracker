@@ -4,6 +4,7 @@
 // how fresh you are, and your latest activities and recovery.
 
 import { useState } from "react";
+import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import ZoneBar from "@/components/ZoneBar";
@@ -216,7 +217,7 @@ export default function DashboardPage() {
             )}
             {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
           </Card>
-          <Card title={m.recoveryTitle} className="flex-1">
+          <Card title={m.recoveryTitle} className="flex-1" more={m.dayDetail} moreHref="/health/">
             {d.recovery.days.length === 0 ? (
               <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
             ) : (
@@ -235,7 +236,15 @@ export default function DashboardPage() {
                     const sleep = Number(w?.sleep_h);
                     return (
                       <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
-                        <td className="py-1.5">{f.weekdayDay(day)}</td>
+                        <td className="py-1.5">
+                          {w ? (
+                            <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                              {f.weekdayDay(day)}
+                            </Link>
+                          ) : (
+                            f.weekdayDay(day)
+                          )}
+                        </td>
                         <td className="py-1.5">{sleep > 0 ? `${f.num(sleep, 1)} ${f.hourUnit}` : "–"}</td>
                         <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
                         <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>

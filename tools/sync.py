@@ -29,10 +29,16 @@ from tools.fit import read_fit_streams
 from tools.secretbox import WrongKey, decrypt, default_key, encrypt
 from tools import wahoo
 from tools.sports import garmin_sport
+from tools.intraday import intraday_from_garmin, night_summary
 from tools.store import from_garmin, from_strava, garmin_summary, wellness_from_garmin
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKFILL_DAYS = 90
+# Intraday series (tools/intraday.py) the first time (new feature): two weeks back, so recent nights are there right
+# away. Further back with an explicit backfill (--since, or a new user's first sync), but never more than
+# INTRADAY_MAX_DAYS: one row is 25-30 kB and four extra Garmin calls per day.
+INTRADAY_FIRST_DAYS = 14
+INTRADAY_MAX_DAYS = 90
 STRAVA_API = "https://www.strava.com/api/v3"
 STRAVA_STREAM_KEYS = "time,latlng,heartrate,velocity_smooth,altitude,cadence,distance,watts"
 
@@ -72,6 +78,9 @@ class FileSink:
     def write_wellness(self, day: str, values: dict) -> None:
         store.write_wellness(self.root, day, values)
 
+    def write_intraday(self, day: str, values: dict) -> None:
+        pass  # the file mode keeps only the daily summaries
+
     def get_fit(self, garmin_id, year: str) -> bytes | None:
         path = self.root / self.fit_key(garmin_id, year)
         return path.read_bytes() if path.exists() else None
@@ -101,6 +110,9 @@ class DbSink:
 
     def write_wellness(self, day: str, values: dict) -> None:
         db.write_wellness(self.engine, day, values)
+
+    def write_intraday(self, day: str, values: dict) -> None:
+        db.write_intraday(self.engine, day, values)
 
     def get_fit(self, garmin_id, year: str) -> bytes | None:
         return db.get_fit(self.engine, self.fit_key(garmin_id, year))
@@ -203,6 +215,7 @@ class GarminClient:
         self.api = Garmin()
         self.api.login(tokens)
         self.stats: dict = {}
+        self._sleep: tuple[str, dict | None] = ("", None)  # the last day's sleep, shared by wellness() and intraday()
 
     def _call(self, fn, *args, **kwargs):
         from garminconnect import GarminConnectTooManyRequestsError
@@ -229,11 +242,30 @@ class GarminClient:
         def get(name, fn):
             return fetch_metric(self.stats, name, lambda d: self._call(fn, d), day)
 
+        sleep = get("slaap", self.api.get_sleep_data)
+        self._sleep = (day, sleep)
         return wellness_from_garmin(
-            sleep=get("slaap", self.api.get_sleep_data),
+            sleep=sleep,
             hrv=get("hrv", self.api.get_hrv_data),
             summary=get("dagoverzicht", self.api.get_user_summary),
             readiness=get("readiness", self.api.get_training_readiness),
+        )
+
+    def intraday(self, day: str) -> dict:
+        """The day's series (heart rate, stress with Body Battery, respiration, SpO2; shapes in
+        tools/intraday.py) and the sleep window and stages of that morning (get_sleep_data, reused from wellness()
+        for the same day). Four calls; Body Battery comes with the stress response."""
+        def get(name, fn):
+            return fetch_metric(self.stats, name, lambda d: self._call(fn, d), day)
+
+        sleep = self._sleep[1] if self._sleep[0] == day else get("slaap", self.api.get_sleep_data)
+        return intraday_from_garmin(
+            day,
+            hr=get("hartslag", self.api.get_heart_rates),
+            sleep=sleep,
+            stress=get("stress", self.api.get_stress_data),
+            respiration=get("ademhaling", self.api.get_respiration_data),
+            spo2=get("spo2", self.api.get_spo2_data),
         )
 
     def tokens(self) -> str:
@@ -319,11 +351,29 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
     well_start = date.fromisoformat(g["last_wellness_day"]) if "last_wellness_day" in g else default_start
     if since:
         well_start = min(well_start, since)
-    day = well_start
+    # The intraday series keep their own place: they came later than wellness, so the first sync with them goes back
+    # INTRADAY_FIRST_DAYS even when wellness is up to date, and wellness is fetched again for those days too (it
+    # gained fields along with them). Clients without intraday() (tests, old fakes) skip it.
+    with_intraday = hasattr(client, "intraday")
+    day_start = date.fromisoformat(g["last_intraday_day"]) if "last_intraday_day" in g else today - timedelta(days=INTRADAY_FIRST_DAYS)
+    if since:
+        day_start = min(day_start, since)
+    day_start = max(day_start, today - timedelta(days=INTRADAY_MAX_DAYS))
+    first = min(well_start, day_start) if with_intraday else well_start
+    day = first
     while day <= today:
-        progress("garmin_wellness", (day - well_start).days, (today - well_start).days + 1)
-        sink.write_wellness(day.isoformat(), client.wellness(day.isoformat()))
-        g["last_wellness_day"] = day.isoformat()
+        progress("garmin_wellness", (day - first).days, (today - first).days + 1)
+        iso = day.isoformat()
+        values = client.wellness(iso)
+        if with_intraday and day >= day_start:
+            series = client.intraday(iso)
+            sink.write_intraday(iso, series)
+            night = night_summary(series.get("hr") or [], series.get("sleep"))
+            if night and values:
+                values["sleep_hr"] = night["avg"]  # average heart rate while asleep, for readiness and trends
+            g["last_intraday_day"] = iso
+        sink.write_wellness(iso, values)
+        g["last_wellness_day"] = iso
         day += timedelta(days=1)
     return count
 

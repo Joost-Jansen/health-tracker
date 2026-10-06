@@ -121,6 +121,16 @@ wellness = Table(
     Column("data", JSON, nullable=False),
     PrimaryKeyConstraint("user_id", "day"),
 )
+intraday = Table(
+    # Garmin's series through one calendar day (heart rate, stress, Body Battery, respiration, SpO2) plus the sleep
+    # that ended that morning, compact (tools/intraday.py): about 25-30 kB a day. Wellness keeps the daily summary.
+    "intraday",
+    meta,
+    Column("user_id", Integer, nullable=False),
+    Column("day", String(10), nullable=False),
+    Column("data", JSON, nullable=False),
+    PrimaryKeyConstraint("user_id", "day"),
+)
 settings = Table(
     "settings",
     meta,
@@ -228,7 +238,7 @@ feedback = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
-USER_TABLES = (activities, streams, fit_files, wellness, settings, documents, entries, plan_links, plans, routes, feedback)
+USER_TABLES = (activities, streams, fit_files, wellness, intraday, settings, documents, entries, plan_links, plans, routes, feedback)
 SESSION_FIELDS = ("date", "sport", "kind", "distance_km", "duration_min", "target_zone", "description", "route_id")
 
 
@@ -790,6 +800,25 @@ def write_wellness(s: Scope, day: str, values: dict) -> None:
 def load_wellness(s: Scope) -> dict[str, dict]:
     with s.engine.connect() as conn:
         return {d: data for d, data in conn.execute(select(wellness.c.day, wellness.c.data).where(wellness.c.user_id == s.user_id).order_by(wellness.c.day))}
+
+
+def write_intraday(s: Scope, day: str, values: dict) -> None:
+    """Replace the day; an empty result removes it (Garmin is the only source)."""
+    with s.engine.begin() as conn:
+        conn.execute(delete(intraday).where(intraday.c.user_id == s.user_id, intraday.c.day == day))
+        if values:
+            conn.execute(insert(intraday).values(user_id=s.user_id, day=day, data=values))
+
+
+def get_intraday(s: Scope, day: str) -> dict | None:
+    with s.engine.connect() as conn:
+        return conn.execute(select(intraday.c.data).where(intraday.c.user_id == s.user_id, intraday.c.day == day)).scalar_one_or_none()
+
+
+def intraday_days(s: Scope) -> list[str]:
+    """The days with intraday data, oldest first."""
+    with s.engine.connect() as conn:
+        return [d for (d,) in conn.execute(select(intraday.c.day).where(intraday.c.user_id == s.user_id).order_by(intraday.c.day))]
 
 
 def get_setting(s: Scope, key: str):

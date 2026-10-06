@@ -11,6 +11,7 @@ from api.trends import (
     recent_records,
     records,
     recovery_daily,
+    recovery_normals,
     recovery_weekly,
     standalone_runs,
     vo2max,
@@ -76,9 +77,12 @@ def test_races_detect_triathlon_day_and_named_races():
     assert out[0]["activity_ids"] == ["s", "b", "r"]
 
 
+NEW_NONE = {"sleep_resp": None, "sleep_stress": None, "bb_charged_sleep": None, "spo2_avg": None}
+
+
 def test_recovery_weekly_averages():
     out = recovery_weekly({"2026-09-28": {"resting_hr": 48, "sleep_h": 6.0}, "2026-09-29": {"resting_hr": 50}})
-    assert out == [{"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None}]
+    assert out == [{"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None, **NEW_NONE}]
 
 
 def test_recovery_daily_keeps_each_day_and_skips_empty_days():
@@ -90,9 +94,15 @@ def test_recovery_daily_keeps_each_day_and_skips_empty_days():
         }
     )
     assert out == [
-        {"date": "2026-09-28", "resting_hr": 48, "sleep_h": None, "body_battery_high": 80, "stress_avg": None, "hrv": None},
-        {"date": "2026-09-29", "resting_hr": 50, "sleep_h": 7.26, "body_battery_high": None, "stress_avg": None, "hrv": None},
+        {"date": "2026-09-28", "resting_hr": 48, "sleep_h": None, "body_battery_high": 80, "stress_avg": None, "hrv": None, **NEW_NONE},
+        {"date": "2026-09-29", "resting_hr": 50, "sleep_h": 7.26, "body_battery_high": None, "stress_avg": None, "hrv": None, **NEW_NONE},
     ]
+
+
+def test_recovery_normals_are_the_median_of_the_last_60_days():
+    wellness = {f"2026-09-{d:02d}": {"sleep_resp": 14.0 + d % 2, "resting_hr": 50} for d in range(1, 31)}
+    out = recovery_normals(wellness, date(2026, 9, 30))
+    assert out["sleep_resp"] == 14.5 and out["resting_hr"] == 50 and out["spo2_avg"] is None
 
 
 def test_build_trends_shape():

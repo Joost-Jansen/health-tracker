@@ -147,6 +147,16 @@ export function LayoutIcon(props: IconProps) {
   );
 }
 
+/** Health: a heart with a pulse line through it. */
+export function HeartIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+      <path d="M5.5 12.5h3l1.5-2.5 2 4 1.5-2h5" />
+    </Icon>
+  );
+}
+
 /** Trends: a line that climbs. */
 export function ChartLineIcon(props: IconProps) {
   return (

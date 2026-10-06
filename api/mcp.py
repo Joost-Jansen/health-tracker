@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from api.dashboard import build_dashboard, summary, today_form_pct, today_tsb
+from api.daily import as_markdown as day_md, day_view
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
 from api.readiness import as_text as readiness_text, readiness
@@ -68,6 +69,13 @@ TOOLS = [
         "name": "get_activity",
         "description": "Eén activiteit met details: kilometersplits, ronden, zones, decoupling (hartslagdrift), rondje en eerdere keren daarop, andere activiteiten die dag.",
         "inputSchema": {"type": "object", "properties": {"id": _str("activity id, bv. 2026-09-27_1130_run")}, "required": ["id"]},
+    },
+    {
+        "name": "get_day",
+        "description": "Eén dag en de nacht ervoor van het horloge (Garmin): slaap (duur, score, fases, van-tot), rusthartslag, hartslag, ademhaling en stress in de slaap, "
+        "SpO2, Body Battery, stress, stappen en intensiteitsminuten, elk tegen de eigen normaal (mediaan 60 dagen); de nacht in getallen (laagste hartslag, "
+        "gemiddeld, laatste 2 uur slaap tegen de rest) en een tabel per half uur met hartslag, stress, Body Battery, ademhaling, SpO2 en slaapfase.",
+        "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, de dag waarop je wakker werd; standaard de laatste dag met data")}},
     },
     {"name": "get_trends", "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.", "inputSchema": {"type": "object", "properties": {}}},
     {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.", "inputSchema": {"type": "object", "properties": {}}},
@@ -285,6 +293,12 @@ class Server:
             if a is None:
                 raise ToolError(f"Activiteit {args.get('id')} niet gevonden; gebruik list_activities voor de ids.")
             return activity_md(a)
+        if name == "get_day":
+            try:
+                day = date.fromisoformat(args["day"]) if args.get("day") else None
+            except ValueError:
+                raise ToolError("day als YYYY-MM-DD")
+            return day_md(day_view(self.engine, s.wellness, day, s.rhr_fallback, today))
         if name == "get_trends":
             t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync)
             t["form"] = t["form"][-60:]

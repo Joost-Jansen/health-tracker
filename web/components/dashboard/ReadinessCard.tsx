@@ -14,19 +14,25 @@ const VERDICT_COLOUR: Record<Readiness["verdict"], string> = {
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
 
 export default function ReadinessCard({ r, className = "" }: { r: Readiness; className?: string }) {
-  const T = useT().texts;
+  const { dashboard: m, texts: T } = useT();
   const t = T.today.readiness;
   const advice = r.verdict === "unknown" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
   const text = r.no_night ? `${advice} ${t.noNight}` : advice;
   // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;
   return (
-    <Card title={t.title} className={className}>
+    <Card title={t.title} className={className} more={r.date ? m.dayDetail : undefined} moreHref={r.date ? `/health/?day=${r.date}` : undefined}>
       <div className="flex items-center gap-2.5">
         <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: VERDICT_COLOUR[r.verdict] }} />
         <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{t.verdict[r.verdict]}</span>
       </div>
       <p className={`mt-1 leading-relaxed text-ink-muted ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{text}</p>
+      {r.illness_hint && (
+        <p className="mt-2 flex items-start gap-2 text-[12.5px] leading-relaxed">
+          <span aria-hidden="true" className="mt-[6px] inline-block h-2 w-2 flex-none rounded-full" style={{ background: LEVEL_COLOUR.attention }} />
+          {t.illness}
+        </p>
+      )}
       {compact ? (
         <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] tabular-nums">
           {r.signals.map((s) => (

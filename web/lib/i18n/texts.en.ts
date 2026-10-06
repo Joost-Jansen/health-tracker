@@ -25,17 +25,6 @@ export const textsEn = {
 
   readinessBasis: "Compares last night with your own normal (resting heart rate, sleep) and your form.",
 
-  nightHr: {
-    night(rise: number, last: number, before: number): string {
-      if (rise >= 8)
-        return `In the last two hours of sleep your heart rate was on average ${rise} beats higher than in the rest of the night (${last} against ${before} bpm). That is more than the few beats that are usual towards waking up.`;
-      if (rise >= 3)
-        return `In the last two hours of sleep your heart rate was ${rise} beats higher than in the rest of the night (${last} against ${before} bpm). That is usual: towards the morning there is more REM sleep and your body gets ready to wake up.`;
-      return `Your heart rate stayed about as low until you woke up (last two hours ${last}, before that ${before} bpm).`;
-    },
-    explain:
-      "In a calm night the heart rate drops to its lowest point in the first half and stays there until shortly before waking up. The end of the night is mostly REM sleep: that is when you dream most vividly and the heart rate is higher and less steady, so a few extra beats are usual. A clear rise well before waking up often goes with long or intense REM phases (vivid dreams), a blocked nose or a cold coming on, alcohol, a late or heavy meal, a late hard workout, a warm bedroom or stress. If you see it more often, look at what those evenings had in common.",
-  },
 
   zonesFootnote(estimated: string[], set: string[]): string {
     if (!set.length) return "You haven't set heart-rate zones yet (Settings, Zones and profile).";

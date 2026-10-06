@@ -1058,7 +1058,6 @@ export const nl = {
     },
   },
   health: {
-    whyRise: "Waarom stijgt de hartslag voor het wakker worden?",
     pickDay: "Kies een dag",
     loadFailed: "Kon de gegevens van deze dag niet laden.",
     previous: "Vorige dag",

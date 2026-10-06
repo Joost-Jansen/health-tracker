@@ -22,6 +22,7 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
     return Object.entries(all).filter(([, v]) => v.planned > 0).sort((a, b) => (a[0] === "run" ? -1 : b[0] === "run" ? 1 : b[1].planned - a[1].planned)).map(([s]) => s);
   }, [weeks]);
   const [pick, setPick] = useState<string | null>(null);
+  const [active, setActive] = useState<number | null>(null); // the week under the pointer (or tapped): its box
   // A long plan in a narrow card leaves a few pixels per week: then labels are thinned out instead of overlapping
   // (the tooltip on each bar still has the numbers).
   const barsRef = useRef<HTMLDivElement>(null);
@@ -80,9 +81,19 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
       <p className="mb-3 text-[12px] tabular-nums text-ink-muted">
         {v.doneOf(fmtNum(done), fmtNum(total), sport)}
       </p>
-      <div ref={barsRef} className={`flex h-[132px] items-end lg:h-auto lg:min-h-[132px] lg:flex-1 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`} role="list" aria-label={v.aria(sport)}>
-        {rows.map((r) => (
-          <div key={r.monday} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={v.bar(f.dayMonth(r.monday), fmtNum(r.done), fmtNum(r.planned))}>
+      <div ref={barsRef} className={`relative flex h-[132px] items-end lg:h-auto lg:min-h-[132px] lg:flex-1 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`} role="list" aria-label={v.aria(sport)} onMouseLeave={() => setActive(null)}>
+        {rows.map((r, i) => (
+          <div
+            key={r.monday}
+            role="listitem"
+            tabIndex={0}
+            aria-label={v.bar(f.dayMonth(r.monday), fmtNum(r.done), fmtNum(r.planned))}
+            className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
+            onMouseEnter={() => setActive(i)}
+            onFocus={() => setActive(i)}
+            onBlur={() => setActive(null)}
+            onClick={() => setActive(i)}
+          >
             <span className="mb-1 whitespace-nowrap text-[11.5px] tabular-nums text-ink-muted">
               {values === "full" ? (
                 <>
@@ -110,6 +121,23 @@ export default function VolumeChart({ weeks, today, raceDate }: { weeks: Week[];
             </div>
           </div>
         ))}
+        {/* the week under the pointer in one box beside its bar, as on the other charts */}
+        {active != null && rows[active] && (
+          <div
+            className="ds-chart__tip"
+            aria-live="polite"
+            style={{
+              left: ((active + 0.5) / rows.length) * (width || 1) + (active >= rows.length / 2 ? -10 : 10),
+              top: 0,
+              transform: active >= rows.length / 2 ? "translateX(-100%)" : "none",
+            }}
+          >
+            <div className="font-semibold">{f.dayMonth(rows[active].monday)} – {f.dayMonth(rows[active].days[6].date)}</div>
+            <div className="flex justify-between gap-3"><span className="opacity-80">{v.done}</span><span className="font-semibold">{rows[active].started ? `${fmtNum(rows[active].done)} km` : "–"}</span></div>
+            <div className="flex justify-between gap-3"><span className="opacity-80">{v.planned}</span><span className="font-semibold">{fmtNum(rows[active].planned)} km</span></div>
+            {rows[active].raceKm > 0 && <div className="flex justify-between gap-3"><span className="opacity-80">{v.raceLegend}</span><span className="font-semibold">{fmtNum(rows[active].raceKm)} km</span></div>}
+          </div>
+        )}
       </div>
       <div className={`mt-1.5 flex border-t border-border pt-1.5 ${tight ? "gap-1" : "gap-2 sm:gap-3"}`}>
         {rows.map((r, i) => (

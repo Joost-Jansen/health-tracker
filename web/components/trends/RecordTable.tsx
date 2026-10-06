@@ -7,6 +7,7 @@
 // lines. Here, per distance: where the record stood at the start of the period, every improvement as a dot
 // on its date, and in words how often it improved in this period.
 
+import { useState } from "react";
 import Link from "next/link";
 import { dayNumber, type DateWindow } from "@/lib/timeline";
 import { useFormat, useT } from "@/lib/i18n";
@@ -26,6 +27,7 @@ function useRecordTexts() {
 
 function Steps({ rows, window: w, colour }: { rows: RecordRowPlus[]; window: DateWindow; colour: string }) {
   const { TR, fmtDay } = useRecordTexts();
+  const [hover, setHover] = useState<number | null>(null); // index in `inside` of the record nearest the pointer
   const lo = dayNumber(w.from);
   const span = Math.max(dayNumber(w.to) - lo, 1);
   const before = [...rows].reverse().find((r) => r.date < w.from);
@@ -48,18 +50,39 @@ function Steps({ rows, window: w, colour }: { rows: RecordRowPlus[]; window: Dat
     curY = y(r.seconds);
   }
   segs.push({ x1: curX, x2: 100, y1: curY, y2: curY });
+  // the record nearest the pointer (or tap) gets a box with its date and time, as on the other charts
+  const pick = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!inside.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const at = ((e.clientX - rect.left) / Math.max(rect.width, 1)) * 100;
+    let best = 0;
+    inside.forEach((r, i) => {
+      if (Math.abs(x(r.date) - at) < Math.abs(x(inside[best].date) - at)) best = i;
+    });
+    setHover(best);
+  };
+  const hr = hover != null ? inside[hover] : null;
   return (
+    <div className="relative" onPointerMove={pick} onPointerDown={pick} onPointerLeave={(e) => e.pointerType === "mouse" && setHover(null)}>
     <svg width="100%" height={H} className="block overflow-visible" role="img" aria-label={TR.improved(inside.length)}>
       <line x1="0%" x2="100%" y1={H - 0.5} y2={H - 0.5} stroke="var(--border-hairline)" strokeWidth="1" />
       {segs.map((s, i) => (
         <line key={i} x1={`${s.x1}%`} x2={`${s.x2}%`} y1={s.y1} y2={s.y2} stroke={colour} strokeWidth="1.75" strokeLinecap="round" opacity={inside.length ? 1 : 0.55} />
       ))}
       {inside.map((r) => (
-        <circle key={r.date + r.activity_id} cx={`${x(r.date)}%`} cy={y(r.seconds)} r="3.5" fill={colour} stroke="var(--surface-card)" strokeWidth="1.5">
-          <title>{`${fmtDay(r.date)}: ${fmtClock(r.seconds)}`}</title>
-        </circle>
+        <circle key={r.date + r.activity_id} cx={`${x(r.date)}%`} cy={y(r.seconds)} r={r === hr ? 5 : 3.5} fill={colour} stroke="var(--surface-card)" strokeWidth="1.5" />
       ))}
     </svg>
+    {hr && (
+      <div
+        className="ds-chart__tip"
+        aria-live="polite"
+        style={{ left: `calc(${x(hr.date)}% ${x(hr.date) > 50 ? "- 10px" : "+ 10px"})`, top: -6, transform: x(hr.date) > 50 ? "translate(-100%, -100%)" : "translateY(-100%)", zIndex: 20 }}
+      >
+        <span className="font-semibold">{fmtClock(hr.seconds)}</span> <span className="opacity-80">· {fmtDay(hr.date)}</span>
+      </div>
+    )}
+    </div>
   );
 }
 

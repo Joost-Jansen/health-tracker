@@ -2,7 +2,8 @@
 
 // Heart rate, pace and altitude during one activity, stacked on the same time axis. The heart rate sits
 // on the zone colours as background bands, so you see which zone you were in without calculating.
-// Pointing gives one cursor through all three panels and reports the position (0..1) to the map.
+// Pointing gives one cursor through all three panels, every value at the cursor in one box beside it (as TimeChart
+// does), and reports the position (0..1) to the map. On a phone a tap keeps the box; tapping elsewhere clears it.
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat, useT } from "@/lib/i18n";
@@ -119,7 +120,8 @@ export default function StreamChart({
       onMouseLeave={leave}
       onTouchStart={(e) => locate(e.touches[0].clientX)}
       onTouchMove={(e) => locate(e.touches[0].clientX)}
-      onTouchEnd={leave}
+      tabIndex={0}
+      onBlur={leave}
     >
       {panels.map((p) => {
         const vals = p.values.filter((v): v is number => v != null).sort((a, b) => a - b);
@@ -174,6 +176,30 @@ export default function StreamChart({
           </div>
         );
       })}
+      {hover != null && (
+        <div
+          className="ds-chart__tip"
+          aria-live="polite"
+          style={{ left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12), top: 22, transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none" }}
+        >
+          <div className="font-semibold">{fmtClock(time[hover] - time[0])}</div>
+          {panels.map((p) => {
+            const v = p.values[hover];
+            // the heart rate's zone from the bounds the bands use
+            const zone = p.bands && v != null ? ZONES[p.bands.filter((b) => v >= b).length] : null;
+            return (
+              <div key={p.key} className="flex items-center gap-1.5">
+                <span aria-hidden className="inline-block h-[3px] w-2.5 rounded-full" style={{ background: zone ? `var(--zone-${ZONES.indexOf(zone) + 1})` : p.colour }} />
+                <span className="opacity-80">{p.label}</span>
+                <span className="ml-auto pl-3 font-semibold">
+                  {v != null ? p.format(v) : "–"}
+                  {zone ? ` · ${zone}` : ""}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="flex justify-between text-[10.5px] tabular-nums text-ink-muted" style={{ width: plotW }}>
         <span>0:00</span>
         <span>{hover != null ? fmtClock(time[hover] - time[0]) : ""}</span>

@@ -18,11 +18,40 @@ export class ApiError extends Error {
   }
 }
 
+// Example data (api/example.py): while the first-run walk is on a page step, data requests carry
+// `X-Example-Data: 1` and the API answers them from a shared, read-only example account (writes get 403
+// `example_read_only`). What is personal never carries it: who you are, account, connections, tokens, feedback, admin,
+// and the onboarding state that drives the walk itself. Switch it with `setExampleData` (lib/exampleData.ts).
+let exampleData = false;
+const PERSONAL = ["/api/onboarding", "/api/me", "/api/account", "/api/auth", "/api/login", "/api/logout", "/api/register",
+  "/api/connections", "/api/agent-tokens", "/api/feedback", "/api/admin", "/api/mcp"];
+
+const exampleListeners = new Set<() => void>();
+
+export function setExampleData(on: boolean) {
+  if (exampleData === on) return;
+  exampleData = on;
+  exampleListeners.forEach((fn) => fn());
+}
+
+export const exampleDataOn = () => exampleData;
+
+export function subscribeExampleData(fn: () => void): () => void {
+  exampleListeners.add(fn);
+  return () => exampleListeners.delete(fn);
+}
+
+export function exampleHeader(path: string): Record<string, string> {
+  const bare = path.split("?")[0];
+  const personal = PERSONAL.some((p) => bare === p || bare.startsWith(p + "/"));
+  return exampleData && !personal ? { "X-Example-Data": "1" } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers: { "Content-Type": "application/json", ...exampleHeader(path), ...(init?.headers || {}) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

@@ -6,11 +6,16 @@
 // sidebar a little and puts a small popover next to the item, at its height. The page stays visible and undimmed.
 // It follows scrolling and resizing. On a phone the sidebar is hidden (and stays closed): the popover then docks at the
 // bottom of the screen, on top of the real page.
+//
+// A new account has no data yet, so while a coach mark is on screen the pages show the shared, read-only example
+// account (lib/exampleData.ts), and the coach mark says so. Your own data comes back as soon as it closes: at the end
+// of the walk, on a pause or on skip.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ds";
+import { Button, Tag } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { useExampleData } from "@/lib/exampleData";
 import { useT } from "@/lib/i18n";
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -68,6 +73,8 @@ export default function CoachMark({
   const [item, setItem] = useState<Box | null>(null);
   const [rail, setRail] = useState<Box | null>(null);
   const [height, setHeight] = useState(0);
+
+  useExampleData();
 
   // Open the page of this step (also after a reload or a pause), unless you are already somewhere on it.
   useEffect(() => {
@@ -161,8 +168,12 @@ export default function CoachMark({
           <span className="text-[11.5px] text-ink-muted">{tr.step(index + 1, total)}</span>
           <Button size="sm" variant="ghost" className="-mr-2" onClick={onSkip}>{tr.skip}</Button>
         </div>
-        <h3 className="mb-1 mt-1 font-display text-[19px] font-normal tracking-[-0.014em]">{title}</h3>
+        <div className="mb-1 mt-1 flex items-center justify-between gap-2">
+          <h3 className="font-display text-[19px] font-normal tracking-[-0.014em]">{title}</h3>
+          <Tag tone="brand" className="flex-none">{tr.example}</Tag>
+        </div>
         <p id="coachmark-text" className="text-[13px] leading-relaxed text-ink-muted">{text}</p>
+        <p className="mt-2 rounded-lg px-3 py-2 text-[12px] leading-relaxed" style={{ background: "var(--surface-inset)" }}>{tr.exampleNote}</p>
         <div className="mt-3 flex items-center justify-between gap-2">
           <Button size="sm" variant="ghost" className="-ml-2" onClick={onBack} icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}>{tr.back}</Button>
           <Button data-coach-next size="sm" variant="primary" onClick={onNext} iconAfter={<ChevronRightIcon className="h-3.5 w-3.5" />}>{t.common.next}</Button>

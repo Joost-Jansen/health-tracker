@@ -25,6 +25,8 @@ MESSAGES: dict[str, str] = {
     "invalid_invite": "ongeldige of gebruikte uitnodigingscode",
     "invalid_username": "gebruikersnaam: 3-40 tekens, letters, cijfers, punt, streepje of underscore",
     "username_taken": "die gebruikersnaam bestaat al",
+    "username_reserved": "die gebruikersnaam is gereserveerd",
+    "example_read_only": "dit zijn voorbeeldgegevens: je kunt ze bekijken, niet wijzigen",
     "password_too_short": "wachtwoord van minimaal {min} tekens",
     "name_too_long": "naam van maximaal {max} tekens",
     "wrong_current_password": "huidig wachtwoord klopt niet",

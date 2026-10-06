@@ -18,7 +18,7 @@ import bcrypt
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
-from api import auth
+from api import auth, example
 from api.data import DataStore
 from api.errors import ApiError
 from tools import db
@@ -37,6 +37,7 @@ class User:
     is_admin: bool
     via: str  # cookie | agent
     store: DataStore = field(repr=False)
+    example: bool = False  # the store is the read-only example account (api/example.py), not this user's data
 
     @property
     def scope(self) -> db.Scope:
@@ -90,8 +91,9 @@ def bootstrap(engine, username: str, password_hash: str) -> int | None:
     return db.create_user(engine, username, password_hash, is_admin=True, user_id=1)
 
 
-def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = "") -> tuple[Callable, Callable]:
-    """Returns (current_user dependency, token_user(token) -> User | None)."""
+def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = "", examples: "example.ExampleData | None" = None) -> tuple[Callable, Callable]:
+    """Returns (current_user dependency, token_user(token) -> User | None). With `examples`, a site login that asks for
+    example data on a data route gets the example account's read-only store instead of its own (api/example.py)."""
 
     def load(user_id: int | None, via: str) -> User | None:
         u = db.get_user(engine, user_id) if user_id else None
@@ -125,6 +127,9 @@ def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = 
         u = load(uid, "cookie")
         if not u:
             raise ApiError(401, "not_logged_in")
+        if examples is not None and example.serves(request):
+            # only the data comes from the example account; never another real user's, and never writable
+            return User(example.EXAMPLE_USER_ID, u.username, u.display_name, False, "cookie", examples.store(), example=True)
         return u
 
     return current_user, token_user
@@ -231,6 +236,8 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         name = body.username.strip().lower()
         if not USERNAME.match(name):
             raise ApiError(422, "invalid_username")
+        if name in example.RESERVED_USERNAMES:
+            raise ApiError(409, "username_reserved")
         if db.get_user_by_name(engine, name):
             raise ApiError(409, "username_taken")
         check_new_password(body.password)

@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import agent_tokens, connections, daily, errors, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
+from api import agent_tokens, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
 from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
@@ -64,8 +64,10 @@ def today():
     return datetime.now(TZ).date()
 
 
-def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None, garmin_auth=None, garmin_client=None, **sync_kwargs) -> FastAPI:
-    """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests)."""
+def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None, garmin_auth=None, garmin_client=None,
+               example_dir: Path | None = None, **sync_kwargs) -> FastAPI:
+    """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests).
+    `example_dir` holds the example account's database (api/example.py; default EXAMPLE_DATA_DIR or the temp dir)."""
     settings = settings or Settings.from_env()
     if not settings.jwt_secret:
         raise RuntimeError("TRAINING_JWT_SECRET ontbreekt")
@@ -78,14 +80,18 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     users.bootstrap(engine, settings.user, settings.password_hash)
 
     stores = users.Stores(engine)
-    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash)
+    examples = example.ExampleData(example_dir, today)
+    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     errors.install(app)
-    app.state.engine, app.state.stores = engine, stores
+    app.middleware("http")(example.refuse_writes)
+    app.state.engine, app.state.stores, app.state.examples = engine, stores, examples
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
     app.state.sync = runner
     if production and os.environ.get("SYNC_IN_WEB", "true") != "false":
         runner.start_daily()
+    if production:
+        examples.warm()  # seed the example account in the background, so the first walk does not wait for it
 
     @app.get("/api/health")
     def health():

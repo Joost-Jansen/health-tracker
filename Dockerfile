@@ -17,6 +17,7 @@ COPY api/requirements.txt api/requirements.txt
 RUN pip install -r api/requirements.txt
 COPY api/ api/
 COPY tools/ tools/
+COPY scripts/seed_demo.py scripts/seed_demo.py
 COPY --from=web /web/out web/out
 RUN useradd --uid 1000 --create-home appuser
 USER appuser

@@ -26,7 +26,7 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py`, `tools/intraday.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules, Garmin's series through the day (heart rate, stress, Body Battery, breathing, SpO2, sleep stages) |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
-| `scripts/seed_demo.py` | Demo user with six months of synthetic data |
+| `scripts/seed_demo.py` | Demo user with six months of synthetic data (also seeds the example account, `api/example.py`) |
 | `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
 | `tests/` | pytest, one file per module |
 
@@ -135,7 +135,7 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 | Method | Path | What |
 |---|---|---|
 | GET | `/api/auth/config` | `{registration: closed\|invite\|open, first_user}` (public) |
-| POST | `/api/register` | `{username, password, display_name?, invite?, locale?: nl\|en}`; first user on an empty install becomes admin |
+| POST | `/api/register` | `{username, password, display_name?, invite?, locale?: nl\|en}`; first user on an empty install becomes admin; `example` is reserved (409 `username_reserved`) |
 | GET | `/api/me` | `{id, username, display_name, is_admin, via, locale: nl\|en\|null}`; `null` = never chosen, the site follows the browser |
 | PATCH | `/api/account` | `{display_name?, locale?: nl\|en}` (site login only); returns the user with `locale` |
 | POST | `/api/account/password` | `{current, new}` |
@@ -191,6 +191,20 @@ More (types in `web/lib/training.ts`):
 | GET | `/api/routes?sport=run\|ride`, `/api/routes/suggest?km=&sport=&tolerance=&start=`, GET/PATCH `/api/routes/{id}` | routes (`r<n>` runs, `f<n>` rides; `median_pace` for runs, `median_speed_kmh` for rides) and suggestions of one sport (`km` ≤ 300); summaries include `distance_variants` |
 | GET | `/api/routes/candidates?sport=run\|ride` | `{candidates: [{sport, outcome: same\|candidate, confidence, reason_code, reason, a, b}], last_sync}`; each side `{id, kind: route\|activity, name, distance_km, runs, last_run?\|date?, track (≤ 150 points)}`; answered pairs are left out |
 | POST | `/api/routes/candidates` | body `{a, b, same}`; records the decision (setting `route_decisions`), applies a merge right away; returns `{applied, applied_on_next_sync, route, remaining}`; 404 if the pair is not open |
+
+### Example data (first-run walk)
+
+`api/example.py`. While the tour's walk past the pages is on a page step, the site sends `X-Example-Data: 1`
+(`web/lib/api.ts`, switched by `web/lib/exampleData.ts` from the coach mark) so a new account does not walk past empty
+pages. For a site login, GET requests to the data routes (`/api/dashboard`, `activities`, `heatmap`, `trends`, `plans`,
+`docs`, `entries`, `context`, `routes`, `zones`, `wellness`, `settings/zones|profile|resting-hr`) are then answered from
+a shared example account: `scripts/seed_demo.py` with fixed seeds, made-up loops around its own invented start point,
+in a separate SQLite database (`EXAMPLE_DATA_DIR`, default the temp dir) that is seeded on first use (at startup in
+production), made again when the date changes, and opened read-only (`mode=ro`). Every POST/PUT/PATCH/DELETE carrying
+the header gets 403 `example_read_only`. Who you are, account, connections, agent tokens, feedback and onboarding stay
+your own (the site does not send the header there). Admin, MCP and `/api/agent-tokens` routes and Bearer-token
+requests ignore the header. The site resets its data queries when the walk enters or leaves the page steps, so example
+and real data never share the cache.
 
 ### MCP
 

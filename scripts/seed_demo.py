@@ -84,7 +84,7 @@ class Loop:
         for p, q in zip(self.xy, self.xy[1:]):
             self.cum.append(self.cum[-1] + math.dist(p, q))
 
-    def at(self, dist_m: float, jitter: tuple[float, float] = (0.0, 0.0)) -> list[float]:
+    def at(self, dist_m: float, jitter: tuple[float, float] = (0.0, 0.0), origin: tuple[float, float] = HOME) -> list[float]:
         d = dist_m % self.cum[-1]
         lo, hi = 0, len(self.cum) - 1
         while hi - lo > 1:
@@ -97,7 +97,7 @@ class Loop:
         f = (d - self.cum[lo]) / seg
         x = self.xy[lo][0] + f * (self.xy[hi][0] - self.xy[lo][0]) + jitter[0]
         y = self.xy[lo][1] + f * (self.xy[hi][1] - self.xy[lo][1]) + jitter[1]
-        lat, lon = _offset(*HOME, y, x)
+        lat, lon = _offset(*origin, y, x)
         return [round(lat, 6), round(lon, 6)]
 
 
@@ -128,7 +128,7 @@ class Segment:
     hr: float  # target heart rate
 
 
-def simulate(sport: str, segments: list[Segment], loop: Loop | None, rnd: random.Random, step: int) -> dict:
+def simulate(sport: str, segments: list[Segment], loop: Loop | None, rnd: random.Random, step: int, origin: tuple[float, float] = HOME) -> dict:
     """Streams sampled every `step` seconds: heart rate follows its target with a lag and drifts up slowly."""
     t, dist, hr = 0, 0.0, segments[0].hr - 35
     out = {k: [] for k in ("time", "heartrate", "velocity", "distance", "altitude", "cadence")}
@@ -156,7 +156,7 @@ def simulate(sport: str, segments: list[Segment], loop: Loop | None, rnd: random
         out["altitude"].append(round(2.5 + 2.2 * math.sin(dist / 1700) + 1.1 * math.sin(dist / 430 + 1) + rnd.gauss(0, 0.15), 1))
         out["cadence"].append(round((88 if sport == "ride" else 26 if sport == "swim" else 172 + 10 * (v - 2.9)) + rnd.gauss(0, 1.5)))
         if loop:
-            out["latlng"].append(loop.at(dist, (jitter[0] + rnd.gauss(0, 1.2), jitter[1] + rnd.gauss(0, 1.2))))
+            out["latlng"].append(loop.at(dist, (jitter[0] + rnd.gauss(0, 1.2), jitter[1] + rnd.gauss(0, 1.2)), origin))
         t += step
         dist += v * step
     return out
@@ -531,16 +531,20 @@ def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
     return days
 
 
-def seed(engine, end: date, days: int = 182, password: str | None = None, reset: bool = False) -> dict:
+def seed(engine, end: date, days: int = 182, password: str | None = None, reset: bool = False, *, username: str = USERNAME,
+         display_name: str = "Demo", home: tuple[float, float] = HOME, login: bool = True) -> dict:
+    """`username`, `display_name` and `home` (the made-up start point of every loop) let api/example.py reuse this for its
+    read-only example account; `login=False` gives that account no usable password and no admin rights."""
     db.create_schema(engine)
-    existing = db.get_user_by_name(engine, USERNAME)
+    existing = db.get_user_by_name(engine, username)
     if existing:
         if not reset:
-            raise SystemExit(f"user '{USERNAME}' exists already; use --reset to replace it")
+            raise SystemExit(f"user '{username}' exists already; use --reset to replace it")
         db.delete_user(engine, existing["id"])
-    first = db.count_users(engine) == 0
-    password = password or secrets.token_urlsafe(12)
-    uid = db.create_user(engine, USERNAME, bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode(), is_admin=first, display_name="Demo")
+    first = login and db.count_users(engine) == 0
+    password = (password or secrets.token_urlsafe(12)) if login else None
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode() if login else "!"  # "!" never matches
+    uid = db.create_user(engine, username, password_hash, is_admin=first, display_name=display_name)
     s = db.Scope(engine, uid)
     rnd = random.Random(2026)
 
@@ -614,7 +618,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
                 v = 100 / (118 - 10 * fitness)
                 segs = [Segment(400, v * 0.92, zone_hr("swim", 1) + 4), Segment(metres - 600, v, zone_hr("swim", 2)), Segment(200, v * 0.9, zone_hr("swim", 1) + 6)]
                 name = "Pool swim"
-            streams = simulate(sport, segs, loop, rnd, step)
+            streams = simulate(sport, segs, loop, rnd, step, home)
             vo2 = 49 + 4 * fitness + rnd.uniform(-0.6, 0.6) if sport == "run" and kind != "recovery" else None
             rec = record(sport, when, name, streams, gid, vo2, lap)
             db.upsert_activity(s, rec)
@@ -656,10 +660,10 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
 
     half_time = half_result["moving_time_s"] if half_result else 0
     half_pace = round(half_time / 21.1) if half_result else 0
-    db.put_document(s, "profile", PROFILE, USERNAME)
-    db.put_document(s, "goals", GOALS.format(race=race.isoformat(), half=half.isoformat()), USERNAME)
+    db.put_document(s, "profile", PROFILE, username)
+    db.put_document(s, "goals", GOALS.format(race=race.isoformat(), half=half.isoformat()), username)
     pid = db.create_plan(
-        s, "Marathon in 16 weeks", USERNAME, goal="Marathon under 3:30", race=f"Marathon, {race.isoformat()}",
+        s, "Marathon in 16 weeks", username, goal="Marathon under 3:30", race=f"Marathon, {race.isoformat()}",
         notes="Built in four-week blocks: three weeks up, one week down. The long run grows to 32 km; "
               "the last two weeks are the taper. Intervals on Tuesday, a tempo run every third Wednesday.",
     )
@@ -672,7 +676,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
                  "- Decision: 16 weeks, built in blocks of 4, see Plan", "agent", day=plan_start.isoformat())
     db.add_entry(s, "log", "Weekly review", "- Question: how did this week go?\n- Data: 82% in Z1-Z2, resting heart rate stable\n"
                  "- Advice: keep going; make Saturday's ride a bit shorter before the long run", "agent", day=(end - timedelta(days=2)).isoformat())
-    db.add_entry(s, "log", "Heavy legs after intervals", "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.", USERNAME,
+    db.add_entry(s, "log", "Heavy legs after intervals", "Calves stiff after the 1000s. Recovery run tomorrow instead of the easy run.", username,
                  day=(end - timedelta(days=9)).isoformat())
 
     derived = derive(s)

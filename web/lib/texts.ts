@@ -255,7 +255,6 @@ export const T = {
 
   /** Trends page: time bar, sport filter, insights (codes from api/trends.py), charts and explanations. */
   trends: {
-    tabs: { aria: "Onderdeel van Trends", training: "Training", performance: "Prestaties", recovery: "Herstel" },
     loading: "Laden…",
     loadError: "Kon de trends niet laden.",
 
@@ -409,26 +408,6 @@ export const T = {
       openDay: "Klik op een dag in een grafiek om die dag in detail te zien onder Gezondheid.",
     },
 
-    sleepLoad: {
-      title: "Slaap en rusthartslag tegen belasting",
-      perDay: "Per dag",
-      perWeek: "Per week",
-      view: "Per dag of per week",
-      load: "Belasting",
-      loadAxis: "Belasting (TRIMP) →",
-      sleepTitle: "Slaap (u)",
-      rhrTitle: "Rusthartslag (bpm)",
-      hours: " u",
-      bpm: " bpm",
-      explainDay: "Elk punt is een dag: de belasting van die dag (TRIMP) tegen de slaap en rusthartslag van de nacht erna.",
-      explainWeek: "Elk punt is een week: de opgetelde belasting (TRIMP) tegen je gemiddelde slaap en rusthartslag in die week.",
-      neutral: "Een verband zegt niets over oorzaak: slaap en rusthartslag hangen ook af van werk, ziekte, alcohol en warmte.",
-      compare: (unit: "dag" | "week", heavySleep: string, lightSleep: string) =>
-        `Op de zwaarste helft van de ${unit === "dag" ? "dagen" : "weken"} sliep je gemiddeld ${heavySleep} u, op de lichtste helft ${lightSleep} u.`,
-      compareRhr: (heavy: string, light: string) => `Rusthartslag: ${heavy} tegen ${light} bpm.`,
-      tooFew: "Te weinig dagen met zowel slaap als training in deze periode.",
-      point: (label: string, load: string, value: string) => `${label}: belasting ${load}, ${value}`,
-    },
 
     records: {
       title: "Records",

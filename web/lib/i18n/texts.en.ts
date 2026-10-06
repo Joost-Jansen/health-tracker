@@ -231,7 +231,6 @@ export const textsEn = {
   },
 
   trends: {
-    tabs: { aria: "Part of Trends", training: "Training", performance: "Performance", recovery: "Recovery" },
     loading: "Loading…",
     loadError: "Could not load the trends.",
     periods: { "4W": "4W", "3M": "3M", "6M": "6M", YTD: "YTD", "1J": "1Y", Alles: "All", Eigen: "Custom" } as Record<string, string>,
@@ -369,26 +368,6 @@ export const textsEn = {
       normal: (v: string) => `Your normal: ${v} (60-day median).`,
       respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
       openDay: "Click a day in a chart to see that day in detail under Health.",
-    },
-    sleepLoad: {
-      title: "Sleep and resting heart rate against load",
-      perDay: "Per day",
-      perWeek: "Per week",
-      view: "Per day or per week",
-      load: "Load",
-      loadAxis: "Load (TRIMP) →",
-      sleepTitle: "Sleep (h)",
-      rhrTitle: "Resting heart rate (bpm)",
-      hours: " h",
-      bpm: " bpm",
-      explainDay: "Each point is a day: that day's load (TRIMP) against the sleep and resting heart rate of the night after.",
-      explainWeek: "Each point is a week: the summed load (TRIMP) against your average sleep and resting heart rate that week.",
-      neutral: "A relation says nothing about cause: sleep and resting heart rate also depend on work, illness, alcohol and heat.",
-      compare: (unit: "dag" | "week", heavySleep: string, lightSleep: string) =>
-        `On the hardest half of the ${unit === "dag" ? "days" : "weeks"} you slept ${heavySleep} h on average, on the lightest half ${lightSleep} h.`,
-      compareRhr: (heavy: string, light: string) => `Resting heart rate: ${heavy} against ${light} bpm.`,
-      tooFew: "Too few days with both sleep and training in this period.",
-      point: (label: string, load: string, value: string) => `${label}: load ${load}, ${value}`,
     },
     records: {
       title: "Records",

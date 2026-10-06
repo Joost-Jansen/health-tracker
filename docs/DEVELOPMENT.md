@@ -109,6 +109,7 @@ an existing page. Remove a redirect (and its line in that test) once nobody uses
 | `/instellingen/` (`koppelingen`, `beheer`, `zones`, `agents`) | `/settings/` (`connections`, `admin`, `zones`, `agents`) |
 | `/analyses/doelen/`, `/analyses/profiel/` | `/analyses/goals/`, `/analyses/profile/` |
 | `/help/handleiding/` | `/help/guide/` |
+| `/trends/recovery/` | `/health/over-time/` (recovery moved from Trends to Health) |
 
 The ids followed in schema 3: onboarding page ids (`visited`: `routes`, `history`), plan statuses (`active`, `finished`,
 `stopped`), nav and catalog keys (`nav.items.routes`, `nav.tabs.connections`, ...) and the guide's anchors (`#data`) are

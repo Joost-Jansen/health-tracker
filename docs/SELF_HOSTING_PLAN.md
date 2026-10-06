@@ -1,186 +1,221 @@
 # Self-hosting plan: health-tracker and stock-tracker on a home mini PC
 
-From Railway to a mini PC at home, with your own domain, a VPN for yourself and a Cloudflare Tunnel for what has to be
-public. The same box also stores and streams films. Prices are estimates (October 2026); check them before you buy.
+Moving both apps from Railway to a mini PC at home, with your own domain, a VPN for yourself and a Cloudflare Tunnel
+for what has to be public, and getting both ready for other users. The same box also stores and streams films.
 
-## The setup in one picture
+Prices are estimates (October 2026); check them before you buy. "Effort" is a rough size of the code work:
+S = an hour or two, M = half a day to a day, L = more.
+
+## 1. Summary
+
+| | health-tracker | stock-tracker |
+|---|---|---|
+| Today | Railway: `web` (FastAPI + static site) + `Postgres` + an old `sync` cron service | Railway: `api` (FastAPI) + `web` (Next.js server) + a volume `/data` |
+| Data | Postgres | SQLite per user (`data/users/<u>/portfolio.db`) + `auth_config.yaml` + `.encryption_key` |
+| Already self-hostable | Dockerfile, no compose file | `docker-compose.yml` (api, web, Caddy, cloudflared), `docs/DEPLOY.md` for a Raspberry Pi |
+| Public needs | MCP; the whole site once others use it; Wahoo OAuth callback | MCP; Enable Banking OAuth callback; the site if others use it |
+| Biggest code gaps before others use it | chunked Apple upload (Cloudflare's 100 MB limit), per-IP login limit, security headers, self-service delete/export | upload size limits and zip-bomb guards, security headers, password policy, trusted proxy check, CSRF origin check, self-service delete/export |
+
+**Order:** buy (2) → base server (3) → move health-tracker (5.1) → move stock-tracker (5.2) → backups and
+monitoring (6) → code hardening (7, 8) → open to others (9). Phase A (only you) works after step 6; the code work is
+only needed before other people get accounts.
+
+## 2. What to buy
+
+| Part | Choice | Approx. price |
+|---|---|---|
+| Mini PC | **Intel N150, 16 GB RAM, 1 TB NVMe**, e.g. Beelink EQ14 (alternatives: GMKtec NucBox G3 Plus, MinisForum UN150P) | €200-250 |
+| Film storage | 2-bay USB-C enclosure (TerraMaster D2-320 or ORICO 2-bay) | €100-130 |
+| Disks | 2× 8 TB NAS HDD (WD Red Plus or Seagate IronWolf, CMR, not SMR), as a mirror: 8 TB usable | €250-300 |
+| UPS (recommended) | 500-700 VA, e.g. APC Back-UPS; a power cut is the most common cause of a corrupted database | €70-100 |
+| Ethernet cable | to the router; no Wi-Fi for a server | €5 |
+| Domain | one domain, subdomains per app (e.g. via Cloudflare Registrar) | €10-15/year |
+
+**Why this mini PC:** 6-8 W idle; Intel Quick Sync for hardware video transcoding (Jellyfin, about three 4K→1080p
+streams at once); 16 GB is plenty: health-tracker peaks at ~0.6 GB, stock-tracker runs in 512 MB today, Postgres and
+Jellyfin 1-2 GB, together about 4-5 GB. 1 TB NVMe for the system, the apps, the databases and the Jellyfin cache;
+films on the HDDs.
+
+**Step up** (more services, virtual machines, 32-64 GB later): a refurbished Lenovo ThinkCentre M70q/M90q Tiny with a
+12th-gen i5-T (€250-350, 10-15 W idle, two RAM slots).
+
+**Costs:** one-off about €550-770 (mini PC, enclosure, disks, UPS); per year about €40-80 (power €30-55, domain,
+backups). Railway today: roughly €60-240 a year for both apps (check the invoice).
+
+## 3. Base server
+
+- [ ] Debian 12 or Ubuntu Server 24.04 LTS on the NVMe, no desktop
+- [ ] One sudo user; SSH with keys only (`PasswordAuthentication no`, `PermitRootLogin no`), only over Tailscale
+- [ ] `unattended-upgrades` on; monthly reboot
+- [ ] `ufw default deny incoming`; the router forwards **no** ports (Tailscale and cloudflared connect outwards)
+- [ ] Docker Engine + Compose plugin; everything under `/srv`
+- [ ] HDD mirror (mdadm RAID1 or a ZFS mirror) on `/srv/media`; `smartd` with e-mail alerts; spin-down after 20 min idle
+- [ ] BIOS: power on after power loss
+- [ ] Tailscale on the mini PC, phone and laptop; MagicDNS; ACLs: SSH only from your devices
+
+## 4. Layout on the server
+
+One Cloudflare Tunnel and one Caddy in front of both apps; each app keeps its own compose project.
 
 ```
- you (phone, laptop) ──Tailscale VPN──────────────┐
-                                                  ▼
- claude.ai / Claude app ──HTTPS──▶ Cloudflare ──tunnel──▶  mini PC (no open ports on the router)
- other users (later)    ──HTTPS──▶ (WAF, rate limits)      ├─ health-tracker (FastAPI + static site)
-                                                           ├─ stock-tracker
-                                                           ├─ Postgres (internal Docker network only)
-                                                           ├─ Jellyfin (films, LAN + Tailscale only)
-                                                           └─ restic ──nightly──▶ Backblaze B2 (encrypted)
-                                                                │
-                                                     USB-C enclosure, 2 HDDs in a mirror (films)
+/srv/edge/        docker-compose.yml: cloudflared (pinned version), caddy (hostnames → apps), shared network "edge"
+/srv/health/      health-tracker: compose with web + postgres (postgres only on the internal network)
+/srv/stock/       stock-tracker: its own compose (api, web) without its own cloudflared/proxy, on network "edge"
+/srv/media/       films (HDD mirror), Jellyfin in /srv/jellyfin
+/srv/backup/      restic scripts + the nightly cron
 ```
 
-* **Phase A, only you:** the sites over Tailscale; only the MCP links (`/api/mcp/...`) public through the tunnel, so
-  the Claude connectors keep working.
-* **Phase B, other people too:** the whole health-tracker site public through the tunnel (after the app work in step 7).
-  The stock-tracker stays private.
-
-## 0. Hardware (see the end of this file for the choice)
-
-- [ ] Mini PC: Intel N150 (or N100), 16 GB RAM, 1 TB NVMe for the system, apps and databases
-- [ ] 2-bay USB-C disk enclosure + 2 NAS hard disks (8 TB each, mirrored) for films
-- [ ] Small UPS (optional, recommended): power cuts are the most common cause of a corrupted disk
-- [ ] Ethernet cable to the router (no Wi-Fi for a server)
-
-## 1. Base system
-
-- [ ] Install **Debian 12** or **Ubuntu Server 24.04 LTS** on the NVMe (no desktop)
-- [ ] One user with sudo; SSH with keys only (`PasswordAuthentication no`, `PermitRootLogin no`)
-- [ ] `unattended-upgrades` on for security updates; reboot once a month (or `needrestart`)
-- [ ] Firewall: `ufw default deny incoming`; allow nothing from outside (Tailscale and the tunnel connect outwards)
-- [ ] Docker Engine + Compose plugin; data under `/srv/<app>`
-- [ ] Mount the HDD mirror at `/srv/media` (mdadm RAID1 or ZFS mirror); enable SMART monitoring (`smartd`) with e-mail
-- [ ] BIOS: restart after power loss = on, so the box comes back by itself
-
-## 2. Tailscale (your private access)
-
-- [ ] Install Tailscale on the mini PC, your phone and laptop; enable MagicDNS (`minipc.<tailnet>.ts.net`)
-- [ ] SSH only over Tailscale (`ListenAddress` on the Tailscale IP, or Tailscale SSH)
-- [ ] Access rules (ACL): only your devices can reach SSH; friends (if ever shared) only port 443 of the sites
-
-## 3. The apps in Docker Compose
-
-- [ ] One `docker-compose.yml` in `/srv/stack`: `health`, `stock`, one `postgres` (two databases, two users), `cloudflared`,
-      `jellyfin`; Postgres not published on any host port
-- [ ] Secrets in `/srv/stack/.env` (`chmod 600`, never in git):
-  - health-tracker: `DATABASE_URL`, `TRAINING_JWT_SECRET` (new, long, random), `TOKEN_ENCRYPTION_KEY` (**the same one as on
-    Railway**, otherwise the stored Garmin and Wahoo sessions cannot be read), `COOKIE_SECURE=true`, `WAHOO_*` if used
-  - stock-tracker: its own variables (check its README)
-- [ ] Copy `TOKEN_ENCRYPTION_KEY` and the other secrets to a password manager too: without them a backup is only half a backup
-- [ ] Health checks: `GET /api/health`; `restart: unless-stopped` on every service
-
-## 4. Moving off Railway (per app)
-
-- [ ] Note the Railway variables (Railway dashboard, or the Railway MCP)
-- [ ] Health-tracker: also remove the separate **`sync` cron service** on Railway; it still runs older code next to the
-      web service's own daily sync (`SYNC_IN_WEB`). At home only the web service syncs.
-- [ ] Stop the syncs on Railway, then `pg_dump --no-owner` from Railway's public database URL; `pg_restore` into the home
-      Postgres
-- [ ] Start the app at home; check over Tailscale: login, Today, a workout, Trends, an MCP call from Claude Code
-- [ ] Switch the DNS / MCP link to the new address (step 5); update the connector in claude.ai (new URL, same token)
-- [ ] Keep Railway stopped (not deleted) for two weeks; then delete it and its database
-
-## 5. Domain and Cloudflare Tunnel
-
-- [ ] Buy a domain (about €10-15/year), e.g. via Cloudflare Registrar; DNS at Cloudflare
-- [ ] `cloudflared` as a container with a tunnel token; hostnames `health.<domain>` and `stocks.<domain>`
-- [ ] **Phase A** ingress (only the MCP public):
+* **Caddy** routes by hostname: `health.<domain>` → `health-web:8000`; `stocks.<domain>` → `/api/*` to `stock-api:8000`,
+  the rest to `stock-web:3000` (its current `Caddyfile.beta` logic). Caddy also sets the security headers for both
+  (step 7) and a request body limit per path.
+* **Tailscale** reaches the same Caddy on a separate port (Tailscale Serve), so you use the sites privately even when
+  the tunnel only publishes the MCP paths.
+* **cloudflared ingress, phase A** (only the MCP public):
 
   ```yaml
   ingress:
     - hostname: health.<domain>
       path: ^/api/mcp/
-      service: http://health:8000
+      service: http://caddy:80
     - hostname: stocks.<domain>
-      path: ^/api/mcp/        # check the stock-tracker's MCP path
-      service: http://stock:8000
+      path: ^/api/(mcp|connections/enablebanking/callback)
+      service: http://caddy:80
     - service: http_status:404
   ```
 
-- [ ] **Phase B**: drop the `path` line for `health.<domain>` (the whole site public); the stock-tracker stays Phase A
-- [ ] Cloudflare: Always Use HTTPS, minimum TLS 1.2, the free managed WAF rules, Bot Fight Mode
-- [ ] Rate limit rule: `/api/login`, `/api/register` and `/api/mcp/*` (for example 20 requests/minute per IP)
-- [ ] Optional for the stock-tracker: **Cloudflare Access** (one-time code by e-mail) in front of everything except the
-      MCP path
-- [ ] Logs: tunnel and Cloudflare logs stay private. **The MCP token is part of the URL** and shows in request logs; make
-      a new token in Settings › Agents if one ever leaked (Railway's HTTP logs have shown it).
+  Phase B drops the `path` lines for the app that opens to others.
+
+## 5. Moving off Railway
+
+### 5.1 health-tracker
+
+- [ ] **Code (S):** add `docker-compose.yml` (web + postgres 16, healthchecks, `restart: unless-stopped`, log rotation)
+      and `.env.example`; document it in the README next to Railway
+- [ ] Copy from Railway: `TRAINING_JWT_SECRET` (or a new one: logs everyone out once), **`TOKEN_ENCRYPTION_KEY` (must
+      be the same, otherwise every stored Garmin and Wahoo session is unreadable)**, `WAHOO_*`, `FEEDBACK_NTFY_URL`
+- [ ] **Delete the `sync` service on Railway**: it still runs older code next to the web service's own daily sync
+- [ ] Stop the web service on Railway; `pg_dump --no-owner` via the public database URL; `pg_restore` at home
+- [ ] Start; check over Tailscale: login, Today, a workout, Trends, an MCP call from Claude Code
+- [ ] Wahoo developer portal: add the new callback `https://health.<domain>/api/connections/wahoo/callback`
+- [ ] claude.ai: change the connector URL to the new domain (same token, or a new one)
+- [ ] Keep Railway stopped for two weeks, then delete
+
+### 5.2 stock-tracker
+
+- [ ] **Code (S):** make the compose file host-independent:
+  - a `build:` section for the api and web images, so they build on the x86 mini PC (today: built on a Mac for arm64 and
+    shipped over ssh, `deploy/deploy.sh`)
+  - drop its own `cloudflared` and `beta-proxy` services in favour of `/srv/edge` (or keep them behind a profile)
+  - `mem_limit` 512m → 1g for the api (imports read whole files into memory); pin the image versions
+  - `deploy/holdings-canary.sh`: no hard-coded `/home/timpaap/stock-tracker`, read the path from the environment
+  - remove the `beta.stock-tracker.nl` references or make them configurable
+- [ ] Set `APP_ENCRYPTION_KEY` (from the Railway volume's `.encryption_key`, or Railway's variable) so the key no
+      longer sits next to the data
+- [ ] Copy the Railway volume `/data`: stop the api, then for every `users/*/portfolio.db` a `sqlite3 .backup` (WAL!),
+      plus `auth_config.yaml`, `feedback.db`, `admin_audit.log`, `.encryption_key`, `users/*/uploads/`; via `railway ssh`
+      and `tar`
+- [ ] At home: `./data` and `./auth_config.yaml` (bind-mount the directory, not the single file, so in-place saves work)
+- [ ] Enable Banking: register the redirect URL `https://stocks.<domain>/api/connections/enablebanking/callback`
+- [ ] claude.ai: change the connector URL; check one read and one write tool
+- [ ] Keep Railway stopped for two weeks, then delete (api, web and the volume)
 
 ## 6. Backups and monitoring
 
-- [ ] Nightly at 03:00: `pg_dump` of both databases → `restic backup` to Backblaze B2 (encrypted; restic password in the
-      password manager). Keep 7 daily, 4 weekly, 12 monthly (`restic forget --prune`).
-- [ ] Also back up `/srv/stack` (compose file, `.env` encrypted by restic), not the films (the mirror protects against
-      one failed disk; films can be found again, your training history cannot)
-- [ ] **Test a restore** into a scratch database, once now and then twice a year
-- [ ] UptimeRobot (free) on `https://health.<domain>/api/health` → e-mail/push when it is down
-- [ ] Disk space alert (e.g. Netdata, or a cron job that mails at 85%); Docker log rotation (`max-size: 10m`)
+- [ ] Nightly at 03:00 (`/srv/backup/backup.sh`, cron):
+  - health-tracker: `pg_dump -Fc`
+  - stock-tracker: `sqlite3 <db> ".backup <copy>"` for every user database and `feedback.db`; copy `auth_config.yaml`,
+    `admin_audit.log`, uploads
+  - `restic backup` to Backblaze B2 (encrypted); keep 7 daily, 4 weekly, 12 monthly; then `restic check`
+- [ ] Secrets in a password manager, **not only on the server**: restic password, `TOKEN_ENCRYPTION_KEY`,
+      `APP_ENCRYPTION_KEY`, the JWT secret, the tunnel token
+- [ ] **Restore test** into scratch containers now, then twice a year
+- [ ] Films are not backed up (the mirror covers one dead disk)
+- [ ] UptimeRobot (free) on both `/api/health` endpoints; `smartd` and a disk-space alert at 85%; Docker log rotation
+- [ ] Phase A is done here: both sites over Tailscale, Claude connectors working
 
-## 7. App work before other people use health-tracker (Phase B)
+## 7. Code: health-tracker before others use it
 
-What the app already has: bcrypt passwords, a lock after failed logins per username, a secure httpOnly cookie, hashed
-MCP tokens, encrypted Garmin/Wahoo sessions, per-user data separation, registration closed / invite / open.
+Already in place: bcrypt, per-username login lock, httpOnly/secure/lax cookie, minimum password length, hashed MCP
+tokens, encrypted Garmin/Wahoo sessions, per-user data, registration closed/invite/open, admin can delete users.
 
-- [ ] **Chunked Apple Health upload**: Cloudflare refuses requests over 100 MB on the free plan, and real exports are
-      often bigger. Upload in parts of ~50 MB, put together on the server.
-- [ ] Lower the upload limit (4 GB → 2 GB) and one import per user at a time (already); temp files on the NVMe, cleaned up
-      after a failure (already)
-- [ ] **Login limit per IP** next to the one per username (and on registration)
-- [ ] **Security headers**: HSTS, Content-Security-Policy, `frame-ancestors 'none'`, `Referrer-Policy`,
-      `X-Content-Type-Options`
-- [ ] **Mask MCP tokens** in the app's own logs
-- [ ] **Self-service account deletion and data export** (Settings › Account)
-- [ ] **Consent at registration** for health data (GDPR art. 9) and a privacy statement that names you as controller;
-      have it checked, this is not legal advice
-- [ ] Registration on **invite** (Settings › Admin), not open
-- [ ] Two-step login (TOTP) for the admin account (optional; Cloudflare Access in front of `/settings/admin` also works)
+| # | Change | Why | Effort |
+|---|---|---|---|
+| H1 | **Chunked Apple Health upload**: the browser sends ~50 MB parts, the server joins them, then imports | Cloudflare's free plan refuses request bodies over 100 MB; real exports are often bigger | M |
+| H2 | **Login and registration limit per IP**, using `CF-Connecting-IP` only when the request comes from Caddy/cloudflared (a trusted-proxy list) | today only per username; behind the tunnel every visitor has the tunnel's address | S |
+| H3 | **Security headers** (in Caddy or a FastAPI middleware): HSTS, CSP (`default-src 'self'`; map tiles and Leaflet), `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` | none set today | S |
+| H4 | **CSRF origin check**: refuse POST/PUT/PATCH/DELETE whose `Origin` is not the site's own (MCP/Bearer requests excepted) | today only SameSite=Lax protects | S |
+| H5 | **Mask MCP tokens** in the uvicorn access log (as stock-tracker does) | the token is part of the URL; Railway's logs showed it | S |
+| H6 | **Self-service account deletion and data export** (Settings › Account): a zip of all your data as JSON plus the stored FIT files | GDPR (art. 17, 20); today deletion only via an admin | M |
+| H7 | **Consent at registration** for health data, privacy statement naming you as controller, retention | GDPR art. 9 (have it checked; not legal advice) | S |
+| H8 | Upload limits: Apple 4 GB → 2 GB; FIT 25 MB stays; per-path body limits in Caddy | one user cannot fill the disk | S |
+| H9 | **CI**: GitHub Actions running `pytest`, `tsc`, `check:i18n`, `npm run build` on every PR | nothing runs automatically today | S |
+| H10 | Optional: TOTP two-step login for admins (or Cloudflare Access in front of `/settings/admin`) | admin accounts see everyone | M |
 
-For the stock-tracker: the same review once its repository is added to the session; while it stays private (Phase A)
-only the MCP path is public.
+## 8. Code: stock-tracker before others use it
 
-## 8. Films (Jellyfin)
+Already in place: bcrypt with constant-time unknown-user check, httpOnly/secure/lax cookie, sessions revoked on
+password change, login limit per username and per IP, registration closed/invite/open, hashed scoped MCP tokens
+(`read`/`write`, never admin), the MCP token masked in the app log, encrypted Enable Banking key, path-traversal guard
+on uploads, admin audit log, privacy and terms pages.
 
-- [ ] Jellyfin in Docker with `/dev/dri` passed through: the N150's Quick Sync transcodes 4K HDR to 1080p in hardware
-      (about 3 streams at once)
-- [ ] Library on `/srv/media` (read-only mount in the container)
-- [ ] Only on the home network and Tailscale, **not** through the Cloudflare Tunnel (Cloudflare's terms do not allow
-      video streaming over the free plan)
-- [ ] HDD spin-down after 20 minutes idle saves about 8 W when nobody is watching
+| # | Change | Why | Effort |
+|---|---|---|---|
+| S1 | **Upload size limits and streaming** for DeGiro and bank uploads (e.g. 10 MB), checked before reading into memory; body limits in Caddy | no limit today; whole files are read into memory | S |
+| S2 | **Zip/XML-bomb guard on xlsx**: `defusedxml` in the requirements, check the zip's uncompressed size and member count before `pandas.read_excel` | an uploaded xlsx is a zip with XML inside, parsed without guards | S |
+| S3 | **Upload retention**: delete the stored upload once imported (or after 30 days), or make it an option | bank and broker files are kept forever | S |
+| S4 | **Trusted proxy check**: only trust `CF-Connecting-IP` when the request comes from Caddy/cloudflared; run uvicorn with `--proxy-headers --forwarded-allow-ips` for those | anyone reaching Caddy directly (e.g. over Tailscale) can forge the header and dodge the per-IP limit | S |
+| S5 | **Security headers**: HSTS, CSP (allow the inline theme script by hash), `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` | none set today | S |
+| S6 | **CSRF origin check** on state-changing requests (especially the multipart uploads) | today only SameSite=Lax | S |
+| S7 | **Password policy**: at least 10 characters, refuse the most common passwords | only "not empty" today | S |
+| S8 | **MCP tokens**: an optional expiry, "last used" shown, read-only as the default scope; a length/complexity limit and a timeout on `add_category_rule` regexes | a token without expiry gives full read access to someone's finances; user regex can hang the server (ReDoS) | M |
+| S9 | **Require `APP_ENCRYPTION_KEY` in production** (refuse to start without it unless explicitly allowed); encrypt the Enable Banking `session_id` too | today the key file sits on the same disk as the data | S |
+| S10 | **Self-service account deletion and data export** (all a user's tables as CSV/JSON in a zip) | GDPR; today admin-only, and the token blocklist already expects an `auth/delete` route | M |
+| S11 | **Shorter sessions**: 30 → 14 days, refreshed while in use | a stolen cookie is valid a month | S |
+| S12 | **CI and pinned dependencies**: GitHub Actions running pytest, `tsc`, the i18n check; pin `requirements.txt`, pin the cloudflared image | no CI; unpinned Python dependencies | S |
+| S13 | **Rate-limit state**: keep the in-memory limits, add Cloudflare rate-limit rules for `/api/auth/*` and `/api/mcp*` as the durable layer | in-memory limits reset on every restart | S |
+| S14 | Optional: TOTP two-step login (at least for admins) | financial data | M |
+| S15 | Decide on the **Claude labelling** data flow: off by default, the privacy statement says that transactions go to Anthropic when on | other users' financial data to a third party needs their opt-in | S |
 
-## 9. Go-live checklist
+Because stock-tracker holds financial data and bank access, the simplest safe choice is to **keep it private**
+(Tailscale for the site, only the MCP and the bank callback public) until S1-S10 are done.
 
-- [ ] Both sites work over Tailscale; the MCP connectors work from claude.ai
-- [ ] A restore test passed; UptimeRobot alerts arrive
-- [ ] `ss -tlnp` shows no public listeners; the router forwards no ports
-- [ ] Railway stopped; the old MCP token replaced
-- [ ] Phase B only after step 7 is done
+## 9. Opening up to others (phase B)
 
-## Costs
+- [ ] H1-H9 done (health-tracker), or S1-S13 done (stock-tracker), for the app that opens
+- [ ] Registration on **invite** in each app's admin settings
+- [ ] cloudflared: drop the `path` restriction for that hostname
+- [ ] Cloudflare: Always Use HTTPS, minimum TLS 1.2, managed WAF rules, Bot Fight Mode, rate limits on login,
+      registration and MCP
+- [ ] Optional: Cloudflare Access (one-time code by e-mail) in front of `/settings/admin` and `/admin`
+- [ ] Privacy statement and terms checked (GDPR: you are the controller of other people's health or financial data)
+- [ ] Go-live checks: `ss -tlnp` shows nothing public; the router forwards no ports; a restore test passed;
+      UptimeRobot alerts arrive; old MCP tokens replaced
 
-| | One-off | Per year |
-|---|---|---|
-| Mini PC (N150, 16 GB, 1 TB) | €200-250 | |
-| 2-bay USB-C enclosure + 2× 8 TB NAS HDD | €350-420 | |
-| UPS (optional) | €70-100 | |
-| Electricity (~12-20 W average incl. disks) | | €30-55 |
-| Domain | | €10-15 |
-| Cloudflare Tunnel, Tailscale, UptimeRobot | | €0 |
-| Backblaze B2 (databases only, < 10 GB) | | €0-10 |
-| **Total** | **€550-770** | **€40-80** |
+## 10. Films
 
-Against Railway: roughly €60-240 per year for two apps with their databases (check the invoice).
+- [ ] Jellyfin in Docker with `/dev/dri` for Quick Sync; library on `/srv/media` (read-only)
+- [ ] Only on the home network and Tailscale, **not** through the Cloudflare Tunnel (the free plan's terms do not allow
+      video streaming)
 
-## Hardware choice
+## 11. Suggested pull requests
 
-**Recommended: an Intel N150 mini PC with 16 GB RAM and a 1 TB NVMe**, e.g. the **Beelink EQ14** (N150, 16 GB DDR4,
-500 GB or 1 TB NVMe, two 2.5 GbE ports, built-in power supply, about €200-250). Alternatives with the same chip: GMKtec
-NucBox G3 Plus, MinisForum UN150P.
+| Repo | PR | Contents | Effort |
+|---|---|---|---|
+| health-tracker | 1 | `docker-compose.yml`, `.env.example`, README self-hosting section | S |
+| health-tracker | 2 | H2, H3, H4, H5, H8 (security basics) | M |
+| health-tracker | 3 | H1 chunked Apple upload | M |
+| health-tracker | 4 | H6, H7 (account deletion, export, consent) | M |
+| health-tracker | 5 | H9 CI | S |
+| stock-tracker | 1 | 5.2 compose changes, canary path, pinned images | S |
+| stock-tracker | 2 | S1, S2, S3, S4, S5, S6, S7, S11 (uploads, proxy, headers, CSRF, passwords, sessions) | M |
+| stock-tracker | 3 | S8, S9, S15 (MCP tokens, encryption key, labelling opt-in) | M |
+| stock-tracker | 4 | S10 account deletion and export | M |
+| stock-tracker | 5 | S12 CI and pinned dependencies | S |
+| server | — | `/srv/edge` compose, Caddyfile, tunnel config, backup script (can live in a small private repo, or in `docs/`) | S |
 
-* **Why the N150:** 6-8 W idle, enough for both apps, two Postgres databases and Jellyfin; Quick Sync for hardware
-  video transcoding.
-* **Why 16 GB:** health-tracker peaks at about 0.6 GB (recomputing zones after an import), the stock-tracker and
-  Postgres a few hundred MB each, Jellyfin 1-2 GB: about 4-5 GB together, so there is room for more (Home Assistant,
-  Immich for photos).
-* **Why 1 TB:** the system, the containers, the databases and the Jellyfin cache on fast storage; 500 GB is enough if
-  money is tight.
-* **Films:** a 2-bay USB-C enclosure (e.g. TerraMaster D2-320 or ORICO 2-bay) with two NAS disks (WD Red Plus or Seagate
-  IronWolf, 8 TB each) as a mirror: 8 TB usable, survives one dead disk. Not the "Smart" or SMR variants.
+## 12. Open questions
 
-**Step up (more headroom, VMs, 32-64 GB later):** a refurbished **Lenovo ThinkCentre M70q/M90q Tiny with an Intel 12th-gen
-i5-T** (about €250-350): two RAM slots (up to 64 GB), 10-15 W idle, also Quick Sync. Choose this when you want to run
-more than the apps and films, or virtual machines.
-
-**Not needed:** a mini PC with a dedicated graphics card, or a gaming mini PC (high idle power for nothing).
-
-## Open questions
-
-1. The stock-tracker's repository, to check its MCP path, its secrets and what step 7 needs there.
-2. Which domain name.
-3. Will health-tracker really get other users (then step 7 and the GDPR part come first), or only friends via invite?
+1. The domain name, and whether the stock-tracker keeps `stock-tracker.nl` (then it moves to the same Cloudflare account).
+2. Will either app really get other users soon? If not, sections 7-9 can wait; phase A is enough.
+3. Does anyone else (the original stock-tracker author) run their own copy that the compose changes in 5.2 must keep
+   working for? Keep the Pi setup behind a compose profile if so.

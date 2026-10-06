@@ -362,7 +362,7 @@ export const en: Messages = {
     keepsFailing: "If it keeps failing, disconnect and connect again: Garmin sometimes lets a session expire.",
     apple: {
       title: "Apple Health (Apple Watch)",
-      intro: "Got an Apple Watch? Apple has no online account the site can connect to: your data lives in the Health app on your iPhone. Export it there and upload the file here. Later, upload a newer export to bring in what's new; nothing is counted twice.",
+      intro: "Got an Apple Watch? Apple has no online account the site can connect to: your data lives in the Health app on your iPhone. So this is not automatic like Garmin: export it there and upload the file here, and do that again each time you want your latest workouts and nights. Nothing is counted twice.",
       steps: [
         "On your iPhone, open the Health app and tap your profile picture at the top right.",
         "Tap “Export All Health Data” and then “Export”. With years of data this can take a few minutes.",
@@ -875,7 +875,7 @@ export const en: Messages = {
     devices: {
       question: "Which watch do you use?",
       garmin: { title: "Garmin", text: "Connect your Garmin account; every morning the site brings in what's new." },
-      apple: { title: "Apple Watch", text: "Import the export of the Health app on your iPhone. Import a newer export whenever you like." },
+      apple: { title: "Apple Watch", text: "Upload the export of the Health app on your iPhone. Not automatic: upload a new export each time you want new data." },
     },
     steps: {
       garmin: { title: "Connect Garmin", link: "Connections" },
@@ -953,8 +953,8 @@ export const en: Messages = {
       doneTitle: "You're all set",
       doneIntro: "That's the tour. The checklist stays on Today until the basics are in place, and you can always find it under Help → Getting started.",
       doneBullets: ["Want to see this again? Go to Help → Getting started → Restart tour", "The small print under many blocks explains how the numbers are worked out"],
-      introApple: "health-tracker reads the workouts, sleep and recovery from your Apple Watch and analyses everything using your own heart-rate zones. Two quick steps get you started; the rest can wait.",
-      phasesApple: ["Export from the Health app and upload it", "Set your heart-rate zones"],
+      introApple: "health-tracker reads the workouts, sleep and recovery from your Apple Watch and analyses everything using your own heart-rate zones. Unlike Garmin, this is not automatic: Apple doesn't let the site fetch your data, so each time you want your latest workouts and nights here, you export them on your iPhone and upload them again. Two quick steps get you started; the rest can wait.",
+      phasesApple: ["Export from the Health app and upload it (again for each update)", "Set your heart-rate zones"],
     },
     summary: {
       garminConnected: (since: string | null) => `Connected${since ? ` since ${since}` : ""}. Your password isn't stored, only an encrypted session.`,
@@ -994,8 +994,9 @@ export const en: Messages = {
         ],
       },
       apple: {
-        intro: "An Apple Watch keeps your data in the Health app on your iPhone; Apple has no account the site can connect to. So you export it once and upload the file. Later, upload a newer export to add what's new.",
+        intro: "An Apple Watch keeps your data in the Health app on your iPhone; Apple has no account the site can connect to. So the site can't fetch new data by itself: you upload an export by hand, and again each time you want your latest workouts and nights here.",
         bullets: [
+          "Not automatic: nothing comes in until you upload a new export. Once a week, or before you look at your trends, is a good habit",
           "On your iPhone: Health app → your profile picture (top right) → “Export All Health Data” → Export",
           "Save the file (export.zip) to Files, then upload it under Settings → Connections → Apple Health",
           "Workouts with heart rate and GPS, sleep with stages, resting heart rate, HRV, breathing rate and VO2max come in",

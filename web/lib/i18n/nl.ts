@@ -354,7 +354,7 @@ export const nl = {
     keepsFailing: "Blijft het mislukken, ontkoppel en koppel dan opnieuw: Garmin laat een sessie soms verlopen.",
     apple: {
       title: "Apple Gezondheid (Apple Watch)",
-      intro: "Heb je een Apple Watch? Apple heeft geen online account waar de site mee kan koppelen: je data staat in de Gezondheid-app op je iPhone. Exporteer het daar en upload het bestand hier. Upload later een nieuwere export om aan te vullen; niets wordt dubbel geteld.",
+      intro: "Heb je een Apple Watch? Apple heeft geen online account waar de site mee kan koppelen: je data staat in de Gezondheid-app op je iPhone. Dit gaat dus niet automatisch zoals bij Garmin: exporteer het daar en upload het bestand hier, en doe dat opnieuw elke keer dat je je laatste trainingen en nachten wilt hebben. Niets wordt dubbel geteld.",
       steps: [
         "Open op je iPhone de Gezondheid-app en tik rechtsboven op je profielfoto.",
         "Tik op ‘Exporteer alle gezondheidsgegevens’ en daarna op ‘Exporteer’. Met jaren aan data kan dat een paar minuten duren.",
@@ -869,7 +869,7 @@ export const nl = {
     devices: {
       question: "Welk horloge gebruik je?",
       garmin: { title: "Garmin", text: "Koppel je Garmin-account; elke ochtend haalt de site op wat er nieuw is." },
-      apple: { title: "Apple Watch", text: "Importeer de export van de Gezondheid-app op je iPhone. Importeer een nieuwere export wanneer je wilt." },
+      apple: { title: "Apple Watch", text: "Upload de export van de Gezondheid-app op je iPhone. Niet automatisch: upload elke keer een nieuwe export als je nieuwe data wilt." },
     },
     steps: {
       garmin: { title: "Garmin koppelen", link: "Koppelingen" },
@@ -947,8 +947,8 @@ export const nl = {
       doneTitle: "Klaar",
       doneIntro: "Je weet nu waar alles zit. De checklist staat op Vandaag tot de basis staat, en altijd onder Help, Aan de slag.",
       doneBullets: ["Rondleiding nog eens? Help, Aan de slag, Rondleiding opnieuw", "Onder veel blokken staat in kleine letters hoe het berekend is"],
-      introApple: "health-tracker leest de trainingen, slaap en herstel van je Apple Watch en analyseert alles met je eigen hartslagzones. Twee snelle stappen en je bent op weg; de rest kan wachten.",
-      phasesApple: ["Exporteer uit de Gezondheid-app en upload het", "Stel je hartslagzones in"],
+      introApple: "health-tracker leest de trainingen, slaap en herstel van je Apple Watch en analyseert alles met je eigen hartslagzones. Anders dan bij Garmin gaat dit niet automatisch: Apple laat de site je data niet ophalen, dus elke keer dat je je laatste trainingen en nachten hier wilt zien, exporteer je ze op je iPhone en upload je ze opnieuw. Twee snelle stappen en je bent op weg; de rest kan wachten.",
+      phasesApple: ["Exporteer uit de Gezondheid-app en upload het (opnieuw bij elke update)", "Stel je hartslagzones in"],
     },
     summary: {
       garminConnected: (since: string | null) => `Gekoppeld${since ? ` sinds ${since}` : ""}. Je wachtwoord is niet bewaard, alleen de versleutelde sessie.`,
@@ -988,8 +988,9 @@ export const nl = {
         ],
       },
       apple: {
-        intro: "Een Apple Watch bewaart je data in de Gezondheid-app op je iPhone; Apple heeft geen account waar de site mee kan koppelen. Je exporteert het dus één keer en uploadt het bestand. Upload later een nieuwere export om aan te vullen.",
+        intro: "Een Apple Watch bewaart je data in de Gezondheid-app op je iPhone; Apple heeft geen account waar de site mee kan koppelen. De site kan dus niet zelf nieuwe data ophalen: je uploadt een export met de hand, en opnieuw elke keer dat je je laatste trainingen en nachten hier wilt hebben.",
         bullets: [
+          "Niet automatisch: er komt niets nieuws binnen tot je een nieuwe export uploadt. Eén keer per week, of voordat je naar je trends kijkt, is een goede gewoonte",
           "Op je iPhone: Gezondheid-app → je profielfoto (rechtsboven) → ‘Exporteer alle gezondheidsgegevens’ → Exporteer",
           "Bewaar het bestand (export.zip) in Bestanden en upload het onder Instellingen → Koppelingen → Apple Gezondheid",
           "Trainingen met hartslag en GPS, slaap met fases, rusthartslag, HRV, ademhaling en VO2max komen mee",

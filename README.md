@@ -43,7 +43,7 @@ weekly volume per sport, time per heart-rate zone and Z2 pace. Performance: pred
 record progression and detected races. Every chart has a time filter (4W to all time, custom range), pan and zoom,
 moving averages, trend lines and peak markers.
 
-**Today** also holds **the day in detail** at the bottom: the night's sleep and stages, heart rate, breathing, stress
+**Today** has a second tab, **Sleep & body**: the night's sleep and stages, heart rate, breathing, stress
 and SpO2 while asleep, Body Battery and activity, each against your own normal, and the night and day as aligned
 panels; last night by default, any other day through the date field. Trends has a third tab, **Recovery**: the body
 per day or week against your normal. "Training and body" (Trends, Training) puts sport and body values on one date

@@ -68,6 +68,8 @@ export const nl = {
       help: "Help",
     },
     tabs: {
+      overview: "Overzicht",
+      sleepBody: "Slaap & lichaam",
       training: "Training",
       performance: "Prestaties",
       recovery: "Herstel",
@@ -1026,7 +1028,7 @@ export const nl = {
     bb: "Body Battery",
     baselineRhr: (bpm: number, source: string) => `Je normale rusthartslag (${source}): ${bpm} bpm.`,
     dayDetail: "Dag in detail",
-    dayLink: (day: string) => `${day} in detail, op Vandaag`,
+    dayLink: (day: string) => `${day} in detail, onder Slaap & lichaam`,
   },
 
   trainingBody: {
@@ -1036,7 +1038,7 @@ export const nl = {
     noData: "Geen gegevens in deze periode.",
     fasterUp: "sneller omhoog",
     method:
-      "Alle panelen delen de datumas, zodat je ziet wat samen beweegt. Lichaamswaarden per dag staan licht met hun gemiddelde over 7 dagen; de stippellijn is je normaal (mediaan van 60 dagen). Beweeg of tik voor de waarden; klik op een dag om die onderaan Vandaag te openen.",
+      "Alle panelen delen de datumas, zodat je ziet wat samen beweegt. Lichaamswaarden per dag staan licht met hun gemiddelde over 7 dagen; de stippellijn is je normaal (mediaan van 60 dagen). Beweeg of tik voor de waarden; klik op een dag om die onder Vandaag, Slaap & lichaam te openen.",
     metric: {
       fitness: "Fitheid",
       form: "Vorm",
@@ -1053,7 +1055,6 @@ export const nl = {
     },
   },
   health: {
-    eyebrow: "De dag in detail",
     whyRise: "Waarom stijgt de hartslag voor het wakker worden?",
     pickDay: "Kies een dag",
     loadFailed: "Kon de gegevens van deze dag niet laden.",

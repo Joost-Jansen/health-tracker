@@ -188,10 +188,10 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
         onTouchMove={(e) => locate(e.touches[0].clientX)}
         onClick={(e) => {
           // a mouse click opens the day; a tap only shows the values (the link below opens it)
-          if (hoverDay && (e.nativeEvent as PointerEvent).pointerType === "mouse") router.push(`/dashboard/?day=${hoverDay}#day`);
+          if (hoverDay && (e.nativeEvent as PointerEvent).pointerType === "mouse") router.push(`/dashboard/body/?day=${hoverDay}`);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && hoverDay) router.push(`/dashboard/?day=${hoverDay}#day`);
+          if (e.key === "Enter" && hoverDay) router.push(`/dashboard/body/?day=${hoverDay}`);
           if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
           e.preventDefault();
           const step = (e.shiftKey ? 7 : 1) * (e.key === "ArrowRight" ? 1 : -1);
@@ -280,7 +280,7 @@ export default function TrainingBody({ t, window: win }: { t: TrendsPlus; window
 
       <p className="text-[11.5px] text-ink-muted">
         {hoverDay ? (
-          <Link href={`/dashboard/?day=${hoverDay}#day`} className="font-semibold text-brand hover:underline">
+          <Link href={`/dashboard/body/?day=${hoverDay}`} className="font-semibold text-brand hover:underline">
             {tr.dashboard.dayLink(f.weekdayDay(hoverDay))} →
           </Link>
         ) : (

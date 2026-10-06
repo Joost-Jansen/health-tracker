@@ -367,7 +367,7 @@ export const textsEn = {
       spo2: "Blood oxygen while asleep (SpO2)",
       normal: (v: string) => `Your normal: ${v} (60-day median).`,
       respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
-      openDay: "Click a day in a chart to see that day in detail at the bottom of Today.",
+      openDay: "Click a day in a chart to see that day in detail under Today, Sleep & body.",
     },
     records: {
       title: "Records",

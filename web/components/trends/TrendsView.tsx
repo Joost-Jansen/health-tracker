@@ -7,7 +7,7 @@
 //                         and races;
 //   /trends/recovery/     the body: recovery per day or week against your own normal (with HRV when available).
 // Training ends with "Training and body" (TrainingBody): sport and body values on one date axis. A day clicked in a
-// chart opens it at the bottom of Today (/dashboard/?day=…#day).
+// chart opens it under Today, Sleep & body (/dashboard/body/?day=…).
 //
 // One time window for the whole page (TimeFilterBar, sticks under the top bar; lives in the address bar), and one
 // sport filter (also in the address bar). Every chart shares that time axis; panning or zooming in one chart moves the
@@ -394,7 +394,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
             {daily && (
               <p className="mt-4 text-[11.5px] text-ink-muted">
                 {picked ? (
-                  <Link href={`/dashboard/?day=${picked}#day`} className="font-semibold text-brand hover:underline">
+                  <Link href={`/dashboard/body/?day=${picked}`} className="font-semibold text-brand hover:underline">
                     {tr.dashboard.dayLink(f.weekdayDay(picked))} →
                   </Link>
                 ) : (

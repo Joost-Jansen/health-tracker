@@ -1,9 +1,9 @@
 "use client";
 
-// The day in detail moved to the bottom of Today (?day= stays; the hash brings you to it).
+// The day in detail moved to Today, Sleep & body (?day= stays).
 
 import Redirect from "@/components/Redirect";
 
 export default function Page() {
-  return <Redirect to="/dashboard/" />;
+  return <Redirect to="/dashboard/body/" />;
 }

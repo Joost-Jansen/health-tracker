@@ -78,6 +78,8 @@ export const en: Messages = {
       help: "Help",
     },
     tabs: {
+      overview: "Overview",
+      sleepBody: "Sleep & body",
       training: "Training",
       performance: "Performance",
       recovery: "Recovery",
@@ -1032,7 +1034,7 @@ export const en: Messages = {
     bb: "Body Battery",
     baselineRhr: (bpm: number, source: string) => `Your normal resting heart rate (${source}): ${bpm} bpm.`,
     dayDetail: "Day in detail",
-    dayLink: (day: string) => `${day} in detail, on Today`,
+    dayLink: (day: string) => `${day} in detail, under Sleep & body`,
   },
 
   trainingBody: {
@@ -1042,7 +1044,7 @@ export const en: Messages = {
     noData: "No data in this period.",
     fasterUp: "faster up",
     method:
-      "Every panel shares the date axis, so you see what moves together. Body values per day show faint with their 7-day average; the dashed line is your normal (60-day median). Hover or tap for the values; click a day to open it at the bottom of Today.",
+      "Every panel shares the date axis, so you see what moves together. Body values per day show faint with their 7-day average; the dashed line is your normal (60-day median). Hover or tap for the values; click a day to open it under Today, Sleep & body.",
     metric: {
       fitness: "Fitness",
       form: "Form",
@@ -1059,7 +1061,6 @@ export const en: Messages = {
     },
   },
   health: {
-    eyebrow: "The day in detail",
     whyRise: "Why does heart rate rise before waking?",
     pickDay: "Choose a day",
     loadFailed: "Could not load this day's data.",

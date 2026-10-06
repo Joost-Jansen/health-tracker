@@ -405,7 +405,7 @@ export const T = {
       spo2: "Zuurstof in de slaap (SpO2)",
       normal: (v: string) => `Je normaal: ${v} (mediaan 60 dagen).`,
       respNote: "Ademhaling in rust is van nacht tot nacht heel stabiel; één of twee ademhalingen per minuut meer valt al op, bijvoorbeeld na een zware dag of als je iets onder de leden hebt.",
-      openDay: "Klik op een dag in een grafiek om die dag in detail te zien onderaan Vandaag.",
+      openDay: "Klik op een dag in een grafiek om die dag in detail te zien onder Vandaag, Slaap & lichaam.",
     },
 
 

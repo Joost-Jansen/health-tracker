@@ -24,7 +24,7 @@ OLD_PATHS = {
     "/analyses/doelen/": "/analyses/goals/",
     "/analyses/profiel/": "/analyses/profile/",
     "/help/handleiding/": "/help/guide/",
-    "/health/": "/dashboard/",
+    "/health/": "/dashboard/body/",
     "/health/over-time/": "/trends/recovery/",
 }
 

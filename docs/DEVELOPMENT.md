@@ -115,7 +115,7 @@ an existing page. Remove a redirect (and its line in that test) once nobody uses
 | `/instellingen/` (`koppelingen`, `beheer`, `zones`, `agents`) | `/settings/` (`connections`, `admin`, `zones`, `agents`) |
 | `/analyses/doelen/`, `/analyses/profiel/` | `/analyses/goals/`, `/analyses/profile/` |
 | `/help/handleiding/` | `/help/guide/` |
-| `/health/?day=` | `/dashboard/?day=` (the day in detail is at the bottom of Today) |
+| `/health/?day=` | `/dashboard/body/?day=` (Today, Sleep & body) |
 | `/health/over-time/` | `/trends/recovery/` |
 
 The ids followed in schema 3: onboarding page ids (`visited`: `routes`, `history`), plan statuses (`active`, `finished`,

@@ -21,13 +21,8 @@ const tab = (id: NavTab["id"], href: string, adminOnly?: boolean): NavTab => ({ 
 export const NAV: NavGroup[] = [
   {
     items: [
-      {
-        id: "dashboard",
-        label: "",
-        href: "/dashboard/",
-        icon: "layout",
-        tabs: [tab("overview", "/dashboard/"), tab("heartRate", "/dashboard/heart-rate/")],
-      },
+      { id: "dashboard", label: "", href: "/dashboard/", icon: "layout" },
+      { id: "health", label: "", href: "/health/", icon: "heart" },
       { id: "trends", label: "", href: "/trends/", icon: "chart" },
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },

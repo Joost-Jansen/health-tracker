@@ -27,7 +27,21 @@ import { useFormat, useLocale, useT } from "@/lib/i18n";
 import { fmtDate as fmtDateIn } from "@/lib/timeline";
 import { type RecordKey, type TrendsPlus, fmtClock } from "@/lib/training";
 
-type RecoveryKey = "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg" | "hrv";
+type RecoveryKey = "resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg" | "hrv" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg";
+type RecoveryChart = {
+  key: RecoveryKey;
+  storage: string;
+  title: string;
+  label?: string;
+  points: { d: string; v: number }[];
+  format: (v: number) => string;
+  unit?: string;
+  lowerIsBetter?: boolean;
+  colour: string;
+  note?: string;
+};
+/** Recovery charts shown even without data (they say so); the others only when the watch gives the value. */
+const ALWAYS: RecoveryKey[] = ["resting_hr", "sleep_h", "body_battery_high", "stress_avg"];
 
 const MAIN = ["run", "ride", "swim"];
 const SPORT_COLOUR: Record<string, string> = { run: "var(--chart-1)", ride: "var(--chart-4)", swim: "var(--chart-3)" };
@@ -46,6 +60,7 @@ export default function TrendsPage() {
   const fmtKm = (v: number) => f.km(v);
   const dec = (v: number, digits = 1) => f.num(v, digits);
   const [metric, setMetric] = useState<"hours" | "km">("hours");
+  const [picked, setPicked] = useState<string | null>(null); // a day clicked in a recovery chart, to open under Health
   const q = useQuery({ queryKey: ["trends"], queryFn: () => api.get<TrendsPlus>("/api/trends") });
   const { sport, choose: chooseSport, all } = useSportFilter();
 
@@ -137,6 +152,19 @@ export default function TrendsPage() {
   const recoveryMa = daily ? DAILY_MA : WEEKLY_MA;
   const hrv = series("hrv");
   const hasSleep = recovery.some((r) => r.sleep_h != null);
+  const normals = t.recovery_normals ?? {};
+  // Every recovery value against the user's own normal; HRV and SpO2 only when the watch gives them.
+  const recoveryCharts = ([
+    { key: "resting_hr", storage: "rhr", title: TT.recovery.rhr, points: series("resting_hr"), format: (v) => v.toFixed(0), unit: " bpm", lowerIsBetter: true, colour: "var(--chart-6)" },
+    { key: "sleep_h", storage: "sleep", title: TT.recovery.sleep, points: series("sleep_h"), format: (v) => dec(v), unit: ` ${f.hourUnit}`, colour: "var(--chart-5)" },
+    { key: "body_battery_high", storage: "bb", title: TT.recovery.bb, label: TT.recovery.bbShort, points: series("body_battery_high"), format: (v) => v.toFixed(0), colour: "var(--chart-1)" },
+    { key: "stress_avg", storage: "stress", title: TT.recovery.stress, points: series("stress_avg"), format: (v) => v.toFixed(0), lowerIsBetter: true, colour: "var(--chart-4)" },
+    { key: "sleep_resp", storage: "resp", title: TT.recovery.resp, points: series("sleep_resp"), format: (v) => dec(v), unit: " /min", lowerIsBetter: true, colour: "var(--chart-5)", note: TT.recovery.respNote },
+    { key: "sleep_stress", storage: "sleep-stress", title: TT.recovery.sleepStress, points: series("sleep_stress"), format: (v) => v.toFixed(0), lowerIsBetter: true, colour: "var(--chart-4)" },
+    { key: "bb_charged_sleep", storage: "bb-charged", title: TT.recovery.bbCharged, points: series("bb_charged_sleep"), format: (v) => v.toFixed(0), colour: "var(--chart-1)" },
+    { key: "spo2_avg", storage: "spo2", title: TT.recovery.spo2, points: series("spo2_avg"), format: (v) => v.toFixed(0), unit: "%", colour: "var(--chart-3)" },
+    { key: "hrv", storage: "hrv", title: TT.recovery.hrv, points: hrv, format: (v) => v.toFixed(0), unit: " ms", colour: "var(--chart-3)", note: TT.recovery.hrvNote },
+  ] as RecoveryChart[]).filter((c) => ALWAYS.includes(c.key) || c.points.length > 0);
 
   const raceName = (r: TrendsPlus["races"][number]) => (r.sport === "triathlon" ? TT.races.triathlon : r.detected === "heart_rate" ? TT.races.byHeartRate(r.name) : r.name);
   const races = t.races.filter((r) => all || r.sport === sport);
@@ -292,30 +320,42 @@ export default function TrendsPage() {
 
       <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
         <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.rhr}</h3>
-            <TrendChart label={TT.recovery.rhr} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-rhr" points={series("resting_hr")} format={(v) => v.toFixed(0)} unit=" bpm" lowerIsBetter height={140} colour="var(--chart-6)" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.sleep}</h3>
-            <TrendChart label={TT.recovery.sleep} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-sleep" points={series("sleep_h")} format={(v) => dec(v)} unit={` ${f.hourUnit}`} height={140} colour="var(--chart-5)" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.bb}</h3>
-            <TrendChart label={TT.recovery.bbShort} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-bb" points={series("body_battery_high")} format={(v) => v.toFixed(0)} height={140} colour="var(--chart-1)" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.stress}</h3>
-            <TrendChart label={TT.recovery.stress} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-stress" points={series("stress_avg")} format={(v) => v.toFixed(0)} lowerIsBetter height={140} colour="var(--chart-4)" />
-          </div>
-          {hrv.length > 0 && (
-            <div>
-              <h3 className="mb-1 text-[12.5px] font-medium">{TT.recovery.hrv}</h3>
-              <TrendChart label={TT.recovery.hrv} {...shared} maOptions={recoveryMa} maDefault={daily ? 7 : 0} storageKey="trends-hrv" points={hrv} format={(v) => v.toFixed(0)} unit=" ms" height={140} colour="var(--chart-3)" />
-              <p className="mt-2 text-[11.5px] text-ink-muted">{TT.recovery.hrvNote}</p>
+          {recoveryCharts.map((c) => (
+            <div key={c.key}>
+              <h3 className="mb-1 text-[12.5px] font-medium">{c.title}</h3>
+              <TrendChart
+                label={c.label ?? c.title}
+                {...shared}
+                maOptions={recoveryMa}
+                maDefault={daily ? 7 : 0}
+                storageKey={`trends-${c.storage}`}
+                points={c.points}
+                format={c.format}
+                unit={c.unit}
+                lowerIsBetter={c.lowerIsBetter}
+                height={140}
+                colour={c.colour}
+                onPick={daily ? setPicked : undefined}
+              />
+              {(normals[c.key] != null || c.note) && (
+                <p className="mt-2 text-[11.5px] text-ink-muted">
+                  {normals[c.key] != null ? TT.recovery.normal(`${c.format(normals[c.key]!)}${c.unit ?? ""}`) : ""} {c.note ?? ""}
+                </p>
+              )}
             </div>
-          )}
+          ))}
         </div>
+        {daily && (
+          <p className="mt-4 text-[11.5px] text-ink-muted">
+            {picked ? (
+              <Link href={`/health/?day=${picked}`} className="font-semibold text-brand hover:underline">
+                {tr.dashboard.dayLink(f.weekdayDay(picked))} →
+              </Link>
+            ) : (
+              TT.recovery.openDay
+            )}
+          </p>
+        )}
       </Card>
 
       {hasSleep && t.form.length > 0 && (

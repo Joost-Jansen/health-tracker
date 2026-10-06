@@ -13,6 +13,7 @@ from statistics import mean
 from typing import Callable
 
 from api.dashboard import max_by_sport, resting_hr, sync_day
+from api.readiness import baseline
 from tools import hrquality
 from tools.analytics import fitness_series
 from tools.summarize import run_sessions
@@ -118,7 +119,18 @@ def vo2max(activities: list[dict]) -> list[dict]:
     return [{"date": d, "value": v} for d, v in sorted(by_day.items())]
 
 
-RECOVERY_KEYS = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv")
+RECOVERY_KEYS = ("resting_hr", "sleep_h", "body_battery_high", "stress_avg", "hrv", "sleep_resp", "sleep_stress", "bb_charged_sleep", "spo2_avg")
+NORMAL_DAYS = 60  # the user's normal of a recovery value: the median of the last 60 days, as on Today
+
+
+def recovery_normals(wellness: dict, today: date) -> dict:
+    """{key: median of the last NORMAL_DAYS days up to today} per recovery value, None with fewer than 7 values:
+    the reference next to each chart, as resting HR has on Today (api/readiness.py baseline)."""
+    out = {}
+    for k in RECOVERY_KEYS:
+        v = baseline({d: _recovery_values(w) for d, w in wellness.items()}, k, today + timedelta(days=1), NORMAL_DAYS)
+        out[k] = round(v, 1) if v is not None else None
+    return out
 
 
 def _recovery_values(w: dict) -> dict:
@@ -498,6 +510,7 @@ def build_trends(
         "vo2max": vo2max(activities),
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
+        "recovery_normals": recovery_normals(wellness, today),
         "records": recs,
         "recent_records": recent,
         "races": races(activities),

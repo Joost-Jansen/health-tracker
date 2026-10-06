@@ -34,6 +34,7 @@ export default function TrendChart({
   storageKey,
   clock = false,
   markers,
+  onPick,
 }: {
   label: string;
   points: TrendPoint[];
@@ -54,6 +55,8 @@ export default function TrendChart({
   clock?: boolean;
   /** Vertical markers (diamonds), for example runs that do not count. */
   markers?: ChartMarker[];
+  /** A click or Enter on a day (TimeChart onPick). */
+  onPick?: (day: string) => void;
 }) {
   const tc = useT().charts;
   const { locale } = useLocale();
@@ -101,6 +104,7 @@ export default function TrendChart({
         legend={false}
         clock={clock}
         markers={markers}
+        onPick={onPick}
         series={[{ key: "v", label, colour, points, ma: true, trend: true, peak: lowerIsBetter ? "min" : "max", width: 2 }]}
       />
     </div>

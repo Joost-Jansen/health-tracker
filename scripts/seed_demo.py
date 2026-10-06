@@ -2,7 +2,7 @@
 
 Creates the user `demo` (display name "Demo") with about six months of made-up training: runs, rides and pool swims
 with per-second-ish streams (GPS around a few invented loops east of Utrecht, heart rate, pace, altitude), daily sleep
-and recovery values, four weeks of heart rate through the day and night with sleep stages, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
+and recovery values, four weeks of heart rate, stress, Body Battery, respiration and SpO2 through the day and night with sleep stages, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
 Afterwards it runs `tools/derive.py` so zone times and routes exist, just like after a real sync.
 Nothing here comes from a real person: every number is generated from a fixed random seed.
 
@@ -360,8 +360,37 @@ ANALYSIS = """| | Value |
 """
 
 
-HEART_RATE_DAYS = 28  # intraday heart rate for the last four weeks, like a recent sync gives
-STEP_MIN = 2  # Garmin gives a value about every 2 minutes
+def daily_extras(sleep: float, after_hard: bool, rnd: random.Random) -> dict:
+    """The day's other summary values (tools/store.py wellness_from_garmin): sleep detail, respiration, SpO2, sleep
+    stress, Body Battery and stress per level, activity. A hard day before shows as a slightly faster breath at night."""
+    light = sleep * rnd.uniform(0.5, 0.58)
+    moderate, vigorous = rnd.randint(5, 45), rnd.randint(0, 30)
+    rest, low, medium = rnd.randint(500, 700), rnd.randint(250, 400), rnd.randint(60, 150)
+    return {
+        "light_sleep_h": round(light, 2),
+        "awake_h": round(rnd.uniform(0.1, 0.5), 2),
+        "sleep_resp": round(rnd.gauss(14.2 + (0.5 if after_hard else 0), 0.35), 1),
+        "sleep_resp_low": round(rnd.gauss(11.5, 0.4), 1),
+        "sleep_stress": round(max(5, rnd.gauss(15 + (4 if after_hard else 0), 3)), 1),
+        "spo2_avg": round(rnd.gauss(95.5, 0.6)),
+        "spo2_low": round(rnd.gauss(89, 1.5)),
+        "bb_charged_sleep": round(max(15, rnd.gauss(58 - (8 if after_hard else 0), 8))),
+        "bb_charged": round(max(15, rnd.gauss(62, 9))),
+        "bb_drained": round(max(20, rnd.gauss(64, 10))),
+        "stress_rest_min": rest,
+        "stress_low_min": low,
+        "stress_medium_min": medium,
+        "stress_high_min": rnd.randint(10, 60),
+        "intensity_moderate_min": moderate,
+        "intensity_vigorous_min": vigorous,
+        "intensity_min": moderate + 2 * vigorous,
+        "floors": rnd.randint(2, 18),
+        "active_kcal": round(rnd.gauss(650, 180)),
+    }
+
+
+INTRADAY_DAYS = 28  # series through the day for the last four weeks, like a recent sync gives
+STEP_MIN = 2  # Garmin gives heart rate and respiration about every 2 minutes, stress and Body Battery every 3
 
 
 @dataclass
@@ -371,7 +400,10 @@ class Night:
     start: int
     end: int
     rhr: float
-    stages: list[list[int]]  # [start, end, level] as tools/store.py stores them: 0 deep, 1 light, 2 rem, 3 awake
+    resp: float  # breaths/min while asleep
+    bb_from: int  # Body Battery when falling asleep and when waking up
+    bb_to: int
+    stages: list[list[int]]  # [start, end, level] as tools/intraday.py stores them: 0 deep, 1 light, 2 rem, 3 awake
     rise: bool  # heart rate climbs in the last 1.5 hours before waking
 
     def stage(self, t: int) -> int:
@@ -383,10 +415,19 @@ class Night:
         climb = 28 * max(0.0, (t - (self.end - 95)) / 95) if self.rise else 0.0
         return self.rhr - 1.5 + settle + level + climb
 
+    def stress(self, t: int) -> float:
+        return {0: 6, 1: 11, 2: 19, 3: 30}[self.stage(t)] + (12 * max(0.0, (t - (self.end - 95)) / 95) if self.rise else 0)
 
-def make_night(day: date, sleep_h: float, rhr: float, rnd: random.Random, rise: bool) -> Night:
+    def respiration(self, t: int) -> float:
+        return self.resp + {0: -0.6, 1: 0.0, 2: 1.0, 3: 1.8}[self.stage(t)]
+
+    def body_battery(self, t: int) -> float:
+        return self.bb_from + (self.bb_to - self.bb_from) * min(1.0, max(0.0, (t - self.start) / max(1, self.end - self.start)))
+
+
+def make_night(day: date, w: dict, rnd: random.Random, rise: bool, bb_from: int) -> Night:
     wake = (7 * 60 + 45 if day.weekday() >= 5 else 6 * 60 + 50) + round(rnd.gauss(0, 18))
-    start = wake - round(sleep_h * 60) - rnd.randint(8, 25)  # time in bed is a bit more than sleep
+    start = wake - round(w.get("sleep_h", 7.2) * 60) - rnd.randint(8, 25)  # time in bed is a bit more than sleep
     stages, t = [], start
     while t < wake:
         frac = (t - start) / max(1, wake - start)
@@ -403,13 +444,14 @@ def make_night(day: date, sleep_h: float, rhr: float, rnd: random.Random, rise: 
             else:
                 stages.append([t, b, level])
             t = b
-    return Night(start, wake, rhr, stages, rise)
+    return Night(start, wake, w.get("resting_hr", 50), w.get("sleep_resp", 14.2), bb_from, max(bb_from + 5, w.get("body_battery_high", 85)), stages, rise)
 
 
-def seed_heart_rate(s: db.Scope, end: date, days: int = HEART_RATE_DAYS) -> int:
-    """Synthetic intraday heart rate and sleep stages (tools/store.py heart_rate_from_garmin's format) for the last
-    `days` days, from the stored sleep and resting HR and the activities of each day. A random seed of its own, so
-    the rest of the demo stays the same."""
+def seed_intraday(s: db.Scope, end: date, days: int = INTRADAY_DAYS) -> int:
+    """Synthetic series through the day (tools/intraday.py's format: heart rate, stress, Body Battery, respiration,
+    SpO2 while asleep) and sleep stages for the last `days` days, from the stored sleep, resting HR and Body Battery
+    and the activities of each day; the day's sleep window and heart rate while asleep go back into wellness, as the
+    sync does. A random seed of its own, so the rest of the demo stays the same."""
     rnd = random.Random(2027)
     wellness = db.load_wellness(s)
     workouts: dict[str, list[tuple[int, int, int]]] = {}
@@ -418,44 +460,74 @@ def seed_heart_rate(s: db.Scope, end: date, days: int = HEART_RATE_DAYS) -> int:
         workouts.setdefault(a["start_local"][:10], []).append((t.hour * 60 + t.minute, round((a.get("moving_time_s") or 0) / 60), a.get("avg_hr") or 140))
     first = end - timedelta(days=days - 1)
     nights: dict[date, Night] = {}
+    bb = 30
     for i in range(days + 1):
         d = first + timedelta(days=i)
         w = wellness.get(d.isoformat()) or wellness.get((d - timedelta(days=1)).isoformat()) or {}
-        # the last night shows the pre-wake rise this page is for; now and then another night too
-        nights[d] = make_night(d, w.get("sleep_h", 7.2), w.get("resting_hr", 50), rnd, rise=d == end or rnd.random() < 0.12)
+        # the last night shows the pre-wake rise the page explains; now and then another night too
+        nights[d] = make_night(d, w, rnd, d == end or rnd.random() < 0.12, bb)
+        bb = max(8, min(45, round(rnd.gauss(26, 6))))  # where the next evening ends
     wobble = 0.0
     for i in range(days):
         d = first + timedelta(days=i)
         night, tonight = nights[d], nights[d + timedelta(days=1)]
         bed = 1440 + tonight.start
         walks = [rnd.randint(night.end + 30, 1200) for _ in range(rnd.randint(2, 4))]
+        todays = workouts.get(d.isoformat(), [])
         stop = night.end + 100 if d == end else 1440  # today: up to shortly after getting up
-        points = []
-        for m in range(0, stop, STEP_MIN):
-            if rnd.random() < 0.01:
-                continue  # a missed reading now and then
-            wobble = 0.75 * wobble + rnd.gauss(0, 0.9)
-            if m < night.end:
-                v = night.hr(m)
-            elif m >= bed:
-                v = tonight.hr(m - 1440)
-            else:
-                # awake: higher after getting up, slowly lower towards the evening, bumps for walking and workouts
-                frac = (m - night.end) / max(1, bed - night.end)
-                v = night.rhr + 21 - 11 * frac + 4 * rnd.random()
-                if any(w <= m < w + 15 for w in walks):
-                    v += 22
-                for start, minutes, avg in workouts.get(d.isoformat(), []):
-                    if start <= m < start + minutes:
-                        v = avg + rnd.gauss(0, 5)
-            points.append([m, max(38, round(v + wobble))])
-        db.write_heart_rate(s, d.isoformat(), {
-            "hr": points,
+        row: dict[str, list] = {"hr": [], "stress": [], "bb": [], "resp": [], "spo2": []}
+        for m in range(0, stop):
+            in_workout = next((avg for start, minutes, avg in todays if start <= m < start + minutes), None)
+            asleep = m < night.end or m >= bed
+            sleeper = night if m < night.end else tonight
+            t = m if m < night.end else m - 1440
+            if m % STEP_MIN == 0 and rnd.random() > 0.01:  # a missed reading now and then
+                wobble = 0.75 * wobble + rnd.gauss(0, 0.9)
+                if asleep:
+                    v = sleeper.hr(t)
+                else:
+                    # awake: higher after getting up, slowly lower towards the evening, bumps for walking and workouts
+                    frac = (m - night.end) / max(1, bed - night.end)
+                    v = night.rhr + 21 - 11 * frac + 4 * rnd.random() + (22 if any(w <= m < w + 15 for w in walks) else 0)
+                    if in_workout:
+                        v = in_workout + rnd.gauss(0, 5)
+                row["hr"].append([m, max(38, round(v + wobble))])
+                if in_workout is None:  # Garmin has no respiration during an activity
+                    r = sleeper.respiration(t) if asleep else 15.5 + 2 * rnd.random()
+                    row["resp"].append([m, round(r + rnd.gauss(0, 0.3), 1)])
+                if asleep:
+                    row["spo2"].append([m, max(88, min(100, round(rnd.gauss(95.5, 1.1))))])
+            if m % 3 == 0:
+                if in_workout is None:  # -2 during an activity: left out, as the sync does
+                    st = sleeper.stress(t) if asleep else 24 + 22 * rnd.random() + (25 if rnd.random() < 0.08 else 0)
+                    row["stress"].append([m, max(0, min(99, round(st + rnd.gauss(0, 3))))])
+                if asleep:
+                    level = sleeper.body_battery(t)
+                else:
+                    frac = (m - night.end) / max(1, bed - night.end)
+                    level = night.bb_to - (night.bb_to - tonight.bb_from) * frac
+                row["bb"].append([m, max(5, min(100, round(level)))])
+        hr = row["hr"]
+        db.write_intraday(s, d.isoformat(), {
+            **row,
             "resting": round(night.rhr),
-            "min": min(v for _, v in points),
-            "max": max(v for _, v in points),
+            "min": min(v for _, v in hr),
+            "max": max(v for _, v in hr),
             "sleep": {"start": night.start, "end": night.end, "stages": night.stages},
         })
+        asleep_hr = [v for m, v in hr if night.start <= m <= night.end]
+        w = dict(wellness.get(d.isoformat()) or {})
+        if w:
+            local = lambda minute: (datetime.combine(d, time()) + timedelta(minutes=minute)).strftime("%Y-%m-%dT%H:%M")  # noqa: E731
+            w.update({
+                "sleep_start": local(night.start),
+                "sleep_end": local(night.end),
+                "sleep_hr": round(sum(asleep_hr) / len(asleep_hr)) if asleep_hr else None,
+                "bb_charged_sleep": night.bb_to - night.bb_from,
+                "body_battery_high": night.bb_to,
+                "body_battery_low": tonight.bb_from,
+            })
+            db.write_wellness(s, d.isoformat(), {k: v for k, v in w.items() if v is not None})
     return days
 
 
@@ -553,7 +625,9 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
                 half_result = rec
         day += timedelta(days=1)
 
-    # sleep and recovery: resting HR slowly drops with fitness and is a bit higher after hard days
+    # sleep and recovery: resting HR slowly drops with fitness and is a bit higher after hard days.
+    # `more` draws the values added later (respiration, sleep stress, ...), so the older ones stay as they were.
+    more = random.Random(2028)
     for i in range(days + 1):
         d = start + timedelta(days=i)
         fitness = i / max(1, days)
@@ -572,9 +646,10 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
             "body_battery_low": max(5, min(45, round(rnd.gauss(24, 6)))),
             "stress_avg": max(12, min(55, round(rnd.gauss(29, 5)))),
             "steps": max(3000, round(rnd.gauss(10500, 2500))),
+            **daily_extras(sleep, after_hard, more),
         })
 
-    hr_days = seed_heart_rate(s, end, min(HEART_RATE_DAYS, days + 1))
+    intraday_days = seed_intraday(s, end, min(INTRADAY_DAYS, days + 1))
     db.set_setting(s, "sync_state", {"last_sync_local": f"{end.isoformat()} 06:02"})
     db.set_setting(s, "onboarding", {"choice": "claude", "done": True, "step": 0, "hidden": ["checklist", "data"],
                                      "visited": ["dashboard", "trends", "routes", "history"]})
@@ -611,7 +686,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
         if km is not None and abs(km - r["distance_km"]) < 1.5:
             r["name"] = by_km[km]
     db.save_routes(s, routes)
-    return {"user_id": uid, "admin": first, "password": password, "activities": count, "plan_id": pid, "heart_rate_days": hr_days, **derived}
+    return {"user_id": uid, "admin": first, "password": password, "activities": count, "plan_id": pid, "intraday_days": intraday_days, **derived}
 
 
 def main(argv=None) -> int:

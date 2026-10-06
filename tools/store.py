@@ -9,10 +9,8 @@ Layout:
 from __future__ import annotations
 
 import json
-from calendar import timegm
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from tools.sports import garmin_sport, strava_sport
 
@@ -328,7 +326,14 @@ def load_activities(root: Path) -> list[dict]:
     return [json.loads(p.read_text()) for p in sorted(_activities_dir(root).glob("*/*.json"))]
 
 
+def _local_clock(ms) -> str | None:
+    """Garmin's "...TimestampLocal" (local wall time as epoch ms) as "2026-10-04T23:10"."""
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M") if ms else None
+
+
 def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | None, readiness: list | None) -> dict:
+    """The day's summary values from the responses the sync already fetches (no extra calls): sleep (get_sleep_data:
+    dailySleepDTO and the top-level bodyBatteryChange), HRV, the user summary (get_user_summary) and readiness."""
     sleep_dto = (sleep or {}).get("dailySleepDTO") or {}
     hrv_sum = (hrv or {}).get("hrvSummary") or {}
     summary = summary or {}
@@ -337,12 +342,31 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
     def hours(seconds):
         return round(seconds / 3600, 2) if seconds else None
 
+    def minutes(seconds):
+        return round(seconds / 60) if isinstance(seconds, (int, float)) and seconds >= 0 else None
+
+    def num(v, digits=0):
+        return (round(v, digits) if digits else round(v)) if isinstance(v, (int, float)) and v > 0 else None
+
+    moderate, vigorous = summary.get("moderateIntensityMinutes"), summary.get("vigorousIntensityMinutes")
+
     has_sleep = bool(sleep_dto.get("sleepTimeSeconds"))
     values = _drop_none(
         {
             "sleep_h": hours(sleep_dto.get("sleepTimeSeconds")),
             "deep_sleep_h": hours(sleep_dto.get("deepSleepSeconds")),
             "rem_sleep_h": hours(sleep_dto.get("remSleepSeconds")),
+            "light_sleep_h": hours(sleep_dto.get("lightSleepSeconds")),
+            "awake_h": hours(sleep_dto.get("awakeSleepSeconds")) if has_sleep else None,
+            "sleep_start": _local_clock(sleep_dto.get("sleepStartTimestampLocal")) if has_sleep else None,
+            "sleep_end": _local_clock(sleep_dto.get("sleepEndTimestampLocal")) if has_sleep else None,
+            "sleep_stress": num(sleep_dto.get("avgSleepStress"), 1),
+            "sleep_resp": num(sleep_dto.get("averageRespirationValue"), 1),
+            "sleep_resp_low": num(sleep_dto.get("lowestRespirationValue"), 1),
+            # the night's SpO2 from the sleep, else the day's from the summary; only when the watch measured it
+            "spo2_avg": num(sleep_dto.get("averageSpO2Value") or summary.get("averageSpo2")),
+            "spo2_low": num(sleep_dto.get("lowestSpO2Value") or summary.get("lowestSpo2")),
+            "bb_charged_sleep": num((sleep or {}).get("bodyBatteryChange") or sleep_dto.get("bodyBatteryChange")) if has_sleep else None,
             "sleep_score": ((sleep_dto.get("sleepScores") or {}).get("overall") or {}).get("value"),
             "hrv_last_night": hrv_sum.get("lastNightAvg"),
             "hrv_weekly_avg": hrv_sum.get("weeklyAvg"),
@@ -353,74 +377,24 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
             "body_battery_low": summary.get("bodyBatteryLowestValue"),
             "stress_avg": summary.get("averageStressLevel"),
             "steps": summary.get("totalSteps"),
+            "bb_charged": summary.get("bodyBatteryChargedValue"),
+            "bb_drained": summary.get("bodyBatteryDrainedValue"),
+            "stress_rest_min": minutes(summary.get("restStressDuration")),
+            "stress_low_min": minutes(summary.get("lowStressDuration")),
+            "stress_medium_min": minutes(summary.get("mediumStressDuration")),
+            "stress_high_min": minutes(summary.get("highStressDuration")),
+            # Garmin counts a vigorous minute double towards the weekly goal; the total follows that convention
+            "intensity_min": (moderate or 0) + 2 * (vigorous or 0) if moderate is not None or vigorous is not None else None,
+            "intensity_moderate_min": moderate,
+            "intensity_vigorous_min": vigorous,
+            "floors": num(summary.get("floorsAscended")) if summary.get("floorsAscended") is not None else None,
+            "active_kcal": num(summary.get("activeKilocalories")),
             "readiness_score": ready.get("score"),
             "readiness_level": ready.get("level"),
         }
     )
     # Garmin uses negative numbers (e.g. stress -1) for "no data"
     return {k: v for k, v in values.items() if not (isinstance(v, (int, float)) and v < 0)}
-
-
-# Garmin's sleepLevels.activityLevel; stored as the number, named in the API (api/heartrate.py)
-SLEEP_STAGES = {0: "deep", 1: "light", 2: "rem", 3: "awake"}
-
-
-def _gmt_seconds(text: str | None) -> float | None:
-    """Garmin's "2026-10-05T22:00:00.0" (GMT, no zone) as epoch seconds."""
-    if not text:
-        return None
-    return datetime.fromisoformat(str(text).replace(" ", "T")).replace(tzinfo=timezone.utc).timestamp()
-
-
-def heart_rate_from_garmin(day: str, hr: dict | None, sleep: dict | None) -> dict:
-    """One calendar day of Garmin's intraday heart rate (get_heart_rates, a value about every 2 min) and the sleep that
-    ended that morning (get_sleep_data), compact. Times are minutes after local midnight of `day`, so the night before
-    starts at a negative minute:
-        {"hr": [[minute, bpm], ...], "resting", "min", "max", "sleep": {"start", "end", "stages": [[start, end, level]]}}
-    Empty when Garmin has neither (watch not worn, or the data came from another device)."""
-    midnight = timegm(date.fromisoformat(day).timetuple())  # local midnight as if it were UTC
-    hr = hr or {}
-    dto = (sleep or {}).get("dailySleepDTO") or {}
-    sleep_offset = None
-    if dto.get("sleepStartTimestampLocal") and dto.get("sleepStartTimestampGMT"):
-        sleep_offset = (dto["sleepStartTimestampLocal"] - dto["sleepStartTimestampGMT"]) / 1000
-    # local minus GMT for this day; the day's own timestamps first, then the sleep's, then the site's zone
-    local0, gmt0 = _gmt_seconds(hr.get("startTimestampLocal")), _gmt_seconds(hr.get("startTimestampGMT"))
-    if local0 is not None and gmt0 is not None:
-        offset = local0 - gmt0
-    elif sleep_offset is not None:
-        offset = sleep_offset
-    else:
-        offset = datetime.fromisoformat(f"{day}T12:00").replace(tzinfo=ZoneInfo("Europe/Amsterdam")).utcoffset().total_seconds()
-
-    points: dict[int, int] = {}
-    for item in hr.get("heartRateValues") or []:
-        if not isinstance(item, (list, tuple)) or len(item) < 2 or not item[0] or not item[1] or item[1] <= 0:
-            continue
-        points[round((item[0] / 1000 + offset - midnight) / 60)] = int(item[1])
-    out: dict = {}
-    if points:
-        out["hr"] = [[m, points[m]] for m in sorted(points)]
-        out.update(_drop_none({k: hr.get(f"{k}HeartRate") for k in ("resting", "min", "max")}))
-
-    if dto.get("sleepStartTimestampLocal") and dto.get("sleepEndTimestampLocal"):
-        stages = []
-        for lvl in (sleep or {}).get("sleepLevels") or []:
-            start, end = _gmt_seconds(lvl.get("startGMT")), _gmt_seconds(lvl.get("endGMT"))
-            level = lvl.get("activityLevel")
-            if start is None or end is None or level is None or round(level) not in SLEEP_STAGES:
-                continue
-            a, b = (round((t + (sleep_offset or offset) - midnight) / 60) for t in (start, end))
-            if stages and stages[-1][2] == round(level) and stages[-1][1] == a:
-                stages[-1][1] = b  # one segment per stretch
-            elif b > a:
-                stages.append([a, b, round(level)])
-        out["sleep"] = {
-            "start": round((dto["sleepStartTimestampLocal"] / 1000 - midnight) / 60),
-            "end": round((dto["sleepEndTimestampLocal"] / 1000 - midnight) / 60),
-            "stages": stages,
-        }
-    return out
 
 
 def _wellness_dir(root: Path) -> Path:

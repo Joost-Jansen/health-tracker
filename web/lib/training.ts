@@ -102,25 +102,31 @@ export type Readiness = {
   date: string | null;
   /** No sleep or resting heart rate from last night. */
   no_night: boolean;
-  signals: { key: "resting_hr" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
+  signals: { key: "resting_hr" | "respiration" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
+  /** Resting HR, heart rate while asleep and night breathing all above normal together: a cold may be coming on. */
+  illness_hint?: boolean;
 };
 
-/** GET /api/heartrate (api/heartrate.py): one day's heart rate from the watch. Times are minutes after midnight of
- *  `day`; the evening before is negative. */
-export type HeartRateDay = {
+export type SleepStage = "deep" | "light" | "rem" | "awake";
+export type DaySeriesKey = "hr" | "stress" | "bb" | "resp" | "spo2";
+
+/** GET /api/wellness/day (api/daily.py): one day of health data from the watch. Times are minutes after midnight of
+ *  `day`; the evening before is negative. `summary` is the day's wellness row (tools/store.py wellness_from_garmin),
+ *  `normals` the 60-day medians before the day. */
+export type HealthDay = {
   day: string;
   prev: string | null;
   next: string | null;
   latest: string | null;
   from: number;
   to: number;
-  points: [number, number][];
-  sleep: { start: number; end: number; stages: { start: number; end: number; stage: "deep" | "light" | "rem" | "awake" }[] } | null;
+  series: Partial<Record<DaySeriesKey, [number, number][]>>;
+  sleep: { start: number; end: number; stages: { start: number; end: number; stage: SleepStage }[] } | null;
   next_sleep_start: number | null;
-  resting_hr: number | null;
-  normal_resting_hr: number | null;
-  min: number | null;
-  max: number | null;
+  summary: Partial<Record<string, number | string>>;
+  normals: Partial<Record<"resting_hr" | "sleep_hr" | "sleep_h" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg" | "stress_avg", number | null>>;
+  hr_min: number | null;
+  hr_max: number | null;
   night: { lowest: number; lowest_at: number; avg: number; last_avg: number | null; before_avg: number | null; rise: number | null; minutes: number } | null;
 };
 
@@ -227,7 +233,7 @@ export type Trends = {
   weekly: { week: string; sports: Record<string, Volume> }[];
   z2_pace: { week: string; pace_s_per_km: number; runs: number; z2_seconds: number }[];
   vo2max: { date: string; value: number }[];
-  recovery_weekly: { week: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null }[];
+  recovery_weekly: ({ week: string } & Partial<Record<"resting_hr" | "sleep_h" | "body_battery_high" | "stress_avg" | "hrv" | "sleep_resp" | "sleep_stress" | "bb_charged_sleep" | "spo2_avg", number | null>>)[];
   records: Record<"1k" | "5k" | "10k" | "21k", RecordRow[]>;
   races: Race[];
   rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number };
@@ -465,13 +471,26 @@ export type InsightCode =
   | { level: Insight["level"]; code: "goal_prediction"; params: { goal_km: number; goal_seconds: number; predicted_seconds: number; from_km: number; from_date: string } }
   | { level: Insight["level"]; code: "run_volume"; params: { avg_km: number; week_km: number; week_start: string } };
 
-export type RecoveryDay = { date: string; resting_hr: number | null; sleep_h: number | null; body_battery_high: number | null; stress_avg: number | null; hrv: number | null };
+export type RecoveryDay = {
+  date: string;
+  resting_hr: number | null;
+  sleep_h: number | null;
+  body_battery_high: number | null;
+  stress_avg: number | null;
+  hrv: number | null;
+  sleep_resp?: number | null;
+  sleep_stress?: number | null;
+  bb_charged_sleep?: number | null;
+  spo2_avg?: number | null;
+};
 
 /** GET /api/trends as the API returns it now. */
 export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recovery_daily"> & {
   insights: InsightCode[];
   records: Record<RecordKey, RecordRowPlus[]>;
   recovery_daily?: RecoveryDay[];
+  /** The user's normal per recovery value: median of the last 60 days (api/trends.py recovery_normals). */
+  recovery_normals?: Partial<Record<Exclude<keyof RecoveryDay, "date">, number | null>>;
   recent_records?: RecentRecord[];
   goal?: TrendsGoal | null;
   /** Last day of the form series; after a sync from the day before yesterday or older, the last synced day (`stopped_at_sync`). */

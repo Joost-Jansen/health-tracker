@@ -217,7 +217,7 @@ export default function DashboardPage() {
             )}
             {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
           </Card>
-          <Card title={m.recoveryTitle} className="flex-1" more={m.perDay} moreHref="/dashboard/heart-rate/">
+          <Card title={m.recoveryTitle} className="flex-1" more={m.dayDetail} moreHref="/health/">
             {d.recovery.days.length === 0 ? (
               <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
             ) : (
@@ -238,7 +238,7 @@ export default function DashboardPage() {
                       <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
                         <td className="py-1.5">
                           {w ? (
-                            <Link href={`/dashboard/heart-rate/?day=${day}`} aria-label={m.dayHeartRate(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                            <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
                               {f.weekdayDay(day)}
                             </Link>
                           ) : (

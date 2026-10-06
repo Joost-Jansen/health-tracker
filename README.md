@@ -253,7 +253,7 @@ Garmin is never called in tests: the sync takes an injectable client and FIT rea
 ## Connect an AI agent (MCP)
 
 The site is an MCP server at `/api/mcp` (streamable HTTP, stateless, JSON responses). Create a token under
-Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_heart_rate`, `get_trends`, `get_plan`,
+Settings, Agents; it is shown once. Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`,
 `create_plan`, `replace_plan_sessions`, `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 
 - **Claude app / claude.ai:** Settings, Connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`.

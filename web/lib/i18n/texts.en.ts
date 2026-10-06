@@ -25,7 +25,7 @@ export const textsEn = {
 
   readinessBasis: "Compares last night with your own normal (resting heart rate, sleep) and your form.",
 
-  heartRate: {
+  nightHr: {
     night(rise: number, last: number, before: number): string {
       if (rise >= 8)
         return `In the last two hours of sleep your heart rate was on average ${rise} beats higher than in the rest of the night (${last} against ${before} bpm). That is more than the few beats that are usual towards waking up.`;
@@ -34,7 +34,7 @@ export const textsEn = {
       return `Your heart rate stayed about as low until you woke up (last two hours ${last}, before that ${before} bpm).`;
     },
     explain:
-      "In a calm night the heart rate drops to its lowest point in the first half and stays there until shortly before waking up. A clear rise well before waking up often goes with alcohol, a late or heavy meal, a late hard workout, a warm bedroom, stress or a cold coming on. If you see it more often, look at what those evenings had in common.",
+      "In a calm night the heart rate drops to its lowest point in the first half and stays there until shortly before waking up. The end of the night is mostly REM sleep: that is when you dream most vividly and the heart rate is higher and less steady, so a few extra beats are usual. A clear rise well before waking up often goes with long or intense REM phases (vivid dreams), a blocked nose or a cold coming on, alcohol, a late or heavy meal, a late hard workout, a warm bedroom or stress. If you see it more often, look at what those evenings had in common.",
   },
 
   zonesFootnote(estimated: string[], set: string[]): string {
@@ -158,15 +158,17 @@ export const textsEn = {
       } as Record<string, string>,
       unknown: (labels: string[]) => `${f.list(labels)} ${labels.length > 1 ? "are" : "is"} fine; without overnight data recovery is hard to judge.`,
       noNight: "No sleep or resting heart rate from last night (watch not worn or not synced yet).",
-      label: { resting_hr: "Resting heart rate", sleep_h: "Sleep", body_battery: "Body Battery", tsb: "Form" } as Record<string, string>,
+      label: { resting_hr: "Resting heart rate", respiration: "Breathing (night)", sleep_h: "Sleep", body_battery: "Body Battery", tsb: "Form" } as Record<string, string>,
+      illness: "Resting heart rate, heart rate while asleep and breathing are all above your normal together. That combination often shows up a day or two before a cold: take it easy and see how you feel.",
       value(key: string, v: number): string {
         if (key === "resting_hr") return `${v} bpm`;
+        if (key === "respiration") return `${num(v)} /min`;
         if (key === "sleep_h") return `${f.num(v, 1)} h`;
         if (key === "tsb") return `${v > 0 ? "+" : ""}${Math.round(v)}`;
         return String(v);
       },
       note(code: string, p: { delta?: number; baseline?: number; score?: number; date?: string; days_ago?: number }): string {
-        if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${p.delta ?? 0} vs normal (${p.baseline})`;
+        if (code === "vs_baseline") return `${(p.delta ?? 0) >= 0 ? "+" : ""}${num(p.delta ?? 0)} vs normal (${num(p.baseline ?? 0)})`;
         if (code === "sleep") return [p.score ? `score ${p.score}` : "", p.baseline ? `normal ${f.num(p.baseline, 1)} h` : ""].filter(Boolean).join(", ");
         if (code === "highest") return p.days_ago === 0 ? "highest today" : p.days_ago === 1 ? "highest yesterday" : `highest on ${f.dayMonth(p.date ?? "")}`;
         if (code === "form_yesterday") return "yesterday's fitness minus fatigue";
@@ -359,6 +361,13 @@ export const textsEn = {
       stress: "Stress",
       hrv: "HRV (overnight)",
       hrvNote: "Average heart-rate variability during the night, measured by the watch. Compare with your own trend, not with other people's.",
+      resp: "Breathing while asleep",
+      sleepStress: "Stress while asleep",
+      bbCharged: "Body Battery charged while asleep",
+      spo2: "Blood oxygen while asleep (SpO2)",
+      normal: (v: string) => `Your normal: ${v} (60-day median).`,
+      respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
+      openDay: "Click a day in a chart to see that day in detail under Health.",
     },
     sleepLoad: {
       title: "Sleep and resting heart rate against load",

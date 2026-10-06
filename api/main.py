@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import agent_tokens, connections, errors, feedback, heartrate, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
+from api import agent_tokens, connections, daily, errors, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
 from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
@@ -158,7 +158,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.include_router(content_router(current_user))
     app.include_router(routes_api.make_router(today, current_user))
     app.include_router(zones_api.make_router(today, current_user))
-    app.include_router(heartrate.make_router(today, current_user))
+    app.include_router(daily.make_router(today, current_user))
     app.include_router(agent_tokens.make_router(current_user))
     app.include_router(connections.make_router(current_user, runner, runner.key, garmin_auth, today))
     app.include_router(settings_api.make_router(current_user))

@@ -490,6 +490,13 @@ export type RecoveryDay = {
 };
 
 /** GET /api/trends as the API returns it now. */
+export type SportBest = { key: string; value: number; date: string; km: number; seconds: number; activity_id: string };
+export type SportPerformance = {
+  bests: SportBest[];
+  longest: { week: string; km: number; date: string; activity_id: string }[];
+  speed: { week: string; value: number }[];
+};
+
 /** Where the normal resting HR comes from: the last 60 days, the last 7 measured nights, or the value in Settings. */
 export type RhrSource = "60d" | "recent" | "profile";
 
@@ -505,6 +512,8 @@ export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recove
   form_until?: string | null;
   stopped_at_sync?: boolean;
   longest_runs?: LongestRun[];
+  /** Swimming and cycling: bests, longest per week, pace (swim, s/100m) or speed (ride, km/h) per week (api/trends.py). */
+  sport_performance?: Record<string, SportPerformance>;
   hr_flags?: HrFlag[];
   rules?: { race_min_km: number; race_hard_pct: number; predict_days: number; riegel: number; race_short_pct?: number; recent_record_days?: number };
 };

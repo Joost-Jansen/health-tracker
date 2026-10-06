@@ -399,6 +399,51 @@ def longest_runs(activities: list[dict]) -> list[dict]:
     return [weeks[k] for k in sorted(weeks)]
 
 
+# --- performance in other sports ------------------------------------------------------------------------------------
+
+# Bests per sport: the longest session and the fastest over a few minimum distances (whole sessions, moving time).
+# Swimming in pace per 100 m (lower is better), cycling in average speed. Distances Garmin got wrong (open water,
+# tools/distance.py) arrive without a distance and are left out.
+SPORT_BESTS = {"swim": (1.0, 2.0), "ride": (40.0, 90.0)}
+
+
+def _speed(sport: str, a: dict) -> float:
+    """Swim: seconds per 100 m; ride: km/h."""
+    return a["moving_time_s"] / (a["distance_km"] * 10) if sport == "swim" else a["distance_km"] / (a["moving_time_s"] / 3600)
+
+
+def sport_performance(activities: list[dict]) -> dict:
+    """Per sport in SPORT_BESTS: `bests` (longest, then fastest from each minimum distance), `longest` per week and
+    `speed` per week (time-weighted: all that week's distance over all its time, as pace or speed), oldest first."""
+    out = {}
+    for sport, minimums in SPORT_BESTS.items():
+        acts = [a for a in activities if a["sport"] == sport and (a.get("distance_km") or 0) > 0 and (a.get("moving_time_s") or 0) > 0]
+        if not acts:
+            continue
+        item = lambda a, key, value: {"key": key, "value": round(value, 2), "date": a["start_local"][:10], "km": round(a["distance_km"], 2), "seconds": a["moving_time_s"], "activity_id": a["id"]}
+        longest = max(acts, key=lambda a: a["distance_km"])
+        bests = [item(longest, "longest", longest["distance_km"])]
+        for km in minimums:
+            pool = [a for a in acts if a["distance_km"] >= km]
+            if pool:
+                best = min(pool, key=lambda a: _speed(sport, a)) if sport == "swim" else max(pool, key=lambda a: _speed(sport, a))
+                bests.append(item(best, f"from_{km:g}", _speed(sport, best)))
+        weeks: dict[str, dict] = {}
+        for a in acts:
+            w = weeks.setdefault(week_of(a["start_local"]), {"km": 0.0, "s": 0, "longest": None})
+            w["km"] += a["distance_km"]
+            w["s"] += a["moving_time_s"]
+            if not w["longest"] or a["distance_km"] > w["longest"]["distance_km"]:
+                w["longest"] = a
+        order = sorted(weeks)
+        out[sport] = {
+            "bests": bests,
+            "longest": [{"week": k, "km": round(weeks[k]["longest"]["distance_km"], 2), "date": weeks[k]["longest"]["start_local"][:10], "activity_id": weeks[k]["longest"]["id"]} for k in order],
+            "speed": [{"week": k, "value": round(_speed(sport, {"distance_km": weeks[k]["km"], "moving_time_s": weeks[k]["s"]}), 2)} for k in order],
+        }
+    return out
+
+
 # --- wrist HR quality ------------------------------------------------------------------------------------------------
 
 
@@ -516,6 +561,7 @@ def build_trends(
         "races": races(activities),
         "predictions": predictions(activities, today),
         "longest_runs": longest_runs(activities),
+        "sport_performance": sport_performance(activities),
         "hr_flags": sorted(
             ({"id": i, "date": by_id[i]["start_local"][:10], "name": by_id[i].get("name") or "", "reasons": r} for i, r in flags.items()),
             key=lambda f: f["date"],

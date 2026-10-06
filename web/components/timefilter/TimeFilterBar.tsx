@@ -26,6 +26,7 @@ export default function TimeFilterBar({
   last,
   overview,
   label,
+  extra,
 }: {
   range: TimeRange;
   first: string;
@@ -33,6 +34,8 @@ export default function TimeFilterBar({
   /** Silhouette in the overview, for example fitness per day. */
   overview?: DayPoint[];
   label?: string;
+  /** A page's own filter, on the right next to "Adjust" in the same style (Trends: the sport). */
+  extra?: React.ReactNode;
 }) {
   const T = useT().texts;
   const { locale } = useLocale();
@@ -124,6 +127,8 @@ export default function TimeFilterBar({
             <span className="mx-1 hidden h-5 shrink-0 border-l border-border sm:block" aria-hidden />
             <span className="hidden sm:contents">{current}</span>
           </div>
+          <span className="flex shrink-0 items-center gap-1">
+          {extra && <span className="hidden sm:contents">{extra}</span>}
           <button
             ref={button}
             type="button"
@@ -135,10 +140,14 @@ export default function TimeFilterBar({
           >
             {TF.adjust} <span aria-hidden>{open ? "▴" : "▾"}</span>
           </button>
+          </span>
         </div>
 
         {/* On a phone the window does not fit next to the periods: a line of its own below. */}
-        <div className="-mt-1 flex pb-2 sm:hidden">{current}</div>
+        <div className="-mt-1 flex items-center justify-between gap-2 pb-2 sm:hidden">
+          {current}
+          {extra}
+        </div>
 
         <div
           id={panelId}

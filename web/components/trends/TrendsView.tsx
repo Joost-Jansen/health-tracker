@@ -18,7 +18,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
-import { Select, Tabs } from "@/components/ds";
+import { Tabs } from "@/components/ds";
 import TimeChart, { DAILY_MA, WEEKLY_MA, type ChartSeries } from "@/components/charts/TimeChart";
 import TrendChart from "@/components/charts/TrendChart";
 import TimeFilterBar from "@/components/timefilter/TimeFilterBar";
@@ -173,7 +173,28 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
   ] as RecoveryChart[]).filter((c) => ALWAYS.includes(c.key) || c.points.length > 0);
 
   const raceName = (r: TrendsPlus["races"][number]) => (r.sport === "triathlon" ? TT.races.triathlon : r.detected === "heart_rate" ? TT.races.byHeartRate(r.name) : r.name);
-  const races = t.races.filter((r) => all || r.sport === sport);
+  // a triathlon is a race in swimming and cycling too
+  const races = t.races.filter((r) => all || r.sport === sport || (r.sport === "triathlon" && ["swim", "ride", "run"].includes(sport)));
+  const perf = t.sport_performance ?? {};
+  const SP = TT.sportPerf;
+  const perfValue = (s: string, b: { key: string; value: number }) =>
+    b.key === "longest" ? fmtKm(b.value) : s === "swim" ? `${fmtClock(b.value)}/100m` : `${dec(b.value)} ${f.kmhUnit}`;
+  const bestsTable = (s: string) => (
+    <table className="w-full text-[13px] tabular-nums">
+      <tbody>
+        {perf[s].bests.map((b) => (
+          <tr key={b.key} className="border-t border-border first:border-t-0">
+            <td className="py-2 text-ink-muted">{SP.key(b.key, s)}</td>
+            <td className="py-2 font-medium">{perfValue(s, b)}</td>
+            <td className="hidden py-2 text-ink-muted sm:table-cell">{fmtKm(b.km)} · {fmtClock(b.seconds)}</td>
+            <td className="py-2 text-right">
+              <Link className="text-ink-muted underline-offset-2 hover:underline" href={href(b.activity_id)}>{fmtDay(b.date)}</Link>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
   const raceMarkers = races.map((r) => ({ d: r.date, label: raceName(r) }));
   const hasRecords = Object.values(t.records).some((rows) => rows.length > 0);
   const raceRecord = Object.values(t.records).some((rows) => rows.some((r) => r.source === "race"));
@@ -182,19 +203,34 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <TimeFilterBar range={range} first={first} last={last} overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))} />
+      <TimeFilterBar
+        range={range}
+        first={first}
+        last={last}
+        overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))}
+        extra={
+          // The sport, in the bar like "Adjust": it narrows volume, zones and Training and body to one sport, and the
+          // running-only charts (Z2 pace, VO2max, predictions, records) show only for all sports or running. Recovery
+          // is not per sport: there it is left out.
+          sports.length > 1 && tab !== "recovery" ? (
+            <label className="relative flex shrink-0 items-center rounded-md text-xs font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink">
+              <select
+                aria-label={TT.sport.label}
+                value={sport}
+                onChange={(e) => chooseSport(e.target.value)}
+                className="cursor-pointer appearance-none bg-transparent py-2 pl-3 pr-6 text-xs font-medium text-inherit outline-none focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <option value={ALL_SPORTS}>{TT.sport.all}</option>
+                {(sports.includes(sport) || all ? sports : [...sports, sport]).map((s) => (
+                  <option key={s} value={s}>{tr.sport(s)}</option>
+                ))}
+              </select>
+              <span aria-hidden className="pointer-events-none absolute right-2.5">▾</span>
+            </label>
+          ) : null
+        }
+      />
 
-      {/* The body is not per sport. */}
-      {sports.length > 1 && tab !== "recovery" && (
-        <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
-          <Select aria-label={TT.sport.label} value={sport} onChange={(e) => chooseSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
-            <option value={ALL_SPORTS}>{TT.sport.all}</option>
-            {(sports.includes(sport) || all ? sports : [...sports, sport]).map((s) => (
-              <option key={s} value={s}>{tr.sport(s)}</option>
-            ))}
-          </Select>
-        </div>
-      )}
 
       {tab === "training" && (
         <>
@@ -339,8 +375,45 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
                 </p>
               </Card>
             </>
+          ) : perf[sport] ? (
+            // swimming and cycling: their own bests, longest per week and pace or speed per week
+            <>
+              <Card title={SP.bests(tr.sport(sport))}>
+                {bestsTable(sport)}
+                <p className="mt-2 text-[11.5px] text-ink-muted">{SP.method(sport)}</p>
+              </Card>
+              <Card title={SP.longest(tr.sport(sport))}>
+                <TrendChart {...shared} label={SP.longestLabel} points={perf[sport].longest.map((w) => ({ d: w.week, v: w.km }))} format={(v) => dec(v)} unit=" km" maOptions={WEEKLY_MA} storageKey={`trends-longest-${sport}`} colour="var(--chart-3)" />
+              </Card>
+              <Card title={SP.speed(sport)}>
+                <TrendChart
+                  {...shared}
+                  label={SP.speedLabel(sport)}
+                  points={perf[sport].speed.map((w) => ({ d: w.week, v: w.value }))}
+                  format={(v) => (sport === "swim" ? fmtClock(v) : dec(v))}
+                  unit={sport === "swim" ? "/100m" : ` ${f.kmhUnit}`}
+                  lowerIsBetter={sport === "swim"}
+                  clock={sport === "swim"}
+                  maOptions={WEEKLY_MA}
+                  storageKey={`trends-speed-${sport}`}
+                />
+              </Card>
+            </>
           ) : (
-            <p className="text-[12.5px] text-ink-muted">{TT.sport.runOnly}</p>
+            <p className="text-[12.5px] text-ink-muted">{SP.noPerf}</p>
+          )}
+          {/* all sports: next to the running cards the bests of swimming and cycling */}
+          {all && Object.keys(perf).length > 0 && (
+            <Card title={SP.bestsAll}>
+              <div className="flex flex-col gap-4">
+                {Object.keys(perf).map((s) => (
+                  <div key={s}>
+                    <h3 className="mb-1 text-[12.5px] font-medium">{tr.sport(s)}</h3>
+                    {bestsTable(s)}
+                  </div>
+                ))}
+              </div>
+            </Card>
           )}
           <Card title={TT.races.title}>
             {races.length === 0 ? (

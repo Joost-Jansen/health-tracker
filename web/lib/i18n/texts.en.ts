@@ -253,6 +253,22 @@ export const textsEn = {
       close: "Close",
     },
     sport: { label: "Sport", all: "All sports", runOnly: "Pace in Z2, VO2max, longest run, records and predictions are about running only: choose All sports or Running to see them." },
+    /** Performance in swimming and cycling (api/trends.py sport_performance). */
+    sportPerf: {
+      bests: (s: string) => `Bests in ${s.toLowerCase()}`,
+      bestsAll: "Bests in swimming and cycling",
+      longest: (s: string) => `Longest ${s.toLowerCase()} per week`,
+      longestLabel: "Longest",
+      speed: (sport: string): string => (sport === "swim" ? "Pace per week" : "Speed per week"),
+      speedLabel: (sport: string): string => (sport === "swim" ? "Pace" : "Speed"),
+      key: (key: string, sport: string): string => (key === "longest" ? "Longest" : `Fastest from ${key.slice(5)} km`),
+      method: (sport: string): string =>
+        sport === "swim"
+          ? "Whole sessions, moving time, pace per 100 m. Open water without a reliable distance doesn't count. Pace per week: all of that week's distance over all its time."
+          : "Whole rides, moving time, average speed. Speed per week: all of that week's distance over all its time.",
+      none: "No sessions with a distance for this sport yet.",
+      noPerf: "No performance figures for this sport yet: only races below.",
+    },
     insights: {
       title: "Insights",
       none: "Nothing in particular.",

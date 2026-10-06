@@ -299,3 +299,27 @@ def test_form_stops_at_the_last_synced_day_after_a_stale_sync():
     assert fresh["form"][-1]["date"] == "2026-09-30" and fresh["stopped_at_sync"] is False
     unknown = build_trends(acts, {}, ZONES, lambda aid: None, date(2026, 9, 30))
     assert unknown["form_until"] == "2026-09-30" and unknown["stopped_at_sync"] is False
+
+
+def test_sport_performance_bests_and_weeks_for_swimming_and_cycling():
+    from api.trends import sport_performance
+
+    def a(i, day, sport, km, secs):
+        return {"id": i, "start_local": f"{day}T08:00:00", "sport": sport, "distance_km": km, "moving_time_s": secs}
+
+    acts = [
+        a("s1", "2026-09-01", "swim", 1.5, 1800),  # 2:00/100m
+        a("s2", "2026-09-03", "swim", 2.2, 2508),  # 1:54/100m, the longest and the fastest from 1 and 2 km
+        a("s3", "2026-09-10", "swim", 0.8, 840),  # 1:45/100m but under 1 km: not a best
+        a("s4", "2026-09-11", "swim", None, 3000),  # open water without a distance: left out
+        a("r1", "2026-09-05", "ride", 50, 6000),  # 30 km/h
+        a("r2", "2026-09-12", "ride", 95, 12600),  # 27.1 km/h, the only one from 90 km
+    ]
+    out = sport_performance(acts)
+    swim = {b["key"]: b for b in out["swim"]["bests"]}
+    assert swim["longest"]["activity_id"] == "s2" and swim["from_1"]["activity_id"] == "s2" and swim["from_2"]["value"] == 114
+    assert [w["week"] for w in out["swim"]["longest"]] == ["2026-08-31", "2026-09-07"]
+    assert out["swim"]["speed"][0]["value"] == round((1800 + 2508) / (3.7 * 10), 2)
+    ride = {b["key"]: b for b in out["ride"]["bests"]}
+    assert ride["from_40"]["activity_id"] == "r1" and ride["from_40"]["value"] == 30 and ride["from_90"]["activity_id"] == "r2"
+    assert "run" not in out

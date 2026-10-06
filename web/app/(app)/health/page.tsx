@@ -178,13 +178,8 @@ function Health({ day }: { day: string | null }) {
                     )}
                     {num("bb_charged_sleep") != null && <Stat label={h.bbCharged} value={`+${num("bb_charged_sleep")}`} note={normal(n.bb_charged_sleep)} />}
                   </dl>
-                  {night?.rise != null && night.last_avg != null && night.before_avg != null ? (
-                    <div>
-                      <p className="text-[12.5px] leading-relaxed">{T.nightHr.night(night.rise, night.last_avg, night.before_avg)}</p>
-                      <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-muted">{T.nightHr.explain} {T.noMedicalAdvice}</p>
-                    </div>
-                  ) : (
-                    v.sleep && <p className="text-[12px] text-ink-muted">{h.noNight}</p>
+                  {!(night?.rise != null && night.last_avg != null && night.before_avg != null) && v.sleep && (
+                    <p className="text-[12px] text-ink-muted">{h.noNight}</p>
                   )}
                 </div>
               )}
@@ -224,6 +219,21 @@ function Health({ day }: { day: string | null }) {
               </div>
             </Card>
           </div>
+
+          {/* The night in one sentence, full width under both cards so neither card stretches the other; the
+              background folded away, it is the same every night. */}
+          {night?.rise != null && night.last_avg != null && night.before_avg != null && (
+            <div className="rounded border border-border bg-surface px-4 py-3 sm:px-[18px]">
+              <p className="flex items-start gap-2 text-[13px] leading-relaxed">
+                {night.rise >= RISE_NOTABLE && <span aria-hidden className="mt-[7px] inline-block h-1.5 w-1.5 flex-none rounded-full" style={{ background: "var(--zone-3)" }} />}
+                <span>{T.nightHr.night(night.rise, night.last_avg, night.before_avg)}</span>
+              </p>
+              <details className="mt-1 text-[12px] text-ink-muted">
+                <summary className="cursor-pointer select-none font-medium hover:text-[var(--text-primary)]">{h.whyRise}</summary>
+                <p className="mt-1.5 max-w-[80ch] leading-relaxed">{T.nightHr.explain} {T.noMedicalAdvice}</p>
+              </details>
+            </div>
+          )}
 
           {panels.some((p) => p.points.length >= 2) && (
             <Card title={h.timeline}>

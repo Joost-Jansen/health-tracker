@@ -1022,6 +1022,7 @@ export const nl = {
   },
 
   health: {
+    whyRise: "Waar kan dit door komen?",
     loadFailed: "Kon de gegevens van deze dag niet laden.",
     previous: "Vorige dag",
     next: "Volgende dag",

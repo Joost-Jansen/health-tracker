@@ -1028,6 +1028,7 @@ export const en: Messages = {
   },
 
   health: {
+    whyRise: "Why can this happen?",
     loadFailed: "Could not load this day's data.",
     previous: "Previous day",
     next: "Next day",

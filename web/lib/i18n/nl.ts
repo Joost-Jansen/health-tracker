@@ -836,6 +836,13 @@ export const nl = {
       routes: { label: "Rondjes", text: "je vaste routes, en een rondje voor het aantal kilometers dat je wilt" },
       history: { label: "Historie", text: "elke training met kaart, hartslagverloop en tussentijden" },
     },
+    walk: {
+      shows: (page: string, what: string) => `${page} toont ${what}.`,
+      plan: "Schema bevat je trainingsschema per dag. Elke geplande training staat naast wat je echt gedaan hebt.",
+      log: "Logboek bevat je notities, analyses, doelen en profiel. Bij elk stuk staat wie het schreef.",
+      settings: "Bij Instellingen pas je je account, de Garmin-koppeling, je zones en agent-tokens aan.",
+      help: "Help heeft de checklist om te beginnen, een uitleg van elke pagina en hoe Claude als coach werkt. Daar start je deze rondleiding ook opnieuw.",
+    },
     progress: (done: number, total: number) => `${done} van ${total} stappen gedaan`,
     progressShort: (done: number, total: number) => `${done} van ${total}`,
     doneSr: " (gedaan)",

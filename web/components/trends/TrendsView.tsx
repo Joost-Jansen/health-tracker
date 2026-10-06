@@ -24,6 +24,7 @@ import TrendChart from "@/components/charts/TrendChart";
 import TimeFilterBar from "@/components/timefilter/TimeFilterBar";
 import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import RecordTable from "@/components/trends/RecordTable";
+import SleepStages from "@/components/trends/SleepStages";
 import TrainingBody from "@/components/trends/TrainingBody";
 import { ALL_SPORTS, useSportFilter } from "@/components/trends/useSportFilter";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
@@ -476,6 +477,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
               </p>
             )}
           </Card>
+          <SleepStages nights={t.sleep_stages ?? []} window={win} />
         </>
       )}
     </div>

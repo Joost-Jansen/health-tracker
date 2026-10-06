@@ -30,7 +30,7 @@ const STRESS = [
   { level: "medium", key: "stress_medium_min", colour: "var(--zone-4)" },
   { level: "high", key: "stress_high_min", colour: "var(--zone-5)" },
 ] as const;
-const RISE_NOTABLE = 8; // beats; the same threshold as the sentence in T.nightHr.night
+const RISE_NOTABLE = 8; // beats: from here the last two hours of sleep get a dot
 const SERIES_COLOUR: Record<DaySeriesKey, string> = {
   hr: "var(--chart-6)",
   stress: "var(--chart-4)",
@@ -83,7 +83,6 @@ export default function DaySection() {
   const t = useT();
   const f = useFormat();
   const h = t.health;
-  const T = t.texts;
   const router = useRouter();
 
   const q = useQuery({
@@ -202,16 +201,6 @@ export default function DaySection() {
                     )}
                     {num("bb_charged_sleep") != null && <Stat label={h.bbCharged} value={`+${num("bb_charged_sleep")}`} note={normal(n.bb_charged_sleep)} />}
                   </dl>
-                  {/* Why the last two hours can be higher: folded, and only when the rise stands out (the stat above
-                      already has the numbers). */}
-                  {night?.rise != null && night.last_avg != null && night.before_avg != null && night.rise >= RISE_NOTABLE && (
-                    <details className="text-[12px] text-ink-muted">
-                      <summary className="cursor-pointer select-none font-medium hover:text-[var(--text-primary)]">{h.whyRise}</summary>
-                      <p className="mt-1.5 leading-relaxed">
-                        {T.nightHr.night(night.rise, night.last_avg, night.before_avg)} {T.nightHr.explain} {T.noMedicalAdvice}
-                      </p>
-                    </details>
-                  )}
                   {!(night?.rise != null && night.last_avg != null && night.before_avg != null) && v.sleep && (
                     <p className="text-[12px] text-ink-muted">{h.noNight}</p>
                   )}

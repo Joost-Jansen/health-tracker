@@ -28,7 +28,8 @@ def test_garmin_sync_into_database():
     assert len(acts) == 1 and acts[0]["fit_file"] == "garmin-999"
     assert db.get_fit(e, "garmin-999") == b"PK-fake-zip"
     assert db.load_streams(e, acts[0]["id"])["latlng"]
-    assert db.load_wellness(e) == {"2026-09-30": {"sleep_h": 7.0}}
+    # yesterday again too: the watch may have uploaded its evening and night after the last sync
+    assert db.load_wellness(e) == {"2026-09-29": {"sleep_h": 7.0}, "2026-09-30": {"sleep_h": 7.0}}
 
 
 def test_fit_already_stored_is_not_downloaded_again():

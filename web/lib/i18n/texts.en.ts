@@ -25,17 +25,6 @@ export const textsEn = {
 
   readinessBasis: "Compares last night with your own normal (resting heart rate, sleep) and your form.",
 
-  nightHr: {
-    night(rise: number, last: number, before: number): string {
-      if (rise >= 8)
-        return `In the last two hours of sleep your heart rate was on average ${rise} beats higher than in the rest of the night (${last} against ${before} bpm). That is more than the few beats that are usual towards waking up.`;
-      if (rise >= 3)
-        return `In the last two hours of sleep your heart rate was ${rise} beats higher than in the rest of the night (${last} against ${before} bpm). That is usual: towards the morning there is more REM sleep and your body gets ready to wake up.`;
-      return `Your heart rate stayed about as low until you woke up (last two hours ${last}, before that ${before} bpm).`;
-    },
-    explain:
-      "In a calm night the heart rate drops to its lowest point in the first half and stays there until shortly before waking up. The end of the night is mostly REM sleep: that is when you dream most vividly and the heart rate is higher and less steady, so a few extra beats are usual. A clear rise well before waking up often goes with long or intense REM phases (vivid dreams), a blocked nose or a cold coming on, alcohol, a late or heavy meal, a late hard workout, a warm bedroom or stress. If you see it more often, look at what those evenings had in common.",
-  },
 
   zonesFootnote(estimated: string[], set: string[]): string {
     if (!set.length) return "You haven't set heart-rate zones yet (Settings, Zones and profile).";
@@ -384,6 +373,18 @@ export const textsEn = {
       normal: (v: string) => `Your normal: ${v} (60-day median).`,
       respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
       openDay: "Click a day in a chart to see that day in detail under Today, Sleep & body.",
+    },
+    sleepStages: {
+      title: "Sleep stages",
+      night: "Night",
+      per: "Per night, week or month",
+      none: "No nights with sleep stages in this period.",
+      summary: (nights: number, asleep: string): string => `${nights} ${nights === 1 ? "night" : "nights"}, on average ${asleep} asleep per night:`,
+      asleep: (h: string): string => `${h} asleep`,
+      asleepAvg: (h: string, nights: number): string => `${h} asleep per night (${nights} nights)`,
+      overTime: "Deep sleep and REM over time",
+      rolling: (n: number, p: "night" | "week" | "month"): string => `share of the time in bed, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
+      note: "Share of the time in bed (asleep and awake); the hours are per night. Deep sleep is usually 13-23% and REM 20-25% of the night; your own trend says more than one night.",
     },
     records: {
       title: "Records",

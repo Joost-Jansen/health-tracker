@@ -39,6 +39,9 @@ DEFAULT_BACKFILL_DAYS = 90
 # INTRADAY_MAX_DAYS: one row is 25-30 kB and four extra Garmin calls per day.
 INTRADAY_FIRST_DAYS = 14
 INTRADAY_MAX_DAYS = 90
+# The watch uploads through the phone, often hours late: the evening and night of yesterday can reach Garmin after
+# a sync that already fetched yesterday. Every sync fetches this many days before today again.
+REFETCH_DAYS = 1
 STRAVA_API = "https://www.strava.com/api/v3"
 STRAVA_STREAM_KEYS = "time,latlng,heartrate,velocity_smooth,altitude,cadence,distance,watts"
 
@@ -371,6 +374,8 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
     if since:
         day_start = min(day_start, since)
     day_start = max(day_start, today - timedelta(days=INTRADAY_MAX_DAYS))
+    recent = today - timedelta(days=REFETCH_DAYS)  # yesterday again: what the watch uploaded late
+    well_start, day_start = min(well_start, recent), min(day_start, recent)
     first = min(well_start, day_start) if with_intraday else well_start
     day = first
     while day <= today:

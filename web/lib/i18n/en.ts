@@ -1064,7 +1064,6 @@ export const en: Messages = {
     },
   },
   health: {
-    whyRise: "Why does heart rate rise before waking?",
     pickDay: "Choose a day",
     loadFailed: "Could not load this day's data.",
     previous: "Previous day",

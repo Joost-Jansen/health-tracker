@@ -4,12 +4,14 @@
 // are no workouts yet, with a text that fits where you are (not connected, first sync running, waiting for sync; with
 // an Apple Watch: not imported yet, import running).
 // Not on the dashboard: the checklist is there. Can be dismissed; that is stored with your account.
+// Not while the walk shows example data either (lib/exampleData.ts): then the page is not empty.
 //
 // Also here: which pages of the "Rondkijken" (look around) step you have already seen (useRecordVisit).
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useExampleDataOn } from "@/lib/exampleData";
 import { PAGES, useOnboarding, useSetOnboarding, type Onboarding, type Page } from "@/lib/onboarding";
 import { useT, type Messages } from "@/lib/i18n";
 
@@ -32,8 +34,9 @@ export default function StartBanner({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
   const q = useOnboarding(enabled);
   const set = useSetOnboarding();
+  const example = useExampleDataOn();
   const o = q.data;
-  if (!o) return null;
+  if (!o || example) return null;
   const path = pathname.endsWith("/") ? pathname : `${pathname}/`;
   if (!SCREENS.some((s) => path.startsWith(s))) return null;
   if (o.status.activities.count > 0 || o.hidden.includes("data")) return null;

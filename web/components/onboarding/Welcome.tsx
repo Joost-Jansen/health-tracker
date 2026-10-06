@@ -11,6 +11,8 @@
 //   3. A walk past the pages in the navigation, one step per page. These steps are not in the modal but a coach mark
 //      on the page itself (CoachMark.tsx): it opens the page, rings its item in the sidebar and says what it is for.
 //      This replaces the "look around" step of the checklist (opening the pages ticks it off).
+//      A new account has no data yet, so during these steps the pages show a shared, read-only example account
+//      (lib/exampleData.ts, api/example.py). The tour's own state always stays the user's.
 //   4. Back is always possible, forward with Next; a step unlocks once you have been to the previous one.
 //
 // If a step sends you somewhere (Connections, Zones), the tour pauses and you continue with the button

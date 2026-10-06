@@ -20,13 +20,13 @@ def listed() -> set[str]:
 
 
 def test_everything_the_web_app_imports_is_in_api_requirements():
-    # garminconnect and fitdecode are imported inside functions (login, FIT parsing); load them here too
-    code = "import sys, api.main, api.connections, api.sync_runner, garminconnect, fitdecode; print('\\n'.join(sorted({m.split('.')[0] for m in sys.modules})))"
+    # garminconnect, fitdecode and the example seed are imported inside functions (login, FIT parsing, api/example.py); load them here too
+    code = "import sys, api.main, api.connections, api.sync_runner, scripts.seed_demo, garminconnect, fitdecode; print('\\n'.join(sorted({m.split('.')[0] for m in sys.modules})))"
     top = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
     dists = packages_distributions()
     needed = set()
     for mod in top:
-        if mod in sys.stdlib_module_names or mod in ("api", "tools", "__main__") or mod not in dists:
+        if mod in sys.stdlib_module_names or mod in ("api", "tools", "scripts", "__main__") or mod not in dists:
             continue
         needed.update(d.lower().replace("_", "-") for d in dists[mod])
     have = listed()

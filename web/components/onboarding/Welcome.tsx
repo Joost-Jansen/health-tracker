@@ -4,9 +4,11 @@
 //
 //   1. How do you want to use health-tracker? The site only, or also with Claude as coach (then the step
 //      "connect Claude" is added). Can be changed later under Help.
-//   2. The steps: connect Garmin, first sync, zones, profile, look around, (Claude), goals and plan. Every step
+//   2. The steps: connect Garmin, first sync, zones, profile, (Claude), goals and plan. Every step
 //      says from your own data whether it is done, and ticks itself off (also during the first sync).
-//   3. Back is always possible, forward with Next; a step unlocks once you have been to the previous one.
+//   3. A walk past the pages in the navigation, one step per page: what it is for and a button to open it. This
+//      replaces the "look around" step of the checklist (opening the pages ticks it off).
+//   4. Back is always possible, forward with Next; a step unlocks once you have been to the previous one.
 //
 // If a step sends you somewhere (Connections, Zones), the tour pauses and you continue with the button
 // bottom right. Where you are is stored with your account (api/onboarding.py), so also on another device.
@@ -15,12 +17,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, IconButton } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
-import { CHOICES, PAGES, PAUSED_KEY, STEPS, stepShown, useOnboarding, useSetOnboarding, type Choice, type StepId } from "@/lib/onboarding";
-import { useFormat, useT } from "@/lib/i18n";
-import { Check, stepExplain, stepSummary } from "./steps";
+import { CHOICES, PAGES, PAUSED_KEY, STEPS, stepShown, useOnboarding, useSetOnboarding, type Choice } from "@/lib/onboarding";
+import { localizeNav, NAV } from "@/lib/nav";
+import { useT } from "@/lib/i18n";
+import { Sketch } from "./Sketches";
+import { Check, stepExplain } from "./steps";
 
 type Action = { label: string; href: string };
-type TourStep = { key: string; title: string; done?: boolean; ids: StepId[]; intro: React.ReactNode; bullets: React.ReactNode[]; visual?: React.ReactNode; actions: Action[] };
+type TourStep = { key: string; title: string; done?: boolean; intro: React.ReactNode; bullets: React.ReactNode[]; visual?: React.ReactNode; actions: Action[] };
 
 function Phases({ lines }: { lines: string[] }) {
   return (
@@ -44,7 +48,6 @@ function writePaused(v: boolean) {
 
 export default function Welcome({ enabled }: { enabled: boolean }) {
   const t = useT();
-  const f = useFormat();
   const tr = t.onboarding.tour;
   const router = useRouter();
   const q = useOnboarding(enabled);
@@ -91,7 +94,7 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
   const view = { ...o, choice: chosen };
   const tour: TourStep[] = [
     {
-      key: "intro", title: tr.introTitle, ids: [],
+      key: "intro", title: tr.introTitle,
       intro: tr.intro,
       bullets: tr.introBullets,
       visual: <Phases lines={tr.phases} />,
@@ -99,27 +102,41 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
     },
   ];
   for (const s of STEPS) {
-    if (!stepShown(s, view) || s.id === "plan") continue;
+    // "Look around" is covered by the walk past the pages below.
+    if (!stepShown(s, view) || s.id === "plan" || s.id === "explore") continue;
     const ex = stepExplain(s.id, o, t);
     if (s.id === "goals") {
       const plan = stepExplain("plan", o, t);
       tour.push({
-        key: "goals-plan", title: tr.goalsPlan, ids: ["goals", "plan"], done: o.steps.goals && o.steps.plan,
-        intro: <>{ex.intro} {plan.intro}</>, bullets: [...ex.bullets, ...plan.bullets],
+        key: "goals-plan", title: tr.goalsPlan, done: o.steps.goals && o.steps.plan,
+        intro: <>{ex.intro} {plan.intro}</>, bullets: [...ex.bullets, ...plan.bullets], visual: <Sketch id="goals-plan" />,
         actions: [{ label: t.onboarding.goTo(t.onboarding.steps.goals.link), href: "/analyses/goals/" }, { label: t.onboarding.goTo(t.onboarding.steps.plan.link), href: "/plan/" }],
       });
       continue;
     }
     tour.push({
-      key: s.id, title: s.optional ? tr.optional(t.onboarding.steps[s.id].title) : t.onboarding.steps[s.id].title, ids: [s.id], done: o.steps[s.id],
-      intro: ex.intro, bullets: ex.bullets,
-      actions: s.id === "explore" ? PAGES.filter((p) => p.id !== "dashboard").map((p) => ({ label: t.onboarding.goTo(t.onboarding.pages[p.id].label), href: p.href }))
-        : s.id === "sync" && !o.status.garmin.connected ? []
+      key: s.id, title: s.optional ? tr.optional(t.onboarding.steps[s.id].title) : t.onboarding.steps[s.id].title, done: o.steps[s.id],
+      intro: ex.intro, bullets: ex.bullets, visual: <Sketch id={s.id} />,
+      actions: s.id === "sync" && !o.status.garmin.connected ? []
         : [{ label: t.onboarding.goTo(t.onboarding.steps[s.id].link), href: s.href }],
     });
   }
+  // The walk past the pages: every page in the navigation, in its order. Today, Trends, Loops and History reuse the
+  // texts of the look-around step (onboarding.pages); the others have their own (onboarding.walk).
+  for (const item of localizeNav(NAV, t).flatMap((g) => g.items)) {
+    const page = PAGES.find((p) => p.id === item.id);
+    const w = t.onboarding.walk;
+    const intro = page ? w.shows(item.label, t.onboarding.pages[page.id].text)
+      : item.id === "plan" || item.id === "log" || item.id === "settings" || item.id === "help" ? w[item.id] : null;
+    if (!intro) continue;
+    tour.push({
+      key: `page-${item.id}`, title: item.label,
+      intro, bullets: [], visual: <Sketch id={item.id} />,
+      actions: [{ label: t.onboarding.goTo(item.label), href: item.href }],
+    });
+  }
   tour.push({
-    key: "done", title: tr.doneTitle, ids: [],
+    key: "done", title: tr.doneTitle,
     intro: tr.doneIntro,
     bullets: tr.doneBullets,
     actions: [],
@@ -199,16 +216,6 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
             <h3 className="mb-1.5 mt-4 font-display text-[21px] font-normal tracking-[-0.014em]">{here.title}</h3>
             <p className="mb-3 text-[13px] leading-relaxed text-ink-muted">{here.intro}</p>
             {here.visual && <div className="mb-3">{here.visual}</div>}
-            {here.ids.length > 0 && (
-              <div className="mb-3 flex flex-col gap-1.5 rounded-lg px-3 py-2.5 text-[12.5px] leading-relaxed" style={{ background: "var(--surface-inset)" }}>
-                {here.ids.map((id) => (
-                  <span key={id} className="flex gap-2">
-                    {here.ids.length > 1 && <Check done={o.steps[id]} size={16} />}
-                    <span>{stepSummary(id, o, t, f)}</span>
-                  </span>
-                ))}
-              </div>
-            )}
             {here.bullets.length > 0 && (
               <ul className="mb-4 space-y-1.5">
                 {here.bullets.map((b, n) => (

@@ -220,8 +220,12 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
             </div>
           )}
 
-          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-muted">{S.aim}</p>
-          <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-muted">{S.note}</p>
+          {/* the background folded away: one word until opened */}
+          <details className="mt-3 text-[11.5px] text-ink-muted">
+            <summary className="cursor-pointer select-none hover:text-[var(--text-primary)]">{S.explain}</summary>
+            <p className="mt-1.5 leading-relaxed">{S.aim}</p>
+            <p className="mt-1.5 leading-relaxed">{S.note}</p>
+          </details>
         </>
       )}
     </Card>

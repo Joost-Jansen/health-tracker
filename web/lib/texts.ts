@@ -142,7 +142,7 @@ export const T = {
     wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
   },
 
-  /** Gezondheid (api/daily.py): what the night's heart rate says, without judging one night. */
+  /** The day in detail on Today (api/daily.py): what the night's heart rate says, without judging one night. */
   nightHr: {
     /** The last two hours of sleep against the rest of the night, in beats per minute. */
     night(rise: number, last: number, before: number): string {
@@ -405,7 +405,7 @@ export const T = {
       spo2: "Zuurstof in de slaap (SpO2)",
       normal: (v: string) => `Je normaal: ${v} (mediaan 60 dagen).`,
       respNote: "Ademhaling in rust is van nacht tot nacht heel stabiel; één of twee ademhalingen per minuut meer valt al op, bijvoorbeeld na een zware dag of als je iets onder de leden hebt.",
-      openDay: "Klik op een dag in een grafiek om die dag in detail te zien onder Gezondheid.",
+      openDay: "Klik op een dag in een grafiek om die dag in detail te zien onderaan Vandaag.",
     },
 
 

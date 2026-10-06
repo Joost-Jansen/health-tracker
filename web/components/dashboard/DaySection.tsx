@@ -1,11 +1,12 @@
 "use client";
 
-// Health: one day from the watch. First the day in numbers (the night's sleep with its stages, heart rate,
-// breathing, stress and blood oxygen while asleep; then the day: resting heart rate, Body Battery, stress per level
-// and activity), each against the user's own normal; then one timeline of the night and the day with heart rate,
-// stress, Body Battery, breathing and SpO2 as equal small panels. Static export: the day is in the query (?day=).
+// The day in detail, at the bottom of Today: one day from the watch. First the day in numbers (the night's sleep with
+// its stages, heart rate, breathing, stress and blood oxygen while asleep; then the day: resting heart rate, Body
+// Battery, stress per level and activity), each against the user's own normal; then one timeline of the night and the
+// day with heart rate, stress, Body Battery, breathing and SpO2 as equal small panels. Last night by default; another
+// day through ?day= (links from Trends and the recovery card: /dashboard/?day=…#day), the date field or the arrows.
 
-import { Suspense } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
@@ -75,23 +76,35 @@ function ShareBar({ parts, label }: { parts: { name: string; value: number; colo
   );
 }
 
-function Health({ day }: { day: string | null }) {
+export default function DaySection() {
+  const param = useSearchParams().get("day");
+  const day = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null;
   const t = useT();
   const f = useFormat();
   const h = t.health;
   const T = t.texts;
   const router = useRouter();
+  const ref = useRef<HTMLElement>(null);
+  const scrolled = useRef(false);
+
   const q = useQuery({
     queryKey: ["wellness-day", day],
     queryFn: () => api.get<HealthDay>(`/api/wellness/day${day ? `?day=${day}` : ""}`),
     placeholderData: keepPreviousData,
   });
+  // opened through a link to #day (Trends, the recovery card): scroll here once the day is there
+  useEffect(() => {
+    if (q.data && !scrolled.current && (window.location.hash === "#day" || param)) {
+      scrolled.current = true;
+      ref.current?.scrollIntoView({ block: "start" });
+    }
+  }, [q.data, param]);
   if (q.isLoading) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   if (!q.data) return <p className="text-sm text-ink-muted">{h.loadFailed}</p>;
   const v = q.data;
   if (!v.latest) return <Card><p className="text-[13px] text-ink-muted">{h.none}</p></Card>;
 
-  const go = (d: string) => router.replace(`/health/?day=${d}`);
+  const go = (d: string) => router.replace(`/dashboard/?day=${d}#day`, { scroll: false });
   const w = v.summary;
   const n = v.normals;
   const num = (key: string) => (typeof w[key] === "number" ? (w[key] as number) : null);
@@ -112,11 +125,14 @@ function Health({ day }: { day: string | null }) {
   ).map((p) => ({ ...p, label: `${h.series[p.key]}${h.unit[p.key] && p.key !== "spo2" ? ` (${h.unit[p.key]})` : ""}`, colour: SERIES_COLOUR[p.key], points: v.series[p.key] ?? [] }));
 
   return (
-    <div className="flex flex-col gap-4">
+    <section ref={ref} id="day" className="flex scroll-mt-20 flex-col gap-4 pt-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 aria-live="polite" className={`font-display text-[21px] font-light transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
-          {f.weekdayDayYear(v.day)}
-        </h2>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{h.eyebrow}</p>
+          <h2 aria-live="polite" className={`font-display text-[21px] font-light transition-opacity ${q.isPlaceholderData ? "opacity-60" : ""}`}>
+            {f.weekdayDayYear(v.day)}
+          </h2>
+        </div>
         <div className="flex items-center gap-1">
           {/* Any day straight away; the arrows step through the days that have data. */}
           <input
@@ -273,20 +289,6 @@ function Health({ day }: { day: string | null }) {
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function WithDay() {
-  const day = useSearchParams().get("day");
-  return <Health day={day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null} />;
-}
-
-export default function HealthPage() {
-  const t = useT();
-  return (
-    <Suspense fallback={<p className="text-sm text-ink-muted">{t.common.loading}</p>}>
-      <WithDay />
-    </Suspense>
+    </section>
   );
 }

@@ -3,7 +3,7 @@
 // Vandaag (today): what the week and the month look like in zones, how much you did against your usual week,
 // how fresh you are, and your latest activities and recovery.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
@@ -17,6 +17,7 @@ import PlanWeekCard from "@/components/dashboard/PlanWeekCard";
 import ReadinessCard from "@/components/dashboard/ReadinessCard";
 import RecentActivities from "@/components/dashboard/RecentActivities";
 import Upcoming from "@/components/dashboard/Upcoming";
+import DaySection from "@/components/dashboard/DaySection";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
 import { useFormat, useT } from "@/lib/i18n";
@@ -217,7 +218,7 @@ export default function DashboardPage() {
             </Card>
           ),
           (
-            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="/health/">
+            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="#day">
               {d.recovery.days.length === 0 ? (
                 <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
               ) : (
@@ -238,7 +239,7 @@ export default function DashboardPage() {
                         <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
                           <td className="py-1.5">
                             {w ? (
-                              <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                              <Link href={`/dashboard/?day=${day}#day`} scroll={false} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
                                 {f.weekdayDay(day)}
                               </Link>
                             ) : (
@@ -261,6 +262,11 @@ export default function DashboardPage() {
         filler={<RecentActivities items={d.recent} fill />}
       />
 
+
+      {/* The day in detail (last night by default; ?day= for another, from Trends and the recovery card). */}
+      <Suspense fallback={null}>
+        <DaySection />
+      </Suspense>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export default function ReadinessCard({ r, className = "" }: { r: Readiness; cla
   // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;
   return (
-    <Card title={t.title} className={className} more={r.date ? m.dayDetail : undefined} moreHref={r.date ? `/health/?day=${r.date}` : undefined}>
+    <Card title={t.title} className={className} more={r.date ? m.dayDetail : undefined} moreHref={r.date ? `/dashboard/?day=${r.date}#day` : undefined}>
       <div className="flex items-center gap-2.5">
         <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: VERDICT_COLOUR[r.verdict] }} />
         <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{t.verdict[r.verdict]}</span>

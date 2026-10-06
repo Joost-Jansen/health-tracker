@@ -82,7 +82,12 @@ export type Dashboard = {
     series: FormRow[];
   };
   recent: RecentItem[];
-  recovery: { days: ({ date: string } & Record<string, number | string>)[]; baseline_rhr: number | null };
+  recovery: {
+    days: ({ date: string } & Record<string, number | string>)[];
+    baseline_rhr: number | null;
+    /** Where the normal comes from (api/readiness.py normal_resting_hr). */
+    baseline_rhr_source?: RhrSource | null;
+  };
   upcoming: PlanSession[];
   plan_title?: string;
   /** Only with an active plan. */
@@ -485,6 +490,9 @@ export type RecoveryDay = {
 };
 
 /** GET /api/trends as the API returns it now. */
+/** Where the normal resting HR comes from: the last 60 days, the last 7 measured nights, or the value in Settings. */
+export type RhrSource = "60d" | "recent" | "profile";
+
 export type TrendsPlus = Omit<Trends, "insights" | "records" | "rules" | "recovery_daily"> & {
   insights: InsightCode[];
   records: Record<RecordKey, RecordRowPlus[]>;

@@ -170,8 +170,11 @@ def test_new_user_without_zones_gets_dashboard_and_trends(app, engine):  # noqa:
 
 
 def test_profile_resting_hr_is_used_without_sleep_data(app, engine):  # noqa: F811
+    from datetime import date
+
     from api.dashboard import DEFAULT_RHR, resting_hr
 
-    assert resting_hr({}) == DEFAULT_RHR == 60
-    assert resting_hr({}, 48) == 48
-    assert resting_hr({"2026-10-01": {"resting_hr": 50}}, 48) == 50
+    today = date(2026, 10, 6)
+    assert resting_hr({}, today) == DEFAULT_RHR == 60
+    assert resting_hr({}, today, 48) == 48
+    assert resting_hr({"2026-10-01": {"resting_hr": 50}}, today, 48) == 50  # a measured night beats the profile

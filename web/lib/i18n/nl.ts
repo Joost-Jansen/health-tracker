@@ -373,11 +373,17 @@ export const nl = {
     from: (zone: string) => `${zone} vanaf`,
     defaults: "Standaard",
     profile: "Profiel",
-    profileIntro: "Optioneel. Coachingagents gebruiken dit bij hun advies; de site rekent er niet mee.",
+    profileIntro: "Optioneel. Coachingagents gebruiken dit bij hun advies. De site gebruikt alleen de rusthartslag, en alleen als terugval.",
     birthYear: "Geboortejaar",
     height: "Lengte (cm)",
     weight: "Gewicht (kg)",
-    restingHr: "Rusthartslag",
+    restingHr: "Rusthartslag (terugval)",
+    restingHrHint: (value: number | null, source: string | null) =>
+      `Alleen gebruikt als je horloge geen gemeten nachten heeft: je rusthartslag wordt berekend uit je nachten. ${
+        value == null ? "Nog niets om te berekenen." : `Nu berekend: ${value} bpm (${source === "60d" ? "mediaan van de laatste 60 dagen" : source === "recent" ? "mediaan van je laatste 7 gemeten nachten" : "deze terugvalwaarde"}).`
+      }`,
+    rhrSource: (source: string | null | undefined): string =>
+      source === "recent" ? "mediaan van je laatste 7 gemeten nachten" : source === "profile" ? "uit Instellingen, geen gemeten nachten" : "mediaan van de laatste 60 dagen",
   },
 
   agents: {
@@ -1020,7 +1026,7 @@ export const nl = {
     sleep: "Slaap",
     rhr: "Rusthartslag",
     bb: "Body Battery",
-    baselineRhr: (bpm: number) => `Je normale rusthartslag (mediaan 60 dagen): ${bpm} bpm.`,
+    baselineRhr: (bpm: number, source: string) => `Je normale rusthartslag (${source}): ${bpm} bpm.`,
     dayDetail: "Dag in detail",
     dayLink: (day: string) => `${day} in detail, onder Gezondheid`,
   },

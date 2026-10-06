@@ -381,11 +381,17 @@ export const en: Messages = {
     from: (zone: string) => `${zone} from`,
     defaults: "Default",
     profile: "Profile",
-    profileIntro: "Optional. Coaching agents use this in their advice; the site doesn't calculate with it.",
+    profileIntro: "Optional. Coaching agents use this in their advice. The site only uses the resting heart rate, and only as a fallback.",
     birthYear: "Year of birth",
     height: "Height (cm)",
     weight: "Weight (kg)",
-    restingHr: "Resting heart rate",
+    restingHr: "Resting heart rate (fallback)",
+    restingHrHint: (value: number | null, source: string | null) =>
+      `Only used when your watch has no measured nights: your resting heart rate is calculated from your nights. ${
+        value == null ? "Nothing to calculate yet." : `Calculated now: ${value} bpm (${source === "60d" ? "median of the last 60 days" : source === "recent" ? "median of your last 7 measured nights" : "this fallback"}).`
+      }`,
+    rhrSource: (source: string | null | undefined): string =>
+      source === "recent" ? "median of your last 7 measured nights" : source === "profile" ? "from Settings, no measured nights" : "median of the last 60 days",
   },
 
   agents: {
@@ -1026,7 +1032,7 @@ export const en: Messages = {
     sleep: "Sleep",
     rhr: "Resting HR",
     bb: "Body Battery",
-    baselineRhr: (bpm: number) => `Your normal resting heart rate (60-day median): ${bpm} bpm.`,
+    baselineRhr: (bpm: number, source: string) => `Your normal resting heart rate (${source}): ${bpm} bpm.`,
     dayDetail: "Day in detail",
     dayLink: (day: string) => `${day} in detail, under Health`,
   },

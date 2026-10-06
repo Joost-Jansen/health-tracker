@@ -221,7 +221,7 @@ def test_normal_resting_hr_is_the_60_day_median_before_the_day():
     wellness = {f"2026-09-{d:02d}": {"resting_hr": 48 + d % 3} for d in range(1, 21)}
     wellness["2026-09-21"] = {"resting_hr": 70}  # the day itself does not count
     assert normal_resting_hr(wellness, date(2026, 9, 21)) == 49
-    assert normal_resting_hr({"2026-09-01": {"resting_hr": 52}}, date(2026, 9, 2)) == 52  # little history: all of it
+    assert normal_resting_hr({"2026-09-01": {"resting_hr": 52}}, date(2026, 9, 2)) == 52  # little history: the last nights
     assert normal_resting_hr({}, date(2026, 9, 2), 55) == 55
     assert normal_resting_hr({}, date(2026, 9, 2)) is None
 

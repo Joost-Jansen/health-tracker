@@ -8,6 +8,8 @@ After a change, the time per zone of every activity is recomputed (tools/derive.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import threading
 from typing import Callable
 
@@ -96,6 +98,15 @@ def make_router(current_user: Callable) -> APIRouter:
     @r.get("/profile")
     def get_profile(u=Depends(current_user)):
         return db.get_setting(u.scope, "profile_facts") or {}
+
+    @r.get("/resting-hr")
+    def get_resting_hr(u=Depends(current_user)):
+        """The normal resting HR the site calculates now and where it comes from (60d, recent, profile or none), so
+        Settings can show that the entered value is only a fallback."""
+        from api.readiness import normal_resting_hr
+
+        value, source = normal_resting_hr(u.store.wellness, date.today() + timedelta(days=1), u.store.rhr_fallback)
+        return {"value": round(value) if value is not None else None, "source": source}
 
     @r.put("/profile")
     def put_profile(body: ProfileFacts, u=Depends(current_user)):

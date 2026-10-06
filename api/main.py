@@ -97,7 +97,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def dashboard(u=Depends(current_user)):
         s, day = u.store, today()
         out = build_dashboard(s.activities, s.wellness, s.zones, day, s.last_sync, s.rhr_fallback)
-        out["readiness"] = readiness(s.wellness, day, today_tsb(out["form"]), today_form_pct(out["form"]))
+        out["readiness"] = readiness(s.wellness, day, today_tsb(out["form"]), today_form_pct(out["form"]), s.rhr_fallback)
         plan = db.active_plan(u.scope)
         if plan:
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]

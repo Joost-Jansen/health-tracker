@@ -36,10 +36,13 @@ def _day(a: dict) -> date:
     return date.fromisoformat(a["start_local"][:10])
 
 
-def resting_hr(wellness: dict, fallback: float | None = None) -> float:
-    """Median of the user's measured resting HR; else what they entered in their profile; else a population value."""
-    values = [w["resting_hr"] for w in wellness.values() if w.get("resting_hr")]
-    return median(values) if values else (fallback or DEFAULT_RHR)
+def resting_hr(wellness: dict, today: date, fallback: float | None = None) -> float:
+    """The resting HR the training load (TRIMP) uses: your normal up to and including last night
+    (api/readiness.py normal_resting_hr: 60 days, else the last 7 nights, else Settings), else a population value."""
+    from api.readiness import normal_resting_hr  # api.readiness has no app imports; kept local like recent_items
+
+    value, _ = normal_resting_hr(wellness, today + timedelta(days=1), fallback)
+    return value if value is not None else DEFAULT_RHR
 
 
 def max_by_sport(zones: dict, activities: list[dict] | None = None) -> dict:
@@ -242,7 +245,7 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
     month = [a for a in activities if month_start <= _day(a) <= today]
     prev4 = [a for a in activities if monday - timedelta(weeks=4) <= _day(a) < monday]
 
-    rhr = resting_hr(wellness, rhr_fallback)
+    rhr = resting_hr(wellness, today, rhr_fallback)
     # After a sync older than yesterday the days since are unknown, not rest: the series stops at the last synced day.
     synced = sync_day(last_sync)
     stopped = synced is not None and synced < today - timedelta(days=1)
@@ -265,7 +268,9 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
         }
 
     recent_days = [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
-    rhr_60 = [wellness[d]["resting_hr"] for d in ((today - timedelta(days=i)).isoformat() for i in range(60)) if wellness.get(d, {}).get("resting_hr")]
+    from api.readiness import normal_resting_hr
+
+    normal_rhr, normal_rhr_source = normal_resting_hr(wellness, today + timedelta(days=1), rhr_fallback)
 
     return {
         "today": today.isoformat(),
@@ -279,7 +284,8 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
         "recent": recent_items(activities, 20),  # Today shows as many as fit at the end of a column
         "recovery": {
             "days": [dict(wellness[d], date=d) for d in recent_days if d in wellness],
-            "baseline_rhr": median(rhr_60) if rhr_60 else None,
+            "baseline_rhr": normal_rhr,
+            "baseline_rhr_source": normal_rhr_source,
         },
         "upcoming": [],
     }

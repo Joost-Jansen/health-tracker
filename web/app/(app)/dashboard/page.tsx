@@ -254,7 +254,7 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               )}
-              {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr))}</p>}
+              {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr), t.zonesSettings.rhrSource(d.recovery.baseline_rhr_source))}</p>}
             </Card>
           ),
         ]}

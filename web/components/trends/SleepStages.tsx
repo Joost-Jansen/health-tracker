@@ -17,6 +17,11 @@ type Period = "night" | "week" | "month";
 type Mode = "pct" | "hours";
 const STAGES: SleepStage[] = ["deep", "light", "rem", "awake"];
 const ROLL: Record<Period, number> = { night: 7, week: 4, month: 3 };
+// Goals: 8 h asleep, of which at least 20% REM and 15% deep (adults: REM 20-25%, deep 13-23% of the night); in
+// hours that is the share of 8 h. Shown as dashed lines in the chart and in the status under it.
+const GOAL_H = 8;
+const GOAL_PCT: Record<"deep" | "rem", number> = { deep: 15, rem: 20 };
+const GOAL_STAGE_H = { deep: (GOAL_PCT.deep / 100) * GOAL_H, rem: (GOAL_PCT.rem / 100) * GOAL_H };
 
 type Bar = {
   start: string;
@@ -105,6 +110,25 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
     return { deep: avg("deep"), rem: avg("rem") };
   }, [bars, period, mode]);
 
+  // Where the last few bars stand against the goals, and how that changed since the start of the period.
+  const status = useMemo(() => {
+    const roll = ROLL[period];
+    const sum = (items: Bar[]) => {
+      const n = items.reduce((x, b) => x + b.nights, 0) || 1;
+      const h = (s: SleepStage) => items.reduce((x, b) => x + b.hours[s], 0) / n;
+      const bed = STAGES.reduce((x, s) => x + h(s), 0) || 1;
+      return { asleep: h("deep") + h("light") + h("rem"), deep: h("deep"), rem: h("rem"), deepPct: (h("deep") / bed) * 100, remPct: (h("rem") / bed) * 100 };
+    };
+    if (!bars.length) return null;
+    const now = sum(bars.slice(-roll));
+    const first = bars.length >= roll * 2 ? sum(bars.slice(0, roll)) : null;
+    return { now, first };
+  }, [bars, period]);
+  const hm = (h: number) => f.duration(Math.round(Math.abs(h) * 3600));
+  const vsGoal = (value: number, goal: number) =>
+    Math.abs(value - goal) < 5 / 60 ? S.onGoal : value < goal ? S.below(hm(goal - value)) : S.above(hm(value - goal));
+  const change = (d: number) => (Math.abs(d) < 3 / 60 ? S.same : `${d > 0 ? "+" : "−"}${hm(d)}`);
+
   if (!nights.length) return null;
   return (
     <Card
@@ -136,10 +160,23 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
             <div className="mt-5 border-t border-border pt-4">
               <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <span className="text-[13px] font-medium">{S.overTime}</span>
-                <span className="text-[11.5px] text-ink-muted">{S.rolling(ROLL[period], period, mode)}</span>
+                <span className="flex flex-wrap gap-x-3 text-[11.5px] text-ink-muted">
+                  <span>{S.rolling(ROLL[period], period, mode)}</span>
+                  {(["rem", "deep"] as const).map((s) => (
+                    <span key={s} className="inline-flex items-center gap-1.5">
+                      <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={STAGE_COLOUR[s].fill} strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+                      {S.goal(name(s), mode === "hours" ? hm(GOAL_STAGE_H[s]) : `${GOAL_PCT[s]}%`)}
+                    </span>
+                  ))}
+                </span>
               </div>
               <LineChart
                 height={180}
+                references={(["rem", "deep"] as const).map((s) => ({
+                  value: mode === "hours" ? GOAL_STAGE_H[s] : GOAL_PCT[s],
+                  colour: STAGE_COLOUR[s].fill,
+                  label: "", // in the legend above: on the line it ran into the series
+                }))}
                 format={mode === "hours" ? (v) => f.duration(Math.round(v * 3600)) : (v) => `${Math.round(v)}%`}
                 xFormat={period === "month" ? (d) => f.monthShort(d) : undefined}
                 ariaLabel={S.overTime}
@@ -148,6 +185,29 @@ export default function SleepStages({ nights, window: win }: { nights: SleepNigh
                   { label: name("rem"), colour: STAGE_COLOUR.rem.fill, width: 2, points: lines.rem },
                 ]}
               />
+            </div>
+          )}
+          {status && (
+            <div className="mt-3 space-y-1 text-[12.5px]">
+              <p>
+                <span className="font-medium">{S.lastN(ROLL[period], period)}</span>{" "}
+                {[
+                  S.asleepPart(hm(status.now.asleep), vsGoal(status.now.asleep, GOAL_H), `${GOAL_H} ${f.hourUnit}`),
+                  S.stagePart(name("rem"), hm(status.now.rem), Math.round(status.now.remPct), vsGoal(status.now.rem, GOAL_STAGE_H.rem)),
+                  S.stagePart(name("deep"), hm(status.now.deep), Math.round(status.now.deepPct), vsGoal(status.now.deep, GOAL_STAGE_H.deep)),
+                ].join(" · ")}
+              </p>
+              {status.first && (
+                <p className="text-ink-muted">
+                  {S.since(period === "month" ? f.month(bars[0].start) : f.dayMonth(bars[0].start))}{" "}
+                  {[
+                    `${S.asleepWord} ${change(status.now.asleep - status.first.asleep)}`,
+                    `${name("rem")} ${change(status.now.rem - status.first.rem)}`,
+                    `${name("deep")} ${change(status.now.deep - status.first.deep)}`,
+                  ].join(" · ")}
+                </p>
+              )}
+              <p className="text-[11.5px] text-ink-muted">{S.aim}</p>
             </div>
           )}
           <p className="mt-2 text-[11.5px] text-ink-muted">{S.note}</p>

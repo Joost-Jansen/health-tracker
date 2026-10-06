@@ -849,13 +849,6 @@ export const en: Messages = {
       settings: "Settings is where you manage your account, your Garmin connection, your zones and your agent tokens.",
       help: "Help has the getting-started checklist, a guide to every page and how coaching with Claude works. You can restart this tour there too.",
     },
-    walk: {
-      shows: (page: string, what: string) => `${page} shows ${what}.`,
-      plan: "Plan holds your training plan per day. Each planned session sits next to what you actually did.",
-      log: "Log holds your notes, analyses, goals and profile. Every entry shows who wrote it.",
-      settings: "Settings is where you change your account, the Garmin connection, your zones and agent tokens.",
-      help: "Help has the getting-started checklist, a guide to every page and how Claude works as coach. You can restart this tour there too.",
-    },
     progress: (done: number, total: number) => `${done} of ${total} steps done`,
     progressShort: (done: number, total: number) => `${done} of ${total}`,
     doneSr: " (done)",

@@ -1,12 +1,13 @@
 "use client";
 
-// Trends, in three tabs, each its own address (the tabs sit in the top bar, lib/nav.ts):
+// Trends and Health over time: one view in three modes, each its own address (the tabs sit in the top bar, lib/nav.ts):
 //   /trends/              training: what you do and what it does to your fitness: insights (on your own goal from the plan), form,
 //                         VO2max, volume per week per sport, time per zone over time and Z2 pace;
 //   /trends/performance/  what you can do and did in a race: predicted race times, longest run per week, records
 //                         and races;
-//   /trends/recovery/     recovery per day or week against your own normal (with HRV when available) and sleep
-//                         against load.
+//   /health/over-time/    the body: recovery per day or week against your own normal (with HRV when available).
+// Training and the body share the card "Training and body" (TrainingBody), so sport and body sit on one date axis
+// from either side; the time window is the same on both pages (useTimeRange's storage key).
 //
 // One time window for the whole page (TimeFilterBar, sticks under the top bar; lives in the address bar), and one
 // sport filter (also in the address bar). Every chart shares that time axis; panning or zooming in one chart moves the
@@ -23,7 +24,7 @@ import TrendChart from "@/components/charts/TrendChart";
 import TimeFilterBar from "@/components/timefilter/TimeFilterBar";
 import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import RecordTable from "@/components/trends/RecordTable";
-import SleepLoad from "@/components/trends/SleepLoad";
+import TrainingBody from "@/components/trends/TrainingBody";
 import { ALL_SPORTS, useSportFilter } from "@/components/trends/useSportFilter";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
@@ -53,7 +54,7 @@ const RECORD_COLOUR: Record<RecordKey, string> = { "1k": "var(--chart-4)", "5k":
 const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 const levelColour = (level: string) => (level === "good" ? "var(--zone-2)" : level === "watch" ? "var(--zone-4)" : "var(--zone-1)");
 
-export type TrendsTab = "training" | "performance" | "recovery";
+export type TrendsTab = "training" | "performance" | "body";
 
 export default function TrendsView({ tab }: { tab: TrendsTab }) {
   const tr = useT();
@@ -157,7 +158,6 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
       : t.recovery_weekly.filter((r) => r[key] != null).map((r) => ({ d: r.week, v: r[key] as number }));
   const recoveryMa = daily ? DAILY_MA : WEEKLY_MA;
   const hrv = series("hrv");
-  const hasSleep = recovery.some((r) => r.sleep_h != null);
   const normals = t.recovery_normals ?? {};
   // Every recovery value against the user's own normal; HRV and SpO2 only when the watch gives them.
   const recoveryCharts = ([
@@ -184,8 +184,8 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
     <div className="flex flex-col gap-4">
       <TimeFilterBar range={range} first={first} last={last} overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))} />
 
-      {/* Recovery is not per sport. */}
-      {sports.length > 1 && tab !== "recovery" && (
+      {/* The body is not per sport. */}
+      {sports.length > 1 && tab !== "body" && (
         <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
           <Select aria-label={TT.sport.label} value={sport} onChange={(e) => chooseSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
             <option value={ALL_SPORTS}>{TT.sport.all}</option>
@@ -278,6 +278,10 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
               )}
             </Card>
           )}
+
+          <Card title={tr.trainingBody.title}>
+            <TrainingBody t={t} window={win} />
+          </Card>
         </>
       )}
 
@@ -360,8 +364,11 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
         </>
       )}
 
-      {tab === "recovery" && (
+      {tab === "body" && (
         <>
+          <Card title={tr.trainingBody.title}>
+            <TrainingBody t={t} window={win} />
+          </Card>
           <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
             <div className="grid gap-6 md:grid-cols-2">
               {recoveryCharts.map((c) => (
@@ -401,11 +408,6 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
               </p>
             )}
           </Card>
-          {hasSleep && t.form.length > 0 && (
-            <Card title={TT.sleepLoad.title}>
-              <SleepLoad form={t.form} recovery={recovery} window={win} today={t.today} />
-            </Card>
-          )}
         </>
       )}
     </div>

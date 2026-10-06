@@ -71,7 +71,8 @@ export const nl = {
     tabs: {
       training: "Training",
       performance: "Prestaties",
-      recovery: "Herstel",
+      day: "Dag",
+      overTime: "Door de tijd",
       log: "Log",
       analyses: "Analyses",
       goals: "Doelen",
@@ -1024,6 +1025,29 @@ export const nl = {
     dayLink: (day: string) => `${day} in detail, onder Gezondheid`,
   },
 
+  trainingBody: {
+    title: "Training en lichaam",
+    choose: "Welke waarden je ziet",
+    aria: "Waarden van training en lichaam door de tijd op één datumas",
+    noData: "Geen gegevens in deze periode.",
+    fasterUp: "sneller omhoog",
+    method:
+      "Alle panelen delen de datumas, zodat je ziet wat samen beweegt. Lichaamswaarden per dag staan licht met hun gemiddelde over 7 dagen; de stippellijn is je normaal (mediaan van 60 dagen). Beweeg of tik voor de waarden; klik op een dag om die onder Gezondheid te openen.",
+    metric: {
+      fitness: "Fitheid",
+      form: "Vorm",
+      volume: "Volume per week",
+      z2: "Tempo in Z2",
+      vo2: "VO2max",
+      resting_hr: "Rusthartslag",
+      sleep_h: "Slaap",
+      hrv: "HRV",
+      sleep_resp: "Ademhaling tijdens slaap",
+      stress_avg: "Stress",
+      sleep_stress: "Stress tijdens slaap",
+      body_battery_high: "Body Battery",
+    },
+  },
   health: {
     whyRise: "Waarom stijgt de hartslag voor het wakker worden?",
     pickDay: "Kies een dag",

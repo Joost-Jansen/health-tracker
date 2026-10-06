@@ -81,7 +81,8 @@ export const en: Messages = {
     tabs: {
       training: "Training",
       performance: "Performance",
-      recovery: "Recovery",
+      day: "Day",
+      overTime: "Over time",
       log: "Log",
       analyses: "Analyses",
       goals: "Goals",
@@ -1030,6 +1031,29 @@ export const en: Messages = {
     dayLink: (day: string) => `${day} in detail, under Health`,
   },
 
+  trainingBody: {
+    title: "Training and body",
+    choose: "Which values to show",
+    aria: "Training and body values over time on one date axis",
+    noData: "No data in this period.",
+    fasterUp: "faster up",
+    method:
+      "Every panel shares the date axis, so you see what moves together. Body values per day show faint with their 7-day average; the dashed line is your normal (60-day median). Hover or tap for the values; click a day to open it under Health.",
+    metric: {
+      fitness: "Fitness",
+      form: "Form",
+      volume: "Volume per week",
+      z2: "Pace in Z2",
+      vo2: "VO2max",
+      resting_hr: "Resting heart rate",
+      sleep_h: "Sleep",
+      hrv: "HRV",
+      sleep_resp: "Breathing while asleep",
+      stress_avg: "Stress",
+      sleep_stress: "Stress while asleep",
+      body_battery_high: "Body Battery",
+    },
+  },
   health: {
     whyRise: "Why does heart rate rise before waking?",
     pickDay: "Choose a day",

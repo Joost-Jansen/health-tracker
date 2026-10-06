@@ -27,7 +27,7 @@ export const NAV: NavGroup[] = [
         label: "",
         href: "/trends/",
         icon: "chart",
-        tabs: [tab("training", "/trends/"), tab("performance", "/trends/performance/"), tab("recovery", "/trends/recovery/")],
+        tabs: [tab("training", "/trends/"), tab("recovery", "/trends/recovery/"), tab("performance", "/trends/performance/")],
       },
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },

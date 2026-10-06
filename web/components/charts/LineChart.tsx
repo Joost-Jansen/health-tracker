@@ -41,6 +41,8 @@ export type LineSeries = {
   fill?: boolean;
 };
 
+const NO_REFS: { value: number; colour: string; label: string }[] = [];
+
 // A gutter on the right for the y labels, a line at the bottom for the dates.
 const PAD = { top: 14, right: 52, bottom: 20 };
 
@@ -53,6 +55,7 @@ const DASH: Record<string, string | undefined> = {
 export default function LineChart({
   series,
   baseline,
+  references = NO_REFS,
   format,
   height = 220,
   endLabels = true,
@@ -64,6 +67,8 @@ export default function LineChart({
   series: LineSeries[];
   /** Dotted line at this value, for example 100 (index) or 0 (%). */
   baseline?: number;
+  /** Goal lines, dashed in their own colour, with a short label at the left (none when empty): always in view. */
+  references?: { value: number; colour: string; label: string }[];
   format: (v: number) => string;
   height?: number;
   /** Names at the end of each line instead of a legend. */
@@ -100,10 +105,11 @@ export default function LineChart({
     const index = new Map(dates.map((d, i) => [d, i]));
     const values = series.flatMap((s) => s.points.map((p) => p.v));
     if (baseline !== undefined) values.push(baseline);
+    references.forEach((r) => values.push(r.value));
     const lo = Math.min(...values);
     const hi = Math.max(...values);
     return { dates, index, lo, hi };
-  }, [series, baseline]);
+  }, [series, baseline, references]);
 
   // Area fill only when there is one line: Meridian's rule, enforced here
   // instead of remembered again by every caller.
@@ -230,6 +236,13 @@ export default function LineChart({
             strokeDasharray="2 3"
           />
         )}
+
+        {references.map((r) => (
+          <g key={r.label}>
+            <line x1="0" x2={plotW} y1={y(r.value)} y2={y(r.value)} stroke={r.colour} strokeWidth="1" strokeDasharray="4 4" opacity="0.8" />
+            {r.label && <text x="2" y={y(r.value) - 4} fontSize="10.5" fill={r.colour}>{r.label}</text>}
+          </g>
+        ))}
 
         {series.map((s, si) => {
           if (s.points.length < 2) return null;

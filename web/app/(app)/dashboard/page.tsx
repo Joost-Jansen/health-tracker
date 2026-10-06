@@ -7,6 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import { Columns } from "@/components/ds";
 import ZoneBar from "@/components/ZoneBar";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import EasyShare from "@/components/zones/EasyShare";
@@ -96,168 +97,166 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      {/* Only cards with something to say: without night data, form or plan the card drops out and the rest fills the row. */}
-      {(d.readiness || form) && (
-        <div className={`grid gap-4 ${d.readiness && form ? "lg:grid-cols-[1.25fr_1fr]" : ""}`}>
-          {d.readiness && <ReadinessCard r={d.readiness} />}
-          {form && <LoadCard load={form.load} wide={!d.readiness} />}
-        </div>
-      )}
-
-      {d.plan_week && (
-        <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-          <PlanWeekCard week={d.plan_week} race={d.race} />
-          <Upcoming sessions={d.upcoming} title={d.plan_title} />
-        </div>
-      )}
-
-      {form && (
-        <Card title={m.formTitle} more={m.allTrends} moreHref="/trends/">
-          <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className="font-display text-[27px] font-light">{m.statuses[form.status] ?? form.status}</div>
-                <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
+      {/* Two columns that stack independently (Columns), so a card with little to say (one sport this week, no plan)
+          leaves no empty space inside it or next to it; on a phone one column in reading order. Cards without anything
+          to say drop out. */}
+      <Columns
+        left={[
+          d.readiness && <ReadinessCard key="ready" r={d.readiness} />,
+          d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />,
+          form && (
+            <Card title={m.formTitle} more={m.allTrends} moreHref="/trends/">
+                      <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+                        <div className="flex flex-col gap-3">
+                          <div>
+                            <div className="font-display text-[27px] font-light">{m.statuses[form.status] ?? form.status}</div>
+                            <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
+                          </div>
+                          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
+                            <div><dt className="text-ink-muted">{m.fitness}</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
+                            <div><dt className="text-ink-muted">{m.fatigue}</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
+                            <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}{form.pct != null && <span className="ml-1 text-[12px] text-ink-muted">({form.pct > 0 ? "+" : ""}{form.pct}%)</span>}</dd></div>
+                          </dl>
+                          <p className="text-[11.5px] leading-relaxed text-ink-muted">{form.stopped_at_sync ? "" : `${T.formTsb} `}{m.peak(Math.round(form.ctl_peak), f.weekdayDay(form.ctl_peak_date))}</p>
+                          {form.stopped_at_sync && (
+                            <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
+                              <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
+                              {T.today.formStopped(f.weekdayDay(form.until))}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                        <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+                          {FORM_LINES.map((l) => (
+                            <span key={l.key} className="flex items-center gap-1.5">
+                              <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={l.colour} strokeWidth="2" strokeDasharray={l.dash ? "4 3" : undefined} /></svg>
+                              {m[l.key]}
+                            </span>
+                          ))}
+                        </div>
+                        <LineChart
+                          endLabels={false}
+                          height={190}
+                          ariaLabel={m.formAria}
+                          format={(v) => String(Math.round(v))}
+                          baseline={0}
+                          series={[
+                            { label: m.fitness, colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
+                            { label: m.fatigue, colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
+                            { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
+                          ]}
+                        />
+                        </div>
+                      </div>
+                    </Card>
+          ),
+          (
+            <Card title={m.zonesTitle} action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Segmented value={period} onChange={(p) => { setPeriod(p); setOffset(0); }} options={[{ id: "week", label: m.week }, { id: "month", label: m.month }]} />
+                <PeriodNav label={zp ? periodLabel(zp.period, zp.start, zp.end, t, f) : period === "week" ? m.thisWeek : m.thisMonth} offset={offset} onChange={setOffset} loading={zq.isPlaceholderData} />
               </div>
-              <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
-                <div><dt className="text-ink-muted">{m.fitness}</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
-                <div><dt className="text-ink-muted">{m.fatigue}</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
-                <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}{form.pct != null && <span className="ml-1 text-[12px] text-ink-muted">({form.pct > 0 ? "+" : ""}{form.pct}%)</span>}</dd></div>
-              </dl>
-              <p className="text-[11.5px] leading-relaxed text-ink-muted">{form.stopped_at_sync ? "" : `${T.formTsb} `}{m.peak(Math.round(form.ctl_peak), f.weekdayDay(form.ctl_peak_date))}</p>
-              {form.stopped_at_sync && (
-                <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
-                  <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
-                  {T.today.formStopped(f.weekdayDay(form.until))}
-                </p>
-              )}
-            </div>
-            <div>
-            <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
-              {FORM_LINES.map((l) => (
-                <span key={l.key} className="flex items-center gap-1.5">
-                  <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={l.colour} strokeWidth="2" strokeDasharray={l.dash ? "4 3" : undefined} /></svg>
-                  {m[l.key]}
-                </span>
-              ))}
-            </div>
-            <LineChart
-              endLabels={false}
-              height={190}
-              ariaLabel={m.formAria}
-              format={(v) => String(Math.round(v))}
-              baseline={0}
-              series={[
-                { label: m.fitness, colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
-                { label: m.fatigue, colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
-                { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
-              ]}
-            />
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card title={m.zonesTitle} action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented value={period} onChange={(p) => { setPeriod(p); setOffset(0); }} options={[{ id: "week", label: m.week }, { id: "month", label: m.month }]} />
-            <PeriodNav label={zp ? periodLabel(zp.period, zp.start, zp.end, t, f) : period === "week" ? m.thisWeek : m.thisMonth} offset={offset} onChange={setOffset} loading={zq.isPlaceholderData} />
-          </div>
-        }>
-          {zoneSports.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">{zonesCurrent ? m.noHrNow(period) : m.noHrPeriod}</p>
-          ) : (
-            <div className="flex flex-col gap-5">
-              <EasyShare pct={(multiSport ? zones.all : zones[zoneSports[0]]).pct} />
-              {multiSport ? (
-                <>
-                  <ZoneBar sport="all" share={zones.all} />
-                  <div className="border-t border-border" />
-                  {zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={bounds[s]} />)}
-                </>
+            }>
+              {zoneSports.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{zonesCurrent ? m.noHrNow(period) : m.noHrPeriod}</p>
               ) : (
-                <>
-                  <ZoneBar sport={zoneSports[0]} share={zones[zoneSports[0]]} bounds={bounds[zoneSports[0]]} />
-                  <p className="-mt-2 text-[11.5px] text-ink-muted">{m.onlySport(zoneSports[0])}</p>
-                </>
+                <div className="flex flex-col gap-5">
+                  <EasyShare pct={(multiSport ? zones.all : zones[zoneSports[0]]).pct} />
+                  {multiSport ? (
+                    <>
+                      <ZoneBar sport="all" share={zones.all} />
+                      <div className="border-t border-border" />
+                      {zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={bounds[s]} />)}
+                    </>
+                  ) : (
+                    <>
+                      <ZoneBar sport={zoneSports[0]} share={zones[zoneSports[0]]} bounds={bounds[zoneSports[0]]} />
+                      <p className="-mt-2 text-[11.5px] text-ink-muted">{m.onlySport(zoneSports[0])}</p>
+                    </>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-          <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
-        </Card>
-
-        <div className="flex flex-col gap-4">
-          <Card title={m.volumeTitle}>
-            {volSports.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">{m.noVolume}</p>
-            ) : (
-            <table className="w-full text-[13px] tabular-nums">
-              <thead>
-                <tr className="text-left text-[11.5px] text-ink-muted">
-                  <th className="pb-2 font-normal">{m.sport}</th>
-                  <th className="pb-2 font-normal">{m.soFar}</th>
-                  <th className="pb-2 font-normal">{m.avg4w}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {volSports.map((s) => {
-                  const w = d.volume.week[s];
-                  const a = d.volume.avg4w[s];
-                  return (
-                    <tr key={s} className="border-t border-border">
-                      <td className="py-2">{t.sport(s)}</td>
-                      <td className="py-2">{w ? `${f.km(w.km)} · ${f.duration(w.seconds)}` : "–"}</td>
-                      <td className="py-2 text-ink-muted">{a ? `${f.km(a.km)} · ${f.duration(a.seconds)}` : "–"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            )}
-            {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
-          </Card>
-          <Card title={m.recoveryTitle} className="flex-1" more={m.dayDetail} moreHref="/health/">
-            {d.recovery.days.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
-            ) : (
-              <table className="w-full text-[12.5px] tabular-nums">
+              <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
+            </Card>
+          ),
+        ]}
+        right={[
+          form && <LoadCard key="load" load={form.load} />,
+          d.plan_week && <Upcoming key="upcoming" sessions={d.upcoming} title={d.plan_title} />,
+          (
+            <Card title={m.volumeTitle}>
+              {volSports.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{m.noVolume}</p>
+              ) : (
+              <table className="w-full text-[13px] tabular-nums">
                 <thead>
                   <tr className="text-left text-[11.5px] text-ink-muted">
-                    <th className="pb-2 font-normal">{m.day}</th>
-                    <th className="pb-2 font-normal">{m.sleep}</th>
-                    <th className="pb-2 font-normal">{m.rhr}</th>
-                    <th className="pb-2 font-normal">{m.bb}</th>
+                    <th className="pb-2 font-normal">{m.sport}</th>
+                    <th className="pb-2 font-normal">{m.soFar}</th>
+                    <th className="pb-2 font-normal">{m.avg4w}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recoveryDays.map((day) => {
-                    const w = recoveryByDay.get(day);
-                    const sleep = Number(w?.sleep_h);
+                  {volSports.map((s) => {
+                    const w = d.volume.week[s];
+                    const a = d.volume.avg4w[s];
                     return (
-                      <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
-                        <td className="py-1.5">
-                          {w ? (
-                            <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
-                              {f.weekdayDay(day)}
-                            </Link>
-                          ) : (
-                            f.weekdayDay(day)
-                          )}
-                        </td>
-                        <td className="py-1.5">{sleep > 0 ? `${f.num(sleep, 1)} ${f.hourUnit}` : "–"}</td>
-                        <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
-                        <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>
+                      <tr key={s} className="border-t border-border">
+                        <td className="py-2">{t.sport(s)}</td>
+                        <td className="py-2">{w ? `${f.km(w.km)} · ${f.duration(w.seconds)}` : "–"}</td>
+                        <td className="py-2 text-ink-muted">{a ? `${f.km(a.km)} · ${f.duration(a.seconds)}` : "–"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            )}
-            {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr))}</p>}
-          </Card>
-        </div>
-      </div>
+              )}
+              {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
+            </Card>
+          ),
+          (
+            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="/health/">
+              {d.recovery.days.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
+              ) : (
+                <table className="w-full text-[12.5px] tabular-nums">
+                  <thead>
+                    <tr className="text-left text-[11.5px] text-ink-muted">
+                      <th className="pb-2 font-normal">{m.day}</th>
+                      <th className="pb-2 font-normal">{m.sleep}</th>
+                      <th className="pb-2 font-normal">{m.rhr}</th>
+                      <th className="pb-2 font-normal">{m.bb}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recoveryDays.map((day) => {
+                      const w = recoveryByDay.get(day);
+                      const sleep = Number(w?.sleep_h);
+                      return (
+                        <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
+                          <td className="py-1.5">
+                            {w ? (
+                              <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                                {f.weekdayDay(day)}
+                              </Link>
+                            ) : (
+                              f.weekdayDay(day)
+                            )}
+                          </td>
+                          <td className="py-1.5">{sleep > 0 ? `${f.num(sleep, 1)} ${f.hourUnit}` : "–"}</td>
+                          <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
+                          <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr))}</p>}
+            </Card>
+          ),
+        ]}
+      />
 
       <RecentActivities items={d.recent} />
 

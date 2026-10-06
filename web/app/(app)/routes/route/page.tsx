@@ -78,7 +78,7 @@ function Detail({ id }: { id: string }) {
           <Rename route={r} />
         </div>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1.2fr_1fr]">
         <Card title={t.routes.map}>
           <RoutesMap
             height={400}

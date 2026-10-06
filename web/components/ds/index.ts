@@ -10,4 +10,5 @@ export { Input, Select, Checkbox, Switch } from "./Field";
 export { default as Section, Eyebrow, Hero, Figure, Rule } from "./Section";
 export { default as Tabs, type TabItem } from "./Tabs";
 export { Dialog, EmptyState, Tag, Badge } from "./Feedback";
+export { default as Columns } from "./Columns";
 export { default as Logomark } from "./Logomark";

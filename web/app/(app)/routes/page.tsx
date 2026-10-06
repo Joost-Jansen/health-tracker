@@ -73,7 +73,7 @@ function Suggest({ sport, routes }: { sport: RouteSport; routes: RouteSummary[] 
       {q.isLoading && <p className="mt-3 text-sm text-ink-muted">{t.routes.searching}</p>}
       {asked != null && q.data && opts.length === 0 && <p className="mt-3 text-sm text-ink-muted">{t.routes.none}</p>}
       {opts.length > 0 && (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.3fr]">
+        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[1fr_1.3fr]">
           <ul className="flex flex-col gap-2">
             {!opts[0].within_tolerance && <li className="text-[12.5px] text-ink-muted">{t.routes.notWithin(f.trim(asked))}</li>}
             {opts.map((o, i) => (

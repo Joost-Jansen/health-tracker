@@ -91,7 +91,7 @@ export default function AccountPage() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me") });
   if (!me.data) return <p className="text-sm text-ink-muted">{t.common.loading}</p>;
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       <div className="flex flex-col gap-4">
         <NameCard me={me.data} />
         <LanguageCard />

@@ -204,6 +204,8 @@ export default function DaySection() {
                   {!(night?.rise != null && night.last_avg != null && night.before_avg != null) && v.sleep && (
                     <p className="text-[12px] text-ink-muted">{h.noNight}</p>
                   )}
+                  {/* the watch estimates the stages: say so once, where they are shown */}
+                  {sleepH != null && <p className="text-[11.5px] text-ink-muted">{h.estimate}</p>}
                 </div>
               )}
             </Card>,

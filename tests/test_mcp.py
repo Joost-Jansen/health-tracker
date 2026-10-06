@@ -41,6 +41,14 @@ def test_initialize_and_list(client):
     assert rpc(client, "nope").json()["error"]["code"] == -32601
 
 
+def test_any_client_can_connect(client):
+    """Clients differ in protocol version, header or URL token, and whether they look for an SSE stream."""
+    for asked, got in [("2025-11-25", "2025-11-25"), ("2024-11-05", "2024-11-05"), ("1999-01-01", "2025-11-25")]:
+        assert rpc(client, "initialize", {"protocolVersion": asked}).json()["result"]["protocolVersion"] == got
+    assert rpc(client, "tools/list", auth=False, path=f"/api/mcp/{TOKEN}").json()["result"]["tools"]
+    assert client.get("/api/mcp", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 405
+
+
 def test_tools_read_and_write(client):
     text, err = call(client, "list_activities", sport="run")
     assert not err and "Ochtendloop" in text

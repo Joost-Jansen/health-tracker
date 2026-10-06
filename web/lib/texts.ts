@@ -412,6 +412,18 @@ export const T = {
     },
 
 
+    sleepStages: {
+      title: "Slaapfases",
+      night: "Nacht",
+      per: "Per nacht, week of maand",
+      none: "Geen nachten met slaapfases in deze periode.",
+      summary: (nights: number, asleep: string): string => `${nights} ${nights === 1 ? "nacht" : "nachten"}, gemiddeld ${asleep} geslapen per nacht:`,
+      asleep: (h: string): string => `${h} geslapen`,
+      asleepAvg: (h: string, nights: number): string => `${h} geslapen per nacht (${nights} nachten)`,
+      overTime: "Diepe slaap en REM door de tijd",
+      rolling: (n: number, p: "night" | "week" | "month"): string => `aandeel van de tijd in bed, gemiddelde van de laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}`,
+      note: "Aandeel van de tijd in bed (slapend en wakker); de uren zijn per nacht. Diepe slaap is meestal 13-23% en REM 20-25% van de nacht; je eigen verloop zegt meer dan één nacht.",
+    },
     records: {
       title: "Records",
       colDistance: "Afstand",

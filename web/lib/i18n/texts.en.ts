@@ -374,6 +374,18 @@ export const textsEn = {
       respNote: "Breathing at rest is very steady from night to night; one or two breaths a minute more already stands out, for example after a hard day or when you are coming down with something.",
       openDay: "Click a day in a chart to see that day in detail under Today, Sleep & body.",
     },
+    sleepStages: {
+      title: "Sleep stages",
+      night: "Night",
+      per: "Per night, week or month",
+      none: "No nights with sleep stages in this period.",
+      summary: (nights: number, asleep: string): string => `${nights} ${nights === 1 ? "night" : "nights"}, on average ${asleep} asleep per night:`,
+      asleep: (h: string): string => `${h} asleep`,
+      asleepAvg: (h: string, nights: number): string => `${h} asleep per night (${nights} nights)`,
+      overTime: "Deep sleep and REM over time",
+      rolling: (n: number, p: "night" | "week" | "month"): string => `share of the time in bed, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
+      note: "Share of the time in bed (asleep and awake); the hours are per night. Deep sleep is usually 13-23% and REM 20-25% of the night; your own trend says more than one night.",
+    },
     records: {
       title: "Records",
       colDistance: "Distance",

@@ -1,6 +1,7 @@
 from datetime import date
 
 from api.trends import (
+    sleep_stages,
     build_trends,
     goal_from_plan,
     hr_flags,
@@ -83,6 +84,18 @@ NEW_NONE = {"sleep_resp": None, "sleep_stress": None, "bb_charged_sleep": None, 
 def test_recovery_weekly_averages():
     out = recovery_weekly({"2026-09-28": {"resting_hr": 48, "sleep_h": 6.0}, "2026-09-29": {"resting_hr": 50}})
     assert out == [{"week": "2026-09-28", "resting_hr": 49.0, "sleep_h": 6.0, "body_battery_high": None, "stress_avg": None, "hrv": None, **NEW_NONE}]
+
+
+def test_sleep_stages_per_night_skip_days_without_stages():
+    out = sleep_stages({
+        "2026-10-05": {"sleep_h": 7.6, "deep_sleep_h": 1.8, "light_sleep_h": 4.0, "rem_sleep_h": 1.7, "awake_h": 0.7},
+        "2026-10-04": {"steps": 9000},  # no night: left out
+        "2026-10-03": {"deep_sleep_h": 1.5, "light_sleep_h": 4.5},  # no REM or awake recorded: 0
+    })
+    assert out == [
+        {"date": "2026-10-03", "deep": 1.5, "light": 4.5, "rem": 0, "awake": 0},
+        {"date": "2026-10-05", "deep": 1.8, "light": 4.0, "rem": 1.7, "awake": 0.7},
+    ]
 
 
 def test_recovery_daily_keeps_each_day_and_skips_empty_days():

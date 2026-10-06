@@ -113,6 +113,7 @@ export type Readiness = {
 };
 
 export type SleepStage = "deep" | "light" | "rem" | "awake";
+export type SleepNight = { date: string } & Record<SleepStage, number>;
 export type DaySeriesKey = "hr" | "stress" | "bb" | "resp" | "spo2";
 
 /** GET /api/wellness/day (api/daily.py): one day of health data from the watch. Times are minutes after midnight of
@@ -236,6 +237,8 @@ export type Trends = {
   today: string;
   form: FormRow[];
   /** One row per day with any recovery value, oldest first (T17). */
+  /** Per night with sleep stages, in hours (api/trends.py sleep_stages). */
+  sleep_stages?: SleepNight[];
   recovery_daily?: { date: string; resting_hr?: number | null; sleep_h?: number | null; body_battery_high?: number | null; stress_avg?: number | null; hrv?: number | null }[];
   weekly: { week: string; sports: Record<string, Volume> }[];
   z2_pace: { week: string; pace_s_per_km: number; runs: number; z2_seconds: number }[];

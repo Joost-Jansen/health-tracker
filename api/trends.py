@@ -172,6 +172,21 @@ def recovery_daily(wellness: dict) -> list[dict]:
     return out
 
 
+SLEEP_STAGE_KEYS = {"deep": "deep_sleep_h", "light": "light_sleep_h", "rem": "rem_sleep_h", "awake": "awake_h"}
+
+
+def sleep_stages(wellness: dict) -> list[dict]:
+    """Per night with sleep stages, oldest first: {date, deep, light, rem, awake} in hours (the night that ended that
+    morning). Trends adds them up per week or month and shows the share of each stage, as for the heart-rate zones."""
+    out = []
+    for day in sorted(wellness):
+        w = wellness[day] or {}
+        row = {stage: w.get(key) if isinstance(w.get(key), (int, float)) and w.get(key) > 0 else 0 for stage, key in SLEEP_STAGE_KEYS.items()}
+        if row["deep"] + row["light"] + row["rem"] > 0:
+            out.append({"date": day[:10], **{k: round(v, 2) for k, v in row.items()}})
+    return out
+
+
 def records(activities: list[dict]) -> dict:
     """Progression per record distance: every time a new best was set. Candidates are Garmin's fastest split in
     every run (fastestSplit_*) and runs that were races: a race the watch measured just short (up to 2%) has no
@@ -555,6 +570,7 @@ def build_trends(
         "vo2max": vo2max(activities),
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
+        "sleep_stages": sleep_stages(wellness),
         "recovery_normals": {**recovery_normals(wellness, today), "resting_hr": normal_resting_hr(wellness, today + timedelta(days=1), rhr_fallback)[0]},
         "records": recs,
         "recent_records": recent,

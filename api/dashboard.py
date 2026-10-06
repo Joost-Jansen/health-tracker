@@ -276,7 +276,7 @@ def build_dashboard(activities: list[dict], wellness: dict, zones: dict, today: 
         "zones": {"week": _zone_share(week), "month": _zone_share(month)},
         "volume": {"week": _volume(week), "avg4w": _volume(prev4, weeks=4)},
         "form": form,
-        "recent": recent_items(activities),
+        "recent": recent_items(activities, 20),  # Today shows as many as fit at the end of a column
         "recovery": {
             "days": [dict(wellness[d], date=d) for d in recent_days if d in wellness],
             "baseline_rhr": median(rhr_60) if rhr_60 else None,

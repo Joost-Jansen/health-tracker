@@ -216,42 +216,33 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
             )}
             {t.form.length > 0 && <p className="mt-3 text-[11.5px] text-ink-muted">{t.goal ? TT.insights.goal(t.goal.text) : TT.insights.noGoal}</p>}
           </Card>
-          {/* The two fitness lines next to each other: form from your training load, VO2max from the watch. */}
-          <div className={`grid gap-4 ${running ? "lg:grid-cols-2" : ""}`}>
-            <Card title={TT.form.title}>
-              {now && (
-                <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
-                  <span>{TT.form.fitnessNow} <b className="text-ink">{Math.round(now.ctl)}</b></span>
-                  <span>{TT.form.fatigue} <b className="text-ink">{Math.round(now.atl)}</b></span>
-                  <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b>{now.form_pct != null && ` (${now.form_pct > 0 ? "+" : ""}${now.form_pct}%)`}</span>
-                  {peakCtl && <span>{TT.form.peak(Math.round(peakCtl.ctl), fmtDate(peakCtl.date))}</span>}
-                </div>
-              )}
-              <TimeChart
-                {...shared}
-                ariaLabel={TT.form.title}
-                height={260}
-                baseline={0}
-                format={(v) => String(Math.round(v))}
-                maOptions={DAILY_MA}
-                storageKey="trends-form"
-                markers={raceMarkers}
-                series={[
-                  { key: "ctl", label: TT.form.fitness, colour: "var(--chart-1)", width: 2.25, peak: "max", points: t.form.map((r) => ({ d: r.date, v: r.ctl })) },
-                  { key: "atl", label: TT.form.fatigue, colour: "var(--chart-3)", points: t.form.map((r) => ({ d: r.date, v: r.atl })) },
-                  { key: "tsb", label: TT.form.form, colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
-                ]}
-              />
-              {t.stopped_at_sync && t.form_until && <p className="mt-2 text-[12px] text-ink-muted">{TT.form.stopped(fmtDate(t.form_until))}</p>}
-              <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} {T.formChartNote}</p>
-            </Card>
-            {running && (
-              <Card title={TT.vo2.title}>
-                <TrendChart {...shared} label={TT.vo2.label} points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
-                <p className="mt-2 text-[11.5px] text-ink-muted">{T.vo2max}</p>
-              </Card>
+          <Card title={TT.form.title}>
+            {now && (
+              <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
+                <span>{TT.form.fitnessNow} <b className="text-ink">{Math.round(now.ctl)}</b></span>
+                <span>{TT.form.fatigue} <b className="text-ink">{Math.round(now.atl)}</b></span>
+                <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b>{now.form_pct != null && ` (${now.form_pct > 0 ? "+" : ""}${now.form_pct}%)`}</span>
+                {peakCtl && <span>{TT.form.peak(Math.round(peakCtl.ctl), fmtDate(peakCtl.date))}</span>}
+              </div>
             )}
-          </div>
+            <TimeChart
+              {...shared}
+              ariaLabel={TT.form.title}
+              height={260}
+              baseline={0}
+              format={(v) => String(Math.round(v))}
+              maOptions={DAILY_MA}
+              storageKey="trends-form"
+              markers={raceMarkers}
+              series={[
+                { key: "ctl", label: TT.form.fitness, colour: "var(--chart-1)", width: 2.25, peak: "max", points: t.form.map((r) => ({ d: r.date, v: r.ctl })) },
+                { key: "atl", label: TT.form.fatigue, colour: "var(--chart-3)", points: t.form.map((r) => ({ d: r.date, v: r.atl })) },
+                { key: "tsb", label: TT.form.form, colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
+              ]}
+            />
+            {t.stopped_at_sync && t.form_until && <p className="mt-2 text-[12px] text-ink-muted">{TT.form.stopped(fmtDate(t.form_until))}</p>}
+            <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} {T.formChartNote}</p>
+          </Card>
           <Card title={TT.volume.title} action={<Tabs variant="segmented" items={[{ id: "hours", label: TT.volume.hours }, { id: "km", label: TT.volume.km }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel={TT.volume.unit} />}>
             {t.weekly.length > 0 && (
               <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">{volume.weeks > 0 ? TT.volume.avg(fmtVol(volume.avg), volume.weeks) : TT.volume.noWholeWeek}</p>
@@ -259,24 +250,31 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
             <TimeChart {...shared} ariaLabel={TT.volume.aria} height={220} format={fmtVol} maOptions={WEEKLY_MA} storageKey="trends-volume" totalLabel={TT.volume.total} series={volume.series} />
           </Card>
           <ZonesOverTime window={win} sport={sport} />
+          {/* Every chart across the full width: the time axis is what you read, it needs the room. */}
           {running && (
-            <Card title={TT.z2.title}>
-              <TrendChart {...shared} label={TT.z2.label} points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter clock maOptions={WEEKLY_MA} storageKey="trends-z2" markers={flagMarkers} />
-              <p className="mt-2 text-[11.5px] text-ink-muted">{T.z2Pace}</p>
-              {flagsInView.length > 0 && (
-                <details className="mt-2 text-[11.5px] text-ink-muted">
-                  <summary className="cursor-pointer">{TT.z2.excluded(flagsInView.length)}</summary>
-                  <ul className="mt-1.5 flex flex-col gap-1">
-                    {flagsInView.map((f) => (
-                      <li key={f.id}>
-                        <Link className="underline underline-offset-2" href={href(f.id)}>{fmtDay(f.date)}{f.name ? ` · ${f.name}` : ""}</Link>: {reasonText(f.reasons)}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-1.5">{TT.hrMethod}</p>
-                </details>
-              )}
-            </Card>
+            <>
+              <Card title={TT.z2.title}>
+                <TrendChart {...shared} label={TT.z2.label} points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter clock maOptions={WEEKLY_MA} storageKey="trends-z2" markers={flagMarkers} />
+                <p className="mt-2 text-[11.5px] text-ink-muted">{T.z2Pace}</p>
+                {flagsInView.length > 0 && (
+                  <details className="mt-2 text-[11.5px] text-ink-muted">
+                    <summary className="cursor-pointer">{TT.z2.excluded(flagsInView.length)}</summary>
+                    <ul className="mt-1.5 flex flex-col gap-1">
+                      {flagsInView.map((f) => (
+                        <li key={f.id}>
+                          <Link className="underline underline-offset-2" href={href(f.id)}>{fmtDay(f.date)}{f.name ? ` · ${f.name}` : ""}</Link>: {reasonText(f.reasons)}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1.5">{TT.hrMethod}</p>
+                  </details>
+                )}
+              </Card>
+              <Card title={TT.vo2.title}>
+                <TrendChart {...shared} label={TT.vo2.label} points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
+                <p className="mt-2 text-[11.5px] text-ink-muted">{T.vo2max}</p>
+              </Card>
+            </>
           )}
 
           <Card title={tr.trainingBody.title}>

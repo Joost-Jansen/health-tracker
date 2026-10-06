@@ -72,7 +72,13 @@ Docker check before touching the Dockerfile: `docker build -t health-tracker:tes
    and dates go through `useFormat()`. `npm run check:i18n` (also run by pytest) must stay green.
 10. **Frontend**: reuse `web/components/ds`, `Card`, `charts/*` and the CSS tokens in `web/app/globals.css` (`--sage-*`,
    `--zone-1..5`, `--chart-*`). Light and dark mode must both work, and phone width without horizontal scroll.
-11. **Commits**: small and descriptive.
+11. **No empty space in cards**: content length varies (one sport or three, a short or a long text), so never pair cards
+   in grid rows, where the tallest card stretches its neighbour. Cards side by side go in `Columns`
+   (`web/components/ds/Columns.tsx`: two independent stacks, one interleaved column on a phone); a plain two-column grid
+   gets `items-start`. Both columns end level: give `Columns` a `filler`, a list that shows as many rows as fit
+   (`ds/useFitRows.ts`, e.g. recent activities), and put a list card last in a column with `fill` (upcoming sessions).
+   Charts with a time axis (Trends, Form on Today) take the full width.
+12. **Commits**: small and descriptive.
 
 ## Languages
 

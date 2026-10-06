@@ -101,7 +101,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         plan = db.active_plan(u.scope)
         if plan:
             sessions = enrich(plan, s.activities, s.routes, day)["sessions"]
-            out["upcoming"] = [x for x in sessions if x["date"] >= day.isoformat()][:5]
+            out["upcoming"] = [x for x in sessions if x["date"] >= day.isoformat()][:12]  # Today shows as many as fit
             out["plan_title"] = plan["title"]
             out["plan_week"] = plan_week(sessions, s.activities, day, sync_day(s.last_sync))
             out["race"] = next_race(plan, sessions, day)

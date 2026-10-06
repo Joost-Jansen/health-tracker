@@ -59,7 +59,7 @@ export default function DocEditor({ docKey }: { docKey: "profile" | "goals" }) {
           </span>
         }
       >
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <textarea className="ds-input h-[60vh] py-2 font-mono text-[12.5px]" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Markdown" />
           <div className="hidden max-h-[60vh] overflow-y-auto rounded border border-border p-3 lg:block">
             <Markdown text={draft} />

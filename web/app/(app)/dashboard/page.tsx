@@ -7,6 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import { Columns } from "@/components/ds";
 import ZoneBar from "@/components/ZoneBar";
 import OnboardingCard from "@/components/onboarding/Checklist";
 import EasyShare from "@/components/zones/EasyShare";
@@ -96,20 +97,13 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      {/* Only cards with something to say: without night data, form or plan the card drops out and the rest fills the row. */}
-      {(d.readiness || form) && (
-        <div className={`grid gap-4 ${d.readiness && form ? "lg:grid-cols-[1.25fr_1fr]" : ""}`}>
-          {d.readiness && <ReadinessCard r={d.readiness} />}
-          {form && <LoadCard load={form.load} wide={!d.readiness} />}
-        </div>
-      )}
-
-      {d.plan_week && (
-        <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-          <PlanWeekCard week={d.plan_week} race={d.race} />
-          <Upcoming sessions={d.upcoming} title={d.plan_title} />
-        </div>
-      )}
+      {/* Side by side in two blocks of independent columns (Columns): every card as tall as its content, the lists
+          (upcoming sessions, recent activities) show as many rows as fit so both columns end level; form across the
+          full width between them. On a phone one column in reading order. Cards without anything to say drop out. */}
+      <Columns
+        left={[d.readiness && <ReadinessCard key="ready" r={d.readiness} />, d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />]}
+        right={[form && <LoadCard key="load" load={form.load} />, d.plan_week && <Upcoming key="upcoming" sessions={d.upcoming} title={d.plan_title} fill />]}
+      />
 
       {form && (
         <Card title={m.formTitle} more={m.allTrends} moreHref="/trends/">
@@ -158,108 +152,114 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card title={m.zonesTitle} action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented value={period} onChange={(p) => { setPeriod(p); setOffset(0); }} options={[{ id: "week", label: m.week }, { id: "month", label: m.month }]} />
-            <PeriodNav label={zp ? periodLabel(zp.period, zp.start, zp.end, t, f) : period === "week" ? m.thisWeek : m.thisMonth} offset={offset} onChange={setOffset} loading={zq.isPlaceholderData} />
-          </div>
-        }>
-          {zoneSports.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">{zonesCurrent ? m.noHrNow(period) : m.noHrPeriod}</p>
-          ) : (
-            <div className="flex flex-col gap-5">
-              <EasyShare pct={(multiSport ? zones.all : zones[zoneSports[0]]).pct} />
-              {multiSport ? (
-                <>
-                  <ZoneBar sport="all" share={zones.all} />
-                  <div className="border-t border-border" />
-                  {zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={bounds[s]} />)}
-                </>
+      <Columns
+        left={[
+          (
+            <Card title={m.zonesTitle} action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Segmented value={period} onChange={(p) => { setPeriod(p); setOffset(0); }} options={[{ id: "week", label: m.week }, { id: "month", label: m.month }]} />
+                <PeriodNav label={zp ? periodLabel(zp.period, zp.start, zp.end, t, f) : period === "week" ? m.thisWeek : m.thisMonth} offset={offset} onChange={setOffset} loading={zq.isPlaceholderData} />
+              </div>
+            }>
+              {zoneSports.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{zonesCurrent ? m.noHrNow(period) : m.noHrPeriod}</p>
               ) : (
-                <>
-                  <ZoneBar sport={zoneSports[0]} share={zones[zoneSports[0]]} bounds={bounds[zoneSports[0]]} />
-                  <p className="-mt-2 text-[11.5px] text-ink-muted">{m.onlySport(zoneSports[0])}</p>
-                </>
+                <div className="flex flex-col gap-5">
+                  <EasyShare pct={(multiSport ? zones.all : zones[zoneSports[0]]).pct} />
+                  {multiSport ? (
+                    <>
+                      <ZoneBar sport="all" share={zones.all} />
+                      <div className="border-t border-border" />
+                      {zoneSports.map((s) => <ZoneBar key={s} sport={s} share={zones[s]} bounds={bounds[s]} />)}
+                    </>
+                  ) : (
+                    <>
+                      <ZoneBar sport={zoneSports[0]} share={zones[zoneSports[0]]} bounds={bounds[zoneSports[0]]} />
+                      <p className="-mt-2 text-[11.5px] text-ink-muted">{m.onlySport(zoneSports[0])}</p>
+                    </>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-          <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
-        </Card>
-
-        <div className="flex flex-col gap-4">
-          <Card title={m.volumeTitle}>
-            {volSports.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">{m.noVolume}</p>
-            ) : (
-            <table className="w-full text-[13px] tabular-nums">
-              <thead>
-                <tr className="text-left text-[11.5px] text-ink-muted">
-                  <th className="pb-2 font-normal">{m.sport}</th>
-                  <th className="pb-2 font-normal">{m.soFar}</th>
-                  <th className="pb-2 font-normal">{m.avg4w}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {volSports.map((s) => {
-                  const w = d.volume.week[s];
-                  const a = d.volume.avg4w[s];
-                  return (
-                    <tr key={s} className="border-t border-border">
-                      <td className="py-2">{t.sport(s)}</td>
-                      <td className="py-2">{w ? `${f.km(w.km)} · ${f.duration(w.seconds)}` : "–"}</td>
-                      <td className="py-2 text-ink-muted">{a ? `${f.km(a.km)} · ${f.duration(a.seconds)}` : "–"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            )}
-            {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
-          </Card>
-          <Card title={m.recoveryTitle} className="flex-1" more={m.dayDetail} moreHref="/health/">
-            {d.recovery.days.length === 0 ? (
-              <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
-            ) : (
-              <table className="w-full text-[12.5px] tabular-nums">
+              <p className="mt-4 text-[11.5px] text-ink-muted">{T.zonesFootnote(d.zone_estimates ?? [], d.zones_set ?? [])}</p>
+            </Card>
+          ),
+        ]}
+        right={[
+          (
+            <Card title={m.volumeTitle}>
+              {volSports.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{m.noVolume}</p>
+              ) : (
+              <table className="w-full text-[13px] tabular-nums">
                 <thead>
                   <tr className="text-left text-[11.5px] text-ink-muted">
-                    <th className="pb-2 font-normal">{m.day}</th>
-                    <th className="pb-2 font-normal">{m.sleep}</th>
-                    <th className="pb-2 font-normal">{m.rhr}</th>
-                    <th className="pb-2 font-normal">{m.bb}</th>
+                    <th className="pb-2 font-normal">{m.sport}</th>
+                    <th className="pb-2 font-normal">{m.soFar}</th>
+                    <th className="pb-2 font-normal">{m.avg4w}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recoveryDays.map((day) => {
-                    const w = recoveryByDay.get(day);
-                    const sleep = Number(w?.sleep_h);
+                  {volSports.map((s) => {
+                    const w = d.volume.week[s];
+                    const a = d.volume.avg4w[s];
                     return (
-                      <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
-                        <td className="py-1.5">
-                          {w ? (
-                            <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
-                              {f.weekdayDay(day)}
-                            </Link>
-                          ) : (
-                            f.weekdayDay(day)
-                          )}
-                        </td>
-                        <td className="py-1.5">{sleep > 0 ? `${f.num(sleep, 1)} ${f.hourUnit}` : "–"}</td>
-                        <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
-                        <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>
+                      <tr key={s} className="border-t border-border">
+                        <td className="py-2">{t.sport(s)}</td>
+                        <td className="py-2">{w ? `${f.km(w.km)} · ${f.duration(w.seconds)}` : "–"}</td>
+                        <td className="py-2 text-ink-muted">{a ? `${f.km(a.km)} · ${f.duration(a.seconds)}` : "–"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            )}
-            {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr))}</p>}
-          </Card>
-        </div>
-      </div>
-
-      <RecentActivities items={d.recent} />
+              )}
+              {volSports.length > 0 && <p className="mt-2 text-[11.5px] text-ink-muted">{T.volumeWeek(weekThrough)}</p>}
+            </Card>
+          ),
+          (
+            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="/health/">
+              {d.recovery.days.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
+              ) : (
+                <table className="w-full text-[12.5px] tabular-nums">
+                  <thead>
+                    <tr className="text-left text-[11.5px] text-ink-muted">
+                      <th className="pb-2 font-normal">{m.day}</th>
+                      <th className="pb-2 font-normal">{m.sleep}</th>
+                      <th className="pb-2 font-normal">{m.rhr}</th>
+                      <th className="pb-2 font-normal">{m.bb}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recoveryDays.map((day) => {
+                      const w = recoveryByDay.get(day);
+                      const sleep = Number(w?.sleep_h);
+                      return (
+                        <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
+                          <td className="py-1.5">
+                            {w ? (
+                              <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                                {f.weekdayDay(day)}
+                              </Link>
+                            ) : (
+                              f.weekdayDay(day)
+                            )}
+                          </td>
+                          <td className="py-1.5">{sleep > 0 ? `${f.num(sleep, 1)} ${f.hourUnit}` : "–"}</td>
+                          <td className="py-1.5">{w?.resting_hr ?? "–"}</td>
+                          <td className="py-1.5">{w?.body_battery_high ?? "–"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {d.recovery.baseline_rhr && <p className="mt-3 text-[11.5px] text-ink-muted">{m.baselineRhr(Math.round(d.recovery.baseline_rhr))}</p>}
+            </Card>
+          ),
+        ]}
+        filler={<RecentActivities items={d.recent} fill />}
+      />
 
     </div>
   );

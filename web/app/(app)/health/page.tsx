@@ -9,7 +9,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
-import { Button, IconButton } from "@/components/ds";
+import { Button, Columns, IconButton } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import DayTimeline, { clock, STAGE_COLOUR, type TimelinePanel } from "@/components/charts/DayTimeline";
 import { api } from "@/lib/api";
@@ -141,7 +141,7 @@ function Health({ day }: { day: string | null }) {
         <Card><p className="text-[13px] text-ink-muted">{h.empty}</p></Card>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <Columns template="lg:grid-cols-2" left={[
             <Card title={h.sleep}>
               {sleepH == null && !v.sleep ? (
                 <p className="text-[13px] text-ink-muted">{h.noSleep}</p>
@@ -202,8 +202,8 @@ function Health({ day }: { day: string | null }) {
                   )}
                 </div>
               )}
-            </Card>
-
+            </Card>,
+          ]} right={[
             <Card title={h.day}>
               <div className="flex flex-col gap-4">
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
@@ -236,8 +236,8 @@ function Health({ day }: { day: string | null }) {
                   </div>
                 )}
               </div>
-            </Card>
-          </div>
+            </Card>,
+          ]} />
 
           {panels.some((p) => p.points.length >= 2) && (
             <Card title={h.timeline}>

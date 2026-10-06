@@ -142,7 +142,7 @@ function Detail({ id }: { id: string }) {
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1.3fr_1fr]">
         {a.track && (
           <Card title={t.activity.route}>
             <ActivityMap track={a.track} cursor={cursor} />
@@ -166,7 +166,7 @@ function Detail({ id }: { id: string }) {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         {a.splits.length > 0 && (
           <Card title={t.activity.perKm}>
             <SplitTable splits={a.splits} t={t} f={f} />

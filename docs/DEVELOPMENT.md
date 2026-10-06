@@ -25,8 +25,10 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `web/` | Next.js 16 + Tailwind, static export. Own design system, sage theme. One folder per page in `web/app/(app)/`; `web/app/(redirects)/` only holds the old Dutch paths (see "Old paths") |
 | `tools/db.py` | Database schema and all reads/writes (SQLAlchemy Core; Postgres in prod, SQLite in tests) |
 | `tools/sync.py`, `tools/fit.py`, `tools/store.py`, `tools/intraday.py` | Garmin sync, FIT stream parsing, record normalisation and merge rules, Garmin's series through the day (heart rate, stress, Body Battery, breathing, SpO2, sleep stages) |
+| `tools/apple_health.py`, `tools/apple_import.py`, `api/apple.py` | Apple Health import: read the export of the Health app as a stream, store it like Garmin's data (source `apple`), the upload endpoint with background progress |
 | `tools/zones.py`, `tools/analytics.py`, `tools/summarize.py`, `tools/routes.py`, `tools/recommend.py` | Zones, training load (CTL/ATL/TSB), sessions, route recognition, route suggestions |
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data (also seeds the example account, `api/example.py`) |
+| `scripts/make_apple_export.py` | A synthetic Apple Health `export.zip` (iPhone + Watch, old and new export shapes) to test the Apple import |
 | `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
 | `tests/` | pytest, one file per module |
 
@@ -171,6 +173,9 @@ Existing:
 | GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key: resting_hr\|respiration\|sleep_h\|body_battery\|tsb, value, level, note: {code, params}}], illness_hint}` (codes, no sentences). |
 | GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first; runs with implausible wrist HR carry `hr_flags: [low_start\|flat\|dropout]` |
 | POST | `/api/activities/upload?name=&recompute=true` | one FIT file (or a zip with one) as the raw body: a ride or run from a Wahoo or any other device. Merged into an activity that starts within 2 min (Garmin stays leading), else added; `{status: added\|merged, id, sport, start_local, distance_km, source: wahoo\|fit, merged_with[]}`. Errors: `upload_empty`, `upload_too_large`, `fit_unreadable` |
+| POST | `/api/apple/import?name=export.zip` | the Apple Health export (`export.zip`, or `export.xml` alone) as the raw body, streamed to a temporary file (max 4 GB); read in the background -> 202 `{running, progress, last}`. Errors: `upload_empty`, `upload_too_large`, `not_an_export` (not a zip or XML), `apple_import_running` (409) |
+| GET | `/api/apple/import` | `{running, progress: {step: read\|workouts\|days\|derive, done, total} \| null, last: {status: done\|failed, file, workouts, added, merged, days, nights, staged_nights, kept_garmin_days, intraday_days, first, last, sports, exported, imported_at, error} \| null}` |
+| DELETE | `/api/apple/import` | remove what the import brought in (activities with source `apple`, wellness days and intraday rows with `source: apple`) -> `{removed, changed, days, intraday_days}` |
 | POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
 | PATCH | `/api/activities/{id}` | `{distance_km: number\|null}`: the real distance (0.01-1000 km) when GPS got it wrong; null removes the correction; returns the detail |

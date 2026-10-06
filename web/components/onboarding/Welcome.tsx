@@ -2,9 +2,11 @@
 
 // The first-time tour:
 //
-//   1. How do you want to use health-tracker? The site only, or also with Claude as coach (then the step
-//      "connect Claude" is added). Can be changed later under Help.
-//   2. The steps: connect Garmin, first sync, zones, profile, (Claude), goals and plan. Every step
+//   1. Which watch: Garmin (connect the account) or an Apple Watch (import the Health app's export; then the first
+//      step explains how to export on the iPhone, and there is no separate sync step). And how do you want to use
+//      health-tracker? The site only, or also with Claude as coach (then the step "connect Claude" is added). Both can
+//      be changed later under Help.
+//   2. The steps: connect Garmin (or import Apple Health), first sync, zones, profile, (Claude), goals and plan. Every step
 //      says from your own data whether it is done, and ticks itself off (also during the first sync).
 //   3. A walk past the pages in the navigation, one step per page. These steps are not in the modal but a coach mark
 //      on the page itself (CoachMark.tsx): it opens the page, rings its item in the sidebar and says what it is for.
@@ -20,12 +22,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, IconButton } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
-import { CHOICES, PAGES, PAUSED_KEY, STEPS, stepShown, useOnboarding, useSetOnboarding, type Choice } from "@/lib/onboarding";
+import { CHOICES, DEVICES, PAGES, PAUSED_KEY, STEPS, stepHref, stepShown, useOnboarding, useSetOnboarding, type Choice, type Device } from "@/lib/onboarding";
 import { localizeNav, NAV } from "@/lib/nav";
 import { useT } from "@/lib/i18n";
 import CoachMark from "./CoachMark";
 import { Sketch } from "./Sketches";
-import { Check, stepExplain } from "./steps";
+import { Check, stepExplain, stepTitle } from "./steps";
 
 type Action = { label: string; href: string };
 type TourStep = {
@@ -61,6 +63,7 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
   const q = useOnboarding(enabled);
   const set = useSetOnboarding();
   const [choice, setChoice] = useState<Choice | null>(null);
+  const [device, setDevice] = useState<Device | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [step, setStep] = useState<number | null>(null); // 0 = first step after the choice
   const [reached, setReached] = useState(0);
@@ -84,6 +87,7 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
   const o = q.data;
   if (!o || o.done) return null;
   const chosen = choice ?? o.choice;
+  const chosenDevice = device ?? o.device;
   const current = step ?? Math.max(0, serverStep - 1);
   const onChoice = choosing || !chosen || (step === null && serverStep === 0);
 
@@ -99,20 +103,21 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
     if (href) router.push(href);
   };
 
-  const view = { ...o, choice: chosen };
+  const view = { ...o, choice: chosen, device: chosenDevice };
+  const apple = chosenDevice === "apple";
   const tour: TourStep[] = [
     {
       key: "intro", title: tr.introTitle,
-      intro: tr.intro,
+      intro: apple ? tr.introApple : tr.intro,
       bullets: tr.introBullets,
-      visual: <Phases lines={tr.phases} />,
+      visual: <Phases lines={apple ? tr.phasesApple : tr.phases} />,
       actions: [],
     },
   ];
   for (const s of STEPS) {
     // "Look around" is covered by the walk past the pages below.
     if (!stepShown(s, view) || s.id === "plan" || s.id === "explore") continue;
-    const ex = stepExplain(s.id, o, t);
+    const ex = stepExplain(s.id, view, t);
     if (s.id === "goals") {
       const plan = stepExplain("plan", o, t);
       tour.push({
@@ -123,10 +128,10 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
       continue;
     }
     tour.push({
-      key: s.id, title: s.optional ? tr.optional(t.onboarding.steps[s.id].title) : t.onboarding.steps[s.id].title, done: o.steps[s.id],
+      key: s.id, title: s.optional ? tr.optional(stepTitle(s.id, view, t)) : stepTitle(s.id, view, t), done: o.steps[s.id],
       intro: ex.intro, bullets: ex.bullets, visual: <Sketch id={s.id} />,
       actions: s.id === "sync" && !o.status.garmin.connected ? []
-        : [{ label: t.onboarding.goTo(t.onboarding.steps[s.id].link), href: s.href }],
+        : [{ label: t.onboarding.goTo(t.onboarding.steps[s.id].link), href: stepHref(s, view) }],
     });
   }
   // The walk past the pages: every page in the navigation, in its order. Today, Trends, Loops and History reuse the
@@ -190,6 +195,20 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
             <p className="mb-4 text-[13px] leading-relaxed text-ink-muted">
               {tr.welcomeText}
             </p>
+            {/* Which watch: decides how your data comes in (connect Garmin, or import Apple Health) */}
+            <p className="mb-2 text-[12.5px] font-semibold">{t.onboarding.devices.question}</p>
+            <div className="mb-4 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t.onboarding.devices.question}>
+              {DEVICES.map((d) => (
+                <button key={d} type="button" role="radio" aria-checked={chosenDevice === d}
+                  onClick={() => { setDevice(d); set.mutate({ device: d }); }}
+                  className="rounded-lg p-3 text-left transition-colors hover:bg-surface-2"
+                  style={{ border: `1px solid ${chosenDevice === d ? "var(--text-primary)" : "var(--border)"}`, boxShadow: chosenDevice === d ? "inset 0 0 0 1px var(--text-primary)" : undefined }}>
+                  <span className="block text-[14px] font-semibold">{t.onboarding.devices[d].title}</span>
+                  <span className="block text-xs leading-snug text-ink-muted">{t.onboarding.devices[d].text}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mb-2 text-[12.5px] font-semibold">{tr.useQuestion}</p>
             <div className="flex flex-col gap-2">
               {CHOICES.map((c) => (
                 <button key={c} type="button"

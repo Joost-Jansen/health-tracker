@@ -7,10 +7,10 @@
 import Link from "next/link";
 import Card from "@/components/Card";
 import { Button, ButtonLink } from "@/components/ds";
-import { STEPS, stepShown, useOnboarding, useSetOnboarding, type Onboarding } from "@/lib/onboarding";
+import { STEPS, stepHref, stepShown, useOnboarding, useSetOnboarding, type Onboarding } from "@/lib/onboarding";
 import { useFormat, useT } from "@/lib/i18n";
 import { rich } from "@/lib/i18n/rich";
-import { CheckRow, stepSummary } from "./steps";
+import { CheckRow, stepSummary, stepTitle } from "./steps";
 
 export function Progress({ done, total }: { done: number; total: number }) {
   const t = useT();
@@ -34,9 +34,9 @@ export function StepList({ o, only, links = true }: { o: Onboarding; only?: "req
   return (
     <ul className="flex flex-col">
       {steps.map((s) => (
-        <CheckRow key={s.id} done={o.steps[s.id]} title={t.onboarding.steps[s.id].title} optional={s.optional}
+        <CheckRow key={s.id} done={o.steps[s.id]} title={stepTitle(s.id, o, t)} optional={s.optional}
           action={links && !o.steps[s.id] && s.id !== "explore" && !(s.id === "sync" && !o.status.garmin.connected)
-            ? <ButtonLink href={s.href} size="sm" variant="secondary">{t.onboarding.steps[s.id].link}</ButtonLink>
+            ? <ButtonLink href={stepHref(s, o)} size="sm" variant="secondary">{t.onboarding.steps[s.id].link}</ButtonLink>
             : undefined}>
           {stepSummary(s.id, o, t, f)}
         </CheckRow>
@@ -75,7 +75,7 @@ export default function OnboardingCard() {
       <p className="mb-3 max-w-prose text-[13px] leading-relaxed text-ink-muted">
         {o.required_done
           ? c.requiredDone
-          : c.requiredTodo}
+          : o.device === "apple" ? c.requiredTodoApple : c.requiredTodo}
       </p>
       <div className="mb-2"><Progress done={done} total={total} /></div>
       <StepList o={o} only={o.required_done ? "optional" : "required"} />

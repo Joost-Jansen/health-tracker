@@ -125,6 +125,14 @@ cache that is invalidated after a sync.
 uploaded as FIT files under History. They go through the same merge: a file whose start matches an activity that is
 already there is folded into it instead of counted twice, with Garmin's values leading.
 
+**Apple Watch.** Apple has no server API: the data lives in the Health app on the iPhone. Users export it there (profile
+picture, "Export All Health Data") and upload the `export.zip` under Settings, Connections, Apple Health
+(`api/apple.py`). The server streams the upload to a temporary file, reads `export.xml` and the GPX routes as a stream
+in the background (`tools/apple_health.py`, entity declarations refused) and stores workouts, sleep with stages,
+recovery and 90 days of day series in the same tables as Garmin's (`tools/apple_import.py`, source `apple`); a newer
+export later only adds what is new. Days and workouts Garmin also has keep Garmin's values. Without an Apple Watch:
+`python scripts/make_apple_export.py out/export.zip --days 120` makes a realistic synthetic export to test with.
+
 The web app is a static export (`web/out`) served by the same FastAPI process, so there is one service, one origin and no
 CORS. In development `next dev` proxies `/api/*` to the API.
 

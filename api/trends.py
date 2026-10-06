@@ -110,8 +110,9 @@ def z2_pace(activities: list[dict], streams_fn: StreamsFn, zones: dict, exclude:
     return out
 
 
-def vo2max(activities: list[dict]) -> list[dict]:
-    by_day = {}
+def vo2max(activities: list[dict], wellness: dict | None = None) -> list[dict]:
+    """VO2max per day: Garmin's from its activities, else the watch's own estimate in wellness (Apple Health)."""
+    by_day = {d: w["vo2max"] for d, w in (wellness or {}).items() if isinstance(w.get("vo2max"), (int, float))}
     for a in sorted(activities, key=lambda a: a["start_local"]):
         value = _raw(a).get("vO2MaxValue")
         if value:
@@ -134,11 +135,12 @@ def recovery_normals(wellness: dict, today: date) -> dict:
 
 
 def _recovery_values(w: dict) -> dict:
-    """The recovery values of one day; HRV is the average of last night (wellness key hrv_last_night)."""
+    """The recovery values of one day; HRV is the average of last night (wellness key hrv_last_night), or Apple's
+    SDNN for a day from an Apple Health import (another measure: the chart says which one it shows)."""
     w = w or {}
     out = {k: w.get(k) for k in RECOVERY_KEYS}
     if out["hrv"] is None:
-        out["hrv"] = w.get("hrv_last_night")
+        out["hrv"] = w.get("hrv_last_night") if w.get("hrv_last_night") is not None else w.get("hrv_sdnn")
     return out
 
 
@@ -185,7 +187,7 @@ def sleep_stages(wellness: dict) -> list[dict]:
         # Nights synced before light sleep was stored have only the total, deep and REM; Garmin's sleep time is
         # deep + light + REM, so light is the rest. Awake stays unknown (0) for those nights.
         total = w.get("sleep_h")
-        if "light_sleep_h" not in w and isinstance(total, (int, float)) and total > row["deep"] + row["rem"]:
+        if "light_sleep_h" not in w and row["deep"] + row["rem"] > 0 and isinstance(total, (int, float)) and total > row["deep"] + row["rem"]:
             row["light"] = total - row["deep"] - row["rem"]
         if row["deep"] + row["light"] + row["rem"] > 0:
             out.append({"date": day[:10], **{k: round(v, 2) for k, v in row.items()}})
@@ -572,7 +574,7 @@ def build_trends(
         "stopped_at_sync": stopped,
         "weekly": weekly,
         "z2_pace": z2_pace(activities, streams_fn, zones, exclude=set(flags)),
-        "vo2max": vo2max(activities),
+        "vo2max": vo2max(activities, wellness),
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
         "sleep_stages": sleep_stages(wellness),

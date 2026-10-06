@@ -1,7 +1,8 @@
 "use client";
 
 // One line above a page that is still empty: where to start. Only while there
-// are no workouts yet, with a text that fits where you are (not connected, first sync running, waiting for sync).
+// are no workouts yet, with a text that fits where you are (not connected, first sync running, waiting for sync; with
+// an Apple Watch: not imported yet, import running).
 // Not on the dashboard: the checklist is there. Can be dismissed; that is stored with your account.
 // Not while the walk shows example data either (lib/exampleData.ts): then the page is not empty.
 //
@@ -19,6 +20,10 @@ const SCREENS = ["/trends/", "/routes/", "/history/", "/plan/"];
 function text(o: Onboarding, t: Messages): { text: string; href: string; link: string } {
   const st = o.status;
   const b = t.onboarding.banner;
+  if (o.device === "apple" && !st.garmin.connected) {
+    if (st.apple.running) return { text: b.importing, href: "/settings/connections/#apple", link: b.toConnections };
+    return { text: b.notImported, href: "/settings/connections/#apple", link: b.importApple };
+  }
   if (!st.garmin.connected) return { text: b.notConnected, href: "/settings/connections/", link: b.connect };
   if (st.sync.running) return { text: b.syncing, href: "/help/guide/#data", link: b.how };
   return { text: b.waiting, href: "/settings/connections/", link: b.toConnections };

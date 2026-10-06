@@ -143,3 +143,34 @@ def fit_sport(sport: str | None, sub_sport: str | None = None) -> str:
     if sport in FIT_SPORTS:
         return FIT_SPORTS[sport]
     return sport or "other"
+
+
+# Apple Health's HKWorkoutActivityType<Name> -> our code. Indoor variants are a metadata flag (HKIndoorWorkout), not
+# a type of their own. Unknown ones in snake_case, like Strava's.
+APPLE_SPORTS = {
+    "Running": "run", "Cycling": "ride", "HandCycling": "hand_cycling", "Swimming": "swim",
+    "Walking": "walking", "Hiking": "hiking", "WheelchairWalkPace": "wheelchair_push_walk", "WheelchairRunPace": "wheelchair_push_run",
+    "TraditionalStrengthTraining": "strength_training", "FunctionalStrengthTraining": "strength_training",
+    "CrossTraining": "indoor_cardio", "MixedCardio": "indoor_cardio", "MixedMetabolicCardioTraining": "indoor_cardio",
+    "HighIntensityIntervalTraining": "hiit", "Elliptical": "elliptical", "StairClimbing": "stair_climbing", "Stairs": "stair_climbing",
+    "StepTraining": "stair_climbing", "Rowing": "rowing", "Yoga": "yoga", "Pilates": "pilates", "Flexibility": "mobility",
+    "MindAndBody": "yoga", "Barre": "pilates", "CoreTraining": "strength_training", "Cooldown": "mobility",
+    "DownhillSkiing": "resort_skiing", "CrossCountrySkiing": "cross_country_skiing", "Snowboarding": "resort_snowboarding",
+    "SnowSports": "resort_skiing", "SkatingSports": "skating", "PaddleSports": "paddling", "Sailing": "sailing",
+    "SurfingSports": "surfing", "WaterSports": "water_sports", "Climbing": "rock_climbing", "Golf": "golf",
+    "Soccer": "soccer", "Tennis": "tennis", "Badminton": "badminton", "Pickleball": "pickleball", "Squash": "squash",
+    "TableTennis": "table_tennis", "Racquetball": "racquetball", "Basketball": "basketball", "Volleyball": "volleyball",
+    "Boxing": "boxing", "Kickboxing": "kickboxing", "MartialArts": "mixed_martial_arts", "Dance": "dance",
+    "SocialDance": "dance", "CardioDance": "dance", "JumpRope": "jump_rope", "Hockey": "field_hockey",
+    "Rugby": "rugby", "Cricket": "cricket", "Baseball": "baseball", "AmericanFootball": "american_football",
+    "Equestrian": "horseback_riding", "Fishing": "fishing", "Hunting": "hunting", "Archery": "archery",
+    "Swimbikerun": "multi_sport", "Transition": "transition", "Other": "other",
+}
+
+
+def apple_sport(activity_type: str | None) -> str:
+    """Our code for Apple Health's workoutActivityType ("HKWorkoutActivityTypeRunning")."""
+    name = (activity_type or "").removeprefix("HKWorkoutActivityType")
+    if not name:
+        return "other"
+    return APPLE_SPORTS.get(name) or re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()

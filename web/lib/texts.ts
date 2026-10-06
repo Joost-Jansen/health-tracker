@@ -384,7 +384,7 @@ export const T = {
     } as Record<HrFlagReason, string>,
     hrMethod: "Vergeleken met je eigen verband tussen tempo en hartslag uit je andere runs. Zo'n run telt niet mee voor het tempo in Z2.",
 
-    vo2: { title: "VO2max (Garmin)", label: "VO2max" },
+    vo2: { title: "VO2max", label: "VO2max" },
 
     longest: {
       title: "Langste run per week",
@@ -401,7 +401,7 @@ export const T = {
       bbShort: "Body Battery",
       stress: "Stress",
       hrv: "HRV (nacht)",
-      hrvNote: "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen.",
+      hrvNote: "Gemiddelde hartslagvariabiliteit tijdens de nacht, gemeten door het horloge. Vergelijk met je eigen verloop, niet met dat van anderen. Van een Apple Watch is het SDNN (Apples maat), van Garmin RMSSD: die getallen zijn niet met elkaar te vergelijken.",
       resp: "Ademhaling in de slaap",
       sleepStress: "Stress in de slaap",
       bbCharged: "Body Battery opgeladen in de slaap",

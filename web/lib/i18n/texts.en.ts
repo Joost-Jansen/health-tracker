@@ -350,7 +350,7 @@ export const textsEn = {
       dropout: "dropped out for a minute or longer",
     } as Record<HrFlagReason, string>,
     hrMethod: "Compared with your own relation between pace and heart rate from your other runs. Such a run doesn't count for the pace in Z2.",
-    vo2: { title: "VO2max (Garmin)", label: "VO2max" },
+    vo2: { title: "VO2max", label: "VO2max" },
     longest: {
       title: "Longest run per week",
       label: "Longest run",
@@ -365,7 +365,7 @@ export const textsEn = {
       bbShort: "Body Battery",
       stress: "Stress",
       hrv: "HRV (overnight)",
-      hrvNote: "Average heart-rate variability during the night, measured by the watch. Compare with your own trend, not with other people's.",
+      hrvNote: "Average heart-rate variability during the night, measured by the watch. Compare with your own trend, not with other people's. From an Apple Watch it is SDNN (Apple's measure), from Garmin RMSSD: the two are not comparable.",
       resp: "Breathing while asleep",
       sleepStress: "Stress while asleep",
       bbCharged: "Body Battery charged while asleep",

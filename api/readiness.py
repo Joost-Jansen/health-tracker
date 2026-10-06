@@ -14,7 +14,8 @@ from statistics import median
 MAX_AGE_DAYS = 1  # older recovery data says little about today
 
 
-def _baseline(wellness: dict, key: str, today: date, days: int) -> float | None:
+def baseline(wellness: dict, key: str, today: date, days: int) -> float | None:
+    """Median of `key` over the `days` before `today` (not today itself); None with fewer than 7 values."""
     values = [w[key] for d, w in wellness.items() if w.get(key) and today - timedelta(days=days) <= date.fromisoformat(d) < today]
     return median(values) if len(values) >= 7 else None
 
@@ -32,13 +33,13 @@ def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: f
     signals = []
     if latest:
         w = wellness[latest]
-        base_rhr = _baseline(wellness, "resting_hr", date.fromisoformat(latest), 60)
+        base_rhr = baseline(wellness, "resting_hr", date.fromisoformat(latest), 60)
         if w.get("resting_hr") and base_rhr:
             delta = w["resting_hr"] - base_rhr
             level = "warn" if delta >= 5 else "attention" if delta >= 3 else "ok"
             signals.append({"key": "resting_hr", "value": w["resting_hr"], "note": _note("vs_baseline", delta=round(delta), baseline=round(base_rhr)), "level": level})
         if w.get("sleep_h"):
-            base_sleep = _baseline(wellness, "sleep_h", date.fromisoformat(latest), 30)
+            base_sleep = baseline(wellness, "sleep_h", date.fromisoformat(latest), 30)
             h = w["sleep_h"]
             level = "warn" if h < 5 else "attention" if h < 6 or (base_sleep and h < base_sleep - 1.25) else "ok"
             note = _note("sleep", score=w.get("sleep_score") or None, baseline=round(base_sleep, 1) if base_sleep else None)

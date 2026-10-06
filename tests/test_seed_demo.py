@@ -32,6 +32,10 @@ def test_seed_creates_demo_admin_with_data(seeded):
     assert max(a["start_local"] for a in acts) < END.isoformat()  # nothing done yet today
     assert db.load_routes(s) and db.active_plan(s)["sessions"]
     assert len(db.load_wellness(s)) == 57
+    hr_days = db.heart_rate_days(s)
+    assert len(hr_days) == out["heart_rate_days"] == 28 and hr_days[-1] == END.isoformat()
+    last = db.get_heart_rate(s, END.isoformat())
+    assert last["sleep"]["start"] < 0 < last["sleep"]["end"] and last["sleep"]["stages"] and len(last["hr"]) > 100
 
 
 def test_seed_refuses_existing_user_without_reset(seeded):
@@ -47,3 +51,5 @@ def test_demo_user_can_log_in_and_see_dashboard(seeded):
     assert c.post("/api/login", json={"username": "demo", "password": "demo-password-1"}).status_code == 200
     dash = c.get("/api/dashboard").json()
     assert dash["upcoming"] and dash["readiness"]
+    hr = c.get("/api/heartrate").json()
+    assert hr["day"] == END.isoformat() and hr["night"]["rise"] > 0 and hr["normal_resting_hr"]

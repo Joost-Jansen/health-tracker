@@ -166,6 +166,7 @@ Existing:
 | POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
 | GET | `/api/activities/{id}` | summary + `laps` + `track {latlng, zone}` + `series {time, heartrate, velocity, altitude}` (≤ 1500 points) |
 | PATCH | `/api/activities/{id}` | `{distance_km: number\|null}`: the real distance (0.01-1000 km) when GPS got it wrong; null removes the correction; returns the detail |
+| GET | `/api/heartrate?day=YYYY-MM-DD` | one day's heart rate from the watch (Garmin `get_heart_rates`, table `heart_rate`), without `day` the latest: `{day, prev, next, latest, from, to, points: [minute, bpm][], sleep {start, end, stages [{start, end, stage: deep\|light\|rem\|awake}]}, next_sleep_start, resting_hr, normal_resting_hr, min, max, night {lowest, lowest_at, avg, last_avg, before_avg, rise, minutes}}`; minutes after local midnight, the evening before negative. The sync fetches it with wellness; the first time the last 14 days, further back with `tools/sync.py --since` |
 | GET | `/api/heatmap?sport=run` | `{tracks: [lat,lon][][]}` (≤ 300 points per track) |
 | GET/PUT | `/api/docs/{profile,goals}` | `{key, body, updated_at, updated_by}` |
 | GET/POST | `/api/entries?kind=log,analysis` | list / create `{kind, title, body, day?}` |
@@ -187,7 +188,7 @@ More (types in `web/lib/training.ts`):
 
 `api/mcp.py`: Model Context Protocol over streamable HTTP (stateless, JSON responses, no SSE). `POST /api/mcp` with
 `Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers.
-Tools: `get_context`, `list_activities`, `get_activity`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
+Tools: `get_context`, `list_activities`, `get_activity`, `get_heart_rate`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
 (markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 Results are markdown text (trends as JSON). Writes are authored `agent`.
 

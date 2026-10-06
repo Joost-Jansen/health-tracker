@@ -142,6 +142,20 @@ export const T = {
     wristHr: "Hartslag komt meestal van de pols: bij een vreemde piek of dip in een training is het de moeite waard het verloop te bekijken voor je conclusies trekt.",
   },
 
+  /** Hartslag door de dag en nacht (api/heartrate.py): what the night's numbers say, without judging one night. */
+  heartRate: {
+    /** The last two hours of sleep against the rest of the night, in beats per minute. */
+    night(rise: number, last: number, before: number): string {
+      if (rise >= 8)
+        return `In de laatste twee uur slaap lag je hartslag gemiddeld ${rise} slagen hoger dan in de rest van de nacht (${last} tegen ${before} bpm). Dat is meer dan de paar slagen die tegen het wakker worden gewoon zijn.`;
+      if (rise >= 3)
+        return `In de laatste twee uur slaap lag je hartslag ${rise} slagen hoger dan in de rest van de nacht (${last} tegen ${before} bpm). Dat is gewoon: tegen de ochtend is er meer REM-slaap en maakt je lichaam zich klaar om wakker te worden.`;
+      return `Je hartslag bleef tot het wakker worden ongeveer even laag (laatste twee uur ${last}, daarvoor ${before} bpm).`;
+    },
+    explain:
+      "In een rustige nacht zakt de hartslag in de eerste helft naar zijn laagste punt en blijft daar tot kort voor het wakker worden. Een duidelijke stijging ruim voor het wakker worden hangt vaak samen met alcohol, laat of zwaar eten, een late zware training, een warme slaapkamer, stress of een opkomende verkoudheid. Zie je het vaker, kijk dan wat die avonden gemeen hadden.",
+  },
+
   /** Vandaag (dashboard). The API gives codes and numbers; the sentences are here. */
   today: {
     readiness: {

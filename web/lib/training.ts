@@ -105,6 +105,25 @@ export type Readiness = {
   signals: { key: "resting_hr" | "sleep_h" | "body_battery" | "tsb"; value: number; note: ReadinessNote; level: "ok" | "attention" | "warn" }[];
 };
 
+/** GET /api/heartrate (api/heartrate.py): one day's heart rate from the watch. Times are minutes after midnight of
+ *  `day`; the evening before is negative. */
+export type HeartRateDay = {
+  day: string;
+  prev: string | null;
+  next: string | null;
+  latest: string | null;
+  from: number;
+  to: number;
+  points: [number, number][];
+  sleep: { start: number; end: number; stages: { start: number; end: number; stage: "deep" | "light" | "rem" | "awake" }[] } | null;
+  next_sleep_start: number | null;
+  resting_hr: number | null;
+  normal_resting_hr: number | null;
+  min: number | null;
+  max: number | null;
+  night: { lowest: number; lowest_at: number; avg: number; last_avg: number | null; before_avg: number | null; rise: number | null; minutes: number } | null;
+};
+
 export function fmtDuration(seconds?: number): string {
   if (!seconds) return "0:00";
   const m = Math.round(seconds / 60);

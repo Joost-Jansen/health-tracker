@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from api.dashboard import build_dashboard, summary, today_form_pct, today_tsb
+from api.heartrate import as_markdown as heart_rate_md, day_view as heart_rate_day
 from api.history import activity_detail, list_activities
 from api.plans import enrich, parse_table
 from api.readiness import as_text as readiness_text, readiness
@@ -68,6 +69,12 @@ TOOLS = [
         "name": "get_activity",
         "description": "Eén activiteit met details: kilometersplits, ronden, zones, decoupling (hartslagdrift), rondje en eerdere keren daarop, andere activiteiten die dag.",
         "inputSchema": {"type": "object", "properties": {"id": _str("activity id, bv. 2026-09-27_1130_run")}, "required": ["id"]},
+    },
+    {
+        "name": "get_heart_rate",
+        "description": "Hartslag van het horloge door één dag en de nacht ervoor (Garmin, ongeveer elke 2 minuten): rusthartslag tegen normaal, slaap van-tot, "
+        "de nacht in getallen (laagste, gemiddeld, laatste 2 uur slaap tegen de rest) en een tabel per half uur met de slaapfase.",
+        "inputSchema": {"type": "object", "properties": {"day": _str("YYYY-MM-DD, de dag waarop je wakker werd; standaard de laatste dag met data")}},
     },
     {"name": "get_trends", "description": "Vorm (CTL/ATL/TSB, laatste 60 dagen), volume per week, tempo in Z2, VO2max, herstel per week, records, wedstrijden, voorspelde wedstrijdtijden en inzichten.", "inputSchema": {"type": "object", "properties": {}}},
     {"name": "get_plan", "description": "Het actieve trainingsschema als tabel, per sessie met status (gedaan, gemist, vandaag, gepland, rust), wat er gedaan is en een voorgesteld rondje. Een activiteit tot 2 dagen voor of na een open sessie van dezelfde sport telt voor die sessie; Gedaan km per week telt alle activiteiten van de sporten in het schema.", "inputSchema": {"type": "object", "properties": {}}},
@@ -285,6 +292,12 @@ class Server:
             if a is None:
                 raise ToolError(f"Activiteit {args.get('id')} niet gevonden; gebruik list_activities voor de ids.")
             return activity_md(a)
+        if name == "get_heart_rate":
+            try:
+                day = date.fromisoformat(args["day"]) if args.get("day") else None
+            except ValueError:
+                raise ToolError("day als YYYY-MM-DD")
+            return heart_rate_md(heart_rate_day(self.engine, s.wellness, day, s.rhr_fallback, today))
         if name == "get_trends":
             t = build_trends(s.activities, s.wellness, s.zones, s.streams, today, s.rhr_fallback, plan=db.active_plan(self.engine), last_sync=s.last_sync)
             t["form"] = t["form"][-60:]

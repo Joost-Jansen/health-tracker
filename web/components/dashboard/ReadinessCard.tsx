@@ -14,14 +14,14 @@ const VERDICT_COLOUR: Record<Readiness["verdict"], string> = {
 const LEVEL_COLOUR = { ok: "var(--zone-2)", attention: "var(--zone-3)", warn: "var(--zone-5)" };
 
 export default function ReadinessCard({ r, className = "" }: { r: Readiness; className?: string }) {
-  const T = useT().texts;
+  const { dashboard: m, texts: T } = useT();
   const t = T.today.readiness;
   const advice = r.verdict === "unknown" ? t.unknown(r.signals.map((s) => t.label[s.key])) : t.advice[r.verdict];
   const text = r.no_night ? `${advice} ${t.noNight}` : advice;
   // without night data there is little to say: compact, so the card does not look bigger than what it knows
   const compact = !r.date;
   return (
-    <Card title={t.title} className={className}>
+    <Card title={t.title} className={className} more={r.date ? m.perDay : undefined} moreHref={r.date ? `/dashboard/heart-rate/?day=${r.date}` : undefined}>
       <div className="flex items-center gap-2.5">
         <span className={`inline-block rounded-full ${compact ? "h-2 w-2" : "h-3 w-3"}`} style={{ background: VERDICT_COLOUR[r.verdict] }} />
         <span className={compact ? "text-[15px] font-medium" : "font-display text-[23px] font-light"}>{t.verdict[r.verdict]}</span>

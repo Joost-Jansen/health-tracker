@@ -2,7 +2,7 @@
 
 Creates the user `demo` (display name "Demo") with about six months of made-up training: runs, rides and pool swims
 with per-second-ish streams (GPS around a few invented loops east of Utrecht, heart rate, pace, altitude), daily sleep
-and recovery values, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
+and recovery values, four weeks of heart rate through the day and night with sleep stages, heart-rate zones, a profile and goals, a marathon plan, a few log entries and an analysis.
 Afterwards it runs `tools/derive.py` so zone times and routes exist, just like after a real sync.
 Nothing here comes from a real person: every number is generated from a fixed random seed.
 
@@ -360,6 +360,105 @@ ANALYSIS = """| | Value |
 """
 
 
+HEART_RATE_DAYS = 28  # intraday heart rate for the last four weeks, like a recent sync gives
+STEP_MIN = 2  # Garmin gives a value about every 2 minutes
+
+
+@dataclass
+class Night:
+    """One synthetic night, in minutes after midnight of the morning it ends (the evening before is negative)."""
+
+    start: int
+    end: int
+    rhr: float
+    stages: list[list[int]]  # [start, end, level] as tools/store.py stores them: 0 deep, 1 light, 2 rem, 3 awake
+    rise: bool  # heart rate climbs in the last 1.5 hours before waking
+
+    def stage(self, t: int) -> int:
+        return next((lvl for a, b, lvl in self.stages if a <= t < b), 1)
+
+    def hr(self, t: int) -> float:
+        settle = 9 * math.exp(-(t - self.start) / 70)  # it takes an hour or two to come down after falling asleep
+        level = {0: -1.5, 1: 0.5, 2: 3.5, 3: 9.0}[self.stage(t)]
+        climb = 28 * max(0.0, (t - (self.end - 95)) / 95) if self.rise else 0.0
+        return self.rhr - 1.5 + settle + level + climb
+
+
+def make_night(day: date, sleep_h: float, rhr: float, rnd: random.Random, rise: bool) -> Night:
+    wake = (7 * 60 + 45 if day.weekday() >= 5 else 6 * 60 + 50) + round(rnd.gauss(0, 18))
+    start = wake - round(sleep_h * 60) - rnd.randint(8, 25)  # time in bed is a bit more than sleep
+    stages, t = [], start
+    while t < wake:
+        frac = (t - start) / max(1, wake - start)
+        # 90-minute cycles: deep sleep early in the night, REM growing towards the morning, now and then awake
+        parts = [(1, rnd.randint(12, 22)), (0, max(0, round(rnd.gauss(30 * (1 - frac), 6)))), (1, rnd.randint(10, 20)), (2, round(8 + 30 * frac))]
+        if rnd.random() < 0.3:
+            parts.append((3, rnd.randint(2, 6)))
+        for level, minutes in parts:
+            if minutes <= 0 or t >= wake:
+                continue
+            b = min(wake, t + minutes)
+            if stages and stages[-1][2] == level:
+                stages[-1][1] = b
+            else:
+                stages.append([t, b, level])
+            t = b
+    return Night(start, wake, rhr, stages, rise)
+
+
+def seed_heart_rate(s: db.Scope, end: date, days: int = HEART_RATE_DAYS) -> int:
+    """Synthetic intraday heart rate and sleep stages (tools/store.py heart_rate_from_garmin's format) for the last
+    `days` days, from the stored sleep and resting HR and the activities of each day. A random seed of its own, so
+    the rest of the demo stays the same."""
+    rnd = random.Random(2027)
+    wellness = db.load_wellness(s)
+    workouts: dict[str, list[tuple[int, int, int]]] = {}
+    for a in db.load_activities(s):
+        t = datetime.fromisoformat(a["start_local"])
+        workouts.setdefault(a["start_local"][:10], []).append((t.hour * 60 + t.minute, round((a.get("moving_time_s") or 0) / 60), a.get("avg_hr") or 140))
+    first = end - timedelta(days=days - 1)
+    nights: dict[date, Night] = {}
+    for i in range(days + 1):
+        d = first + timedelta(days=i)
+        w = wellness.get(d.isoformat()) or wellness.get((d - timedelta(days=1)).isoformat()) or {}
+        # the last night shows the pre-wake rise this page is for; now and then another night too
+        nights[d] = make_night(d, w.get("sleep_h", 7.2), w.get("resting_hr", 50), rnd, rise=d == end or rnd.random() < 0.12)
+    wobble = 0.0
+    for i in range(days):
+        d = first + timedelta(days=i)
+        night, tonight = nights[d], nights[d + timedelta(days=1)]
+        bed = 1440 + tonight.start
+        walks = [rnd.randint(night.end + 30, 1200) for _ in range(rnd.randint(2, 4))]
+        stop = night.end + 100 if d == end else 1440  # today: up to shortly after getting up
+        points = []
+        for m in range(0, stop, STEP_MIN):
+            if rnd.random() < 0.01:
+                continue  # a missed reading now and then
+            wobble = 0.75 * wobble + rnd.gauss(0, 0.9)
+            if m < night.end:
+                v = night.hr(m)
+            elif m >= bed:
+                v = tonight.hr(m - 1440)
+            else:
+                # awake: higher after getting up, slowly lower towards the evening, bumps for walking and workouts
+                frac = (m - night.end) / max(1, bed - night.end)
+                v = night.rhr + 21 - 11 * frac + 4 * rnd.random()
+                if any(w <= m < w + 15 for w in walks):
+                    v += 22
+                for start, minutes, avg in workouts.get(d.isoformat(), []):
+                    if start <= m < start + minutes:
+                        v = avg + rnd.gauss(0, 5)
+            points.append([m, max(38, round(v + wobble))])
+        db.write_heart_rate(s, d.isoformat(), {
+            "hr": points,
+            "resting": round(night.rhr),
+            "min": min(v for _, v in points),
+            "max": max(v for _, v in points),
+            "sleep": {"start": night.start, "end": night.end, "stages": night.stages},
+        })
+    return days
+
+
 def seed(engine, end: date, days: int = 182, password: str | None = None, reset: bool = False) -> dict:
     db.create_schema(engine)
     existing = db.get_user_by_name(engine, USERNAME)
@@ -475,6 +574,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
             "steps": max(3000, round(rnd.gauss(10500, 2500))),
         })
 
+    hr_days = seed_heart_rate(s, end, min(HEART_RATE_DAYS, days + 1))
     db.set_setting(s, "sync_state", {"last_sync_local": f"{end.isoformat()} 06:02"})
     db.set_setting(s, "onboarding", {"choice": "claude", "done": True, "step": 0, "hidden": ["checklist", "data"],
                                      "visited": ["dashboard", "trends", "routes", "history"]})
@@ -511,7 +611,7 @@ def seed(engine, end: date, days: int = 182, password: str | None = None, reset:
         if km is not None and abs(km - r["distance_km"]) < 1.5:
             r["name"] = by_km[km]
     db.save_routes(s, routes)
-    return {"user_id": uid, "admin": first, "password": password, "activities": count, "plan_id": pid, **derived}
+    return {"user_id": uid, "admin": first, "password": password, "activities": count, "plan_id": pid, "heart_rate_days": hr_days, **derived}
 
 
 def main(argv=None) -> int:

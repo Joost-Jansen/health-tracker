@@ -9,8 +9,10 @@ Layout:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from calendar import timegm
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from tools.sports import garmin_sport, strava_sport
 
@@ -357,6 +359,68 @@ def wellness_from_garmin(sleep: dict | None, hrv: dict | None, summary: dict | N
     )
     # Garmin uses negative numbers (e.g. stress -1) for "no data"
     return {k: v for k, v in values.items() if not (isinstance(v, (int, float)) and v < 0)}
+
+
+# Garmin's sleepLevels.activityLevel; stored as the number, named in the API (api/heartrate.py)
+SLEEP_STAGES = {0: "deep", 1: "light", 2: "rem", 3: "awake"}
+
+
+def _gmt_seconds(text: str | None) -> float | None:
+    """Garmin's "2026-10-05T22:00:00.0" (GMT, no zone) as epoch seconds."""
+    if not text:
+        return None
+    return datetime.fromisoformat(str(text).replace(" ", "T")).replace(tzinfo=timezone.utc).timestamp()
+
+
+def heart_rate_from_garmin(day: str, hr: dict | None, sleep: dict | None) -> dict:
+    """One calendar day of Garmin's intraday heart rate (get_heart_rates, a value about every 2 min) and the sleep that
+    ended that morning (get_sleep_data), compact. Times are minutes after local midnight of `day`, so the night before
+    starts at a negative minute:
+        {"hr": [[minute, bpm], ...], "resting", "min", "max", "sleep": {"start", "end", "stages": [[start, end, level]]}}
+    Empty when Garmin has neither (watch not worn, or the data came from another device)."""
+    midnight = timegm(date.fromisoformat(day).timetuple())  # local midnight as if it were UTC
+    hr = hr or {}
+    dto = (sleep or {}).get("dailySleepDTO") or {}
+    sleep_offset = None
+    if dto.get("sleepStartTimestampLocal") and dto.get("sleepStartTimestampGMT"):
+        sleep_offset = (dto["sleepStartTimestampLocal"] - dto["sleepStartTimestampGMT"]) / 1000
+    # local minus GMT for this day; the day's own timestamps first, then the sleep's, then the site's zone
+    local0, gmt0 = _gmt_seconds(hr.get("startTimestampLocal")), _gmt_seconds(hr.get("startTimestampGMT"))
+    if local0 is not None and gmt0 is not None:
+        offset = local0 - gmt0
+    elif sleep_offset is not None:
+        offset = sleep_offset
+    else:
+        offset = datetime.fromisoformat(f"{day}T12:00").replace(tzinfo=ZoneInfo("Europe/Amsterdam")).utcoffset().total_seconds()
+
+    points: dict[int, int] = {}
+    for item in hr.get("heartRateValues") or []:
+        if not isinstance(item, (list, tuple)) or len(item) < 2 or not item[0] or not item[1] or item[1] <= 0:
+            continue
+        points[round((item[0] / 1000 + offset - midnight) / 60)] = int(item[1])
+    out: dict = {}
+    if points:
+        out["hr"] = [[m, points[m]] for m in sorted(points)]
+        out.update(_drop_none({k: hr.get(f"{k}HeartRate") for k in ("resting", "min", "max")}))
+
+    if dto.get("sleepStartTimestampLocal") and dto.get("sleepEndTimestampLocal"):
+        stages = []
+        for lvl in (sleep or {}).get("sleepLevels") or []:
+            start, end = _gmt_seconds(lvl.get("startGMT")), _gmt_seconds(lvl.get("endGMT"))
+            level = lvl.get("activityLevel")
+            if start is None or end is None or level is None or round(level) not in SLEEP_STAGES:
+                continue
+            a, b = (round((t + (sleep_offset or offset) - midnight) / 60) for t in (start, end))
+            if stages and stages[-1][2] == round(level) and stages[-1][1] == a:
+                stages[-1][1] = b  # one segment per stretch
+            elif b > a:
+                stages.append([a, b, round(level)])
+        out["sleep"] = {
+            "start": round((dto["sleepStartTimestampLocal"] / 1000 - midnight) / 60),
+            "end": round((dto["sleepEndTimestampLocal"] / 1000 - midnight) / 60),
+            "stages": stages,
+        }
+    return out
 
 
 def _wellness_dir(root: Path) -> Path:

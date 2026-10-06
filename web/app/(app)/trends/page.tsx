@@ -1,8 +1,10 @@
 "use client";
 
-// Trends: insights (on your own goal from the plan), form, volume per week per sport, time per zone over time,
-// Z2 pace, VO2max, longest run per week, recovery (with HRV when available), sleep against load, records and
-// races.
+// Trends, in three tabs (in the address bar, ?tab=):
+//   training     what you do and what it does to your fitness: insights (on your own goal from the plan), form,
+//                VO2max, volume per week per sport, time per zone over time and Z2 pace;
+//   performance  what you can do and did in a race: predicted race times, longest run per week, records and races;
+//   recovery     recovery per day or week against your own normal (with HRV when available) and sleep against load.
 //
 // One time window for the whole page (TimeFilterBar, sticks under the top bar; lives in the address bar), and one
 // sport filter (also in the address bar). Every chart shares that time axis; panning or zooming in one chart moves the
@@ -21,6 +23,7 @@ import { useTimeRange } from "@/components/timefilter/useTimeRange";
 import RecordTable from "@/components/trends/RecordTable";
 import SleepLoad from "@/components/trends/SleepLoad";
 import { ALL_SPORTS, useSportFilter } from "@/components/trends/useSportFilter";
+import { TRENDS_TABS, useTrendsTab } from "@/components/trends/useTrendsTab";
 import ZonesOverTime from "@/components/zones/ZonesOverTime";
 import { api } from "@/lib/api";
 import { useFormat, useLocale, useT } from "@/lib/i18n";
@@ -63,6 +66,7 @@ export default function TrendsPage() {
   const [picked, setPicked] = useState<string | null>(null); // a day clicked in a recovery chart, to open under Health
   const q = useQuery({ queryKey: ["trends"], queryFn: () => api.get<TrendsPlus>("/api/trends") });
   const { sport, choose: chooseSport, all } = useSportFilter();
+  const { tab, choose: chooseTab } = useTrendsTab();
 
   const t = q.data;
   // The window runs from the first measurement (of whatever series) to today.
@@ -178,114 +182,83 @@ export default function TrendsPage() {
     <div className="flex flex-col gap-4">
       <TimeFilterBar range={range} first={first} last={last} overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))} />
 
-      {sports.length > 1 && (
-        <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
+      <div className="-mt-1 flex flex-wrap items-center justify-between gap-2">
+        <Tabs items={TRENDS_TABS.map((id) => ({ id, label: TT.tabs[id] }))} value={tab} onChange={chooseTab} ariaLabel={TT.tabs.aria} />
+        {/* Recovery is not per sport. */}
+        {sports.length > 1 && tab !== "recovery" && (
           <Select aria-label={TT.sport.label} value={sport} onChange={(e) => chooseSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
             <option value={ALL_SPORTS}>{TT.sport.all}</option>
             {(sports.includes(sport) || all ? sports : [...sports, sport]).map((s) => (
               <option key={s} value={s}>{tr.sport(s)}</option>
             ))}
           </Select>
-        </div>
-      )}
-
-      <div className={`grid gap-4 ${running ? "lg:grid-cols-[1fr_1fr]" : ""}`}>
-        <Card title={TT.insights.title}>
-          {t.insights.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">{t.form.length ? TT.insights.none : TT.insights.empty}</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {t.insights.map((i, n) => {
-                const { title, text } = TT.insight(i);
-                return (
-                  <li key={i.code + n} className="flex gap-3 text-[13px]">
-                    <span className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full" style={{ background: levelColour(i.level) }} />
-                    <span><span className="font-medium">{title}.</span> <span className="text-ink-muted">{text}</span></span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {t.form.length > 0 && <p className="mt-3 text-[11.5px] text-ink-muted">{t.goal ? TT.insights.goal(t.goal.text) : TT.insights.noGoal}</p>}
-        </Card>
-        {running && (
-          <Card title={TT.predictions.title}>
-            {Object.keys(t.predictions).length === 0 ? (
-              <p className="text-[13px] text-ink-muted">{TT.predictions.none(predictDays)}</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-                  {(["5k", "10k", "21k", "42k"] as const).map((k) => {
-                    const p = t.predictions[k];
-                    return (
-                      <div key={k} className="flex flex-col">
-                        <span className="text-[11.5px] text-ink-muted">{TT.predictions.label[k]}</span>
-                        <span className="whitespace-nowrap font-display text-[19px] leading-tight tabular-nums xl:text-[21px]">{p ? fmtClock(p.seconds) : "–"}</span>
-                        {p && <span className="text-[11px] tabular-nums text-ink-muted">{fmtClock(p.pace_s_per_km)}/km</span>}
-                        {p && (
-                          <Link className="text-[11px] tabular-nums text-ink-muted underline-offset-2 hover:underline" href={href(p.from.activity_id)} title={TT.predictions.fromTitle(fmtKm(p.from.km), fmtClock(p.from.seconds), fmtDay(p.from.date))}>
-                            {TT.predictions.from(fmtKm(p.from.km))}
-                          </Link>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {p42 && (
-                  <p className="mt-3 text-[11.5px] text-ink-muted">
-                    {TT.predictions.basedOn}{" "}
-                    <Link className="underline underline-offset-2" href={href(p42.from.activity_id)}>
-                      {TT.predictions.fromTitle(fmtKm(p42.from.km), fmtClock(p42.from.seconds), fmtDay(p42.from.date))}
-                    </Link>
-                    . {T.prediction(predictDays)}
-                  </p>
-                )}
-              </>
-            )}
-          </Card>
         )}
       </div>
 
-      <Card title={TT.form.title}>
-        {now && (
-          <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
-            <span>{TT.form.fitnessNow} <b className="text-ink">{Math.round(now.ctl)}</b></span>
-            <span>{TT.form.fatigue} <b className="text-ink">{Math.round(now.atl)}</b></span>
-            <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b>{now.form_pct != null && ` (${now.form_pct > 0 ? "+" : ""}${now.form_pct}%)`}</span>
-            {peakCtl && <span>{TT.form.peak(Math.round(peakCtl.ctl), fmtDate(peakCtl.date))}</span>}
-          </div>
-        )}
-        <TimeChart
-          {...shared}
-          ariaLabel={TT.form.title}
-          height={260}
-          baseline={0}
-          format={(v) => String(Math.round(v))}
-          maOptions={DAILY_MA}
-          storageKey="trends-form"
-          markers={raceMarkers}
-          series={[
-            { key: "ctl", label: TT.form.fitness, colour: "var(--chart-1)", width: 2.25, peak: "max", points: t.form.map((r) => ({ d: r.date, v: r.ctl })) },
-            { key: "atl", label: TT.form.fatigue, colour: "var(--chart-3)", points: t.form.map((r) => ({ d: r.date, v: r.atl })) },
-            { key: "tsb", label: TT.form.form, colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
-          ]}
-        />
-        {t.stopped_at_sync && t.form_until && <p className="mt-2 text-[12px] text-ink-muted">{TT.form.stopped(fmtDate(t.form_until))}</p>}
-        <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} {T.formChartNote}</p>
-      </Card>
-
-      <Card title={TT.volume.title} action={<Tabs variant="segmented" items={[{ id: "hours", label: TT.volume.hours }, { id: "km", label: TT.volume.km }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel={TT.volume.unit} />}>
-        {t.weekly.length > 0 && (
-          <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">{volume.weeks > 0 ? TT.volume.avg(fmtVol(volume.avg), volume.weeks) : TT.volume.noWholeWeek}</p>
-        )}
-        <TimeChart {...shared} ariaLabel={TT.volume.aria} height={220} format={fmtVol} maOptions={WEEKLY_MA} storageKey="trends-volume" totalLabel={TT.volume.total} series={volume.series} />
-      </Card>
-
-      <ZonesOverTime window={win} sport={sport} />
-
-      {running ? (
+      {tab === "training" && (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <Card title={TT.insights.title}>
+            {t.insights.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">{t.form.length ? TT.insights.none : TT.insights.empty}</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {t.insights.map((i, n) => {
+                  const { title, text } = TT.insight(i);
+                  return (
+                    <li key={i.code + n} className="flex gap-3 text-[13px]">
+                      <span className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full" style={{ background: levelColour(i.level) }} />
+                      <span><span className="font-medium">{title}.</span> <span className="text-ink-muted">{text}</span></span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {t.form.length > 0 && <p className="mt-3 text-[11.5px] text-ink-muted">{t.goal ? TT.insights.goal(t.goal.text) : TT.insights.noGoal}</p>}
+          </Card>
+          {/* The two fitness lines next to each other: form from your training load, VO2max from the watch. */}
+          <div className={`grid gap-4 ${running ? "lg:grid-cols-2" : ""}`}>
+            <Card title={TT.form.title}>
+              {now && (
+                <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] tabular-nums text-ink-muted">
+                  <span>{TT.form.fitnessNow} <b className="text-ink">{Math.round(now.ctl)}</b></span>
+                  <span>{TT.form.fatigue} <b className="text-ink">{Math.round(now.atl)}</b></span>
+                  <span>{TT.form.form} <b className="text-ink">{now.tsb > 0 ? "+" : ""}{Math.round(now.tsb)}</b>{now.form_pct != null && ` (${now.form_pct > 0 ? "+" : ""}${now.form_pct}%)`}</span>
+                  {peakCtl && <span>{TT.form.peak(Math.round(peakCtl.ctl), fmtDate(peakCtl.date))}</span>}
+                </div>
+              )}
+              <TimeChart
+                {...shared}
+                ariaLabel={TT.form.title}
+                height={260}
+                baseline={0}
+                format={(v) => String(Math.round(v))}
+                maOptions={DAILY_MA}
+                storageKey="trends-form"
+                markers={raceMarkers}
+                series={[
+                  { key: "ctl", label: TT.form.fitness, colour: "var(--chart-1)", width: 2.25, peak: "max", points: t.form.map((r) => ({ d: r.date, v: r.ctl })) },
+                  { key: "atl", label: TT.form.fatigue, colour: "var(--chart-3)", points: t.form.map((r) => ({ d: r.date, v: r.atl })) },
+                  { key: "tsb", label: TT.form.form, colour: "var(--chart-4)", dash: "dashed", ma: true, points: t.form.map((r) => ({ d: r.date, v: r.tsb })) },
+                ]}
+              />
+              {t.stopped_at_sync && t.form_until && <p className="mt-2 text-[12px] text-ink-muted">{TT.form.stopped(fmtDate(t.form_until))}</p>}
+              <p className="mt-2 text-[11.5px] text-ink-muted">{T.formMethod} {T.formChartNote}</p>
+            </Card>
+            {running && (
+              <Card title={TT.vo2.title}>
+                <TrendChart {...shared} label={TT.vo2.label} points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
+                <p className="mt-2 text-[11.5px] text-ink-muted">{T.vo2max}</p>
+              </Card>
+            )}
+          </div>
+          <Card title={TT.volume.title} action={<Tabs variant="segmented" items={[{ id: "hours", label: TT.volume.hours }, { id: "km", label: TT.volume.km }]} value={metric} onChange={(v) => setMetric(v as "hours" | "km")} ariaLabel={TT.volume.unit} />}>
+            {t.weekly.length > 0 && (
+              <p className="mb-2 text-[12.5px] tabular-nums text-ink-muted">{volume.weeks > 0 ? TT.volume.avg(fmtVol(volume.avg), volume.weeks) : TT.volume.noWholeWeek}</p>
+            )}
+            <TimeChart {...shared} ariaLabel={TT.volume.aria} height={220} format={fmtVol} maOptions={WEEKLY_MA} storageKey="trends-volume" totalLabel={TT.volume.total} series={volume.series} />
+          </Card>
+          <ZonesOverTime window={win} sport={sport} />
+          {running && (
             <Card title={TT.z2.title}>
               <TrendChart {...shared} label={TT.z2.label} points={z2} format={(v) => fmtClock(v)} unit="/km" lowerIsBetter clock maOptions={WEEKLY_MA} storageKey="trends-z2" markers={flagMarkers} />
               <p className="mt-2 text-[11.5px] text-ink-muted">{T.z2Pace}</p>
@@ -303,102 +276,137 @@ export default function TrendsPage() {
                 </details>
               )}
             </Card>
-            <Card title={TT.vo2.title}>
-              <TrendChart {...shared} label={TT.vo2.label} points={vo2} format={(v) => v.toFixed(0)} maOptions={DAILY_MA} storageKey="trends-vo2" />
-              <p className="mt-2 text-[11.5px] text-ink-muted">{T.vo2max}</p>
-            </Card>
-          </div>
+          )}
+        </>
+      )}
 
-          <Card title={TT.longest.title}>
-            <TrendChart {...shared} label={TT.longest.label} points={longest} format={(v) => dec(v)} unit=" km" maOptions={WEEKLY_MA} storageKey="trends-longest" colour="var(--chart-3)" />
-            <p className="mt-2 text-[11.5px] text-ink-muted">{TT.longest.note}</p>
+      {tab === "performance" && (
+        <>
+          {running ? (
+            <>
+              <Card title={TT.predictions.title}>
+                {Object.keys(t.predictions).length === 0 ? (
+                  <p className="text-[13px] text-ink-muted">{TT.predictions.none(predictDays)}</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                      {(["5k", "10k", "21k", "42k"] as const).map((k) => {
+                        const p = t.predictions[k];
+                        return (
+                          <div key={k} className="flex flex-col">
+                            <span className="text-[11.5px] text-ink-muted">{TT.predictions.label[k]}</span>
+                            <span className="whitespace-nowrap font-display text-[19px] leading-tight tabular-nums xl:text-[21px]">{p ? fmtClock(p.seconds) : "–"}</span>
+                            {p && <span className="text-[11px] tabular-nums text-ink-muted">{fmtClock(p.pace_s_per_km)}/km</span>}
+                            {p && (
+                              <Link className="text-[11px] tabular-nums text-ink-muted underline-offset-2 hover:underline" href={href(p.from.activity_id)} title={TT.predictions.fromTitle(fmtKm(p.from.km), fmtClock(p.from.seconds), fmtDay(p.from.date))}>
+                                {TT.predictions.from(fmtKm(p.from.km))}
+                              </Link>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {p42 && (
+                      <p className="mt-3 text-[11.5px] text-ink-muted">
+                        {TT.predictions.basedOn}{" "}
+                        <Link className="underline underline-offset-2" href={href(p42.from.activity_id)}>
+                          {TT.predictions.fromTitle(fmtKm(p42.from.km), fmtClock(p42.from.seconds), fmtDay(p42.from.date))}
+                        </Link>
+                        . {T.prediction(predictDays)}
+                      </p>
+                    )}
+                  </>
+                )}
+              </Card>
+              <Card title={TT.longest.title}>
+                <TrendChart {...shared} label={TT.longest.label} points={longest} format={(v) => dec(v)} unit=" km" maOptions={WEEKLY_MA} storageKey="trends-longest" colour="var(--chart-3)" />
+                <p className="mt-2 text-[11.5px] text-ink-muted">{TT.longest.note}</p>
+              </Card>
+              {/* Records across the full width: the progression per distance needs room. */}
+              <Card title={TT.records.title}>
+                {!hasRecords ? (
+                  <p className="text-[13px] text-ink-muted">{TT.records.empty}</p>
+                ) : (
+                  <RecordTable records={t.records} recent={t.recent_records ?? []} window={win} recentDays={t.rules?.recent_record_days ?? 14} href={href} colours={RECORD_COLOUR} />
+                )}
+                <p className="mt-2 text-[11.5px] text-ink-muted">
+                  {TT.records.method}
+                  {raceRecord ? ` ${TT.records.raceRule(t.rules?.race_short_pct ?? 2)}` : ""}
+                  {hasRecords ? ` ${TT.records.progressNote}` : ""}
+                </p>
+              </Card>
+            </>
+          ) : (
+            <p className="text-[12.5px] text-ink-muted">{TT.sport.runOnly}</p>
+          )}
+          <Card title={TT.races.title}>
+            {races.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">{TT.races.none}</p>
+            ) : (
+              <ul className="flex flex-col">
+                {[...races].reverse().map((r) => (
+                  <li key={r.date + r.name + r.activity_ids[0]} className="grid grid-cols-[1fr_auto] gap-2 border-t border-border py-2 text-[13px] first:border-t-0">
+                    <Link href={href(r.activity_ids[r.activity_ids.length - 1])} className="hover:underline">
+                      <span className="font-medium">{raceName(r)}</span> <span className="text-ink-muted">· {fmtDay(r.date)}</span>
+                    </Link>
+                    <span className="tabular-nums text-ink-muted">{fmtKm(r.distance_km)} · {fmtClock(r.seconds)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[11.5px] text-ink-muted">{T.races(t.rules ?? { race_min_km: 5, race_hard_pct: 85 })}</p>
           </Card>
         </>
-      ) : (
-        <p className="text-[12.5px] text-ink-muted">{TT.sport.runOnly}</p>
       )}
 
-      <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
-        <div className="grid gap-6 md:grid-cols-2">
-          {recoveryCharts.map((c) => (
-            <div key={c.key}>
-              <h3 className="mb-1 text-[12.5px] font-medium">{c.title}</h3>
-              <TrendChart
-                label={c.label ?? c.title}
-                {...shared}
-                maOptions={recoveryMa}
-                maDefault={daily ? 7 : 0}
-                storageKey={`trends-${c.storage}`}
-                points={c.points}
-                format={c.format}
-                unit={c.unit}
-                lowerIsBetter={c.lowerIsBetter}
-                height={140}
-                colour={c.colour}
-                onPick={daily ? setPicked : undefined}
-              />
-              {(normals[c.key] != null || c.note) && (
-                <p className="mt-2 text-[11.5px] text-ink-muted">
-                  {normals[c.key] != null ? TT.recovery.normal(`${c.format(normals[c.key]!)}${c.unit ?? ""}`) : ""} {c.note ?? ""}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-        {daily && (
-          <p className="mt-4 text-[11.5px] text-ink-muted">
-            {picked ? (
-              <Link href={`/health/?day=${picked}`} className="font-semibold text-brand hover:underline">
-                {tr.dashboard.dayLink(f.weekdayDay(picked))} →
-              </Link>
-            ) : (
-              TT.recovery.openDay
-            )}
-          </p>
-        )}
-      </Card>
-
-      {hasSleep && t.form.length > 0 && (
-        <Card title={TT.sleepLoad.title}>
-          <SleepLoad form={t.form} recovery={recovery} window={win} today={t.today} />
-        </Card>
-      )}
-
-      {/* Records across the full width: the progression per distance needs room. */}
-      <div className="grid gap-4">
-        {running && (
-          <Card title={TT.records.title}>
-            {!hasRecords ? (
-              <p className="text-[13px] text-ink-muted">{TT.records.empty}</p>
-            ) : (
-              <RecordTable records={t.records} recent={t.recent_records ?? []} window={win} recentDays={t.rules?.recent_record_days ?? 14} href={href} colours={RECORD_COLOUR} />
-            )}
-            <p className="mt-2 text-[11.5px] text-ink-muted">
-              {TT.records.method}
-              {raceRecord ? ` ${TT.records.raceRule(t.rules?.race_short_pct ?? 2)}` : ""}
-              {hasRecords ? ` ${TT.records.progressNote}` : ""}
-            </p>
-          </Card>
-        )}
-
-        <Card title={TT.races.title}>
-          {races.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">{TT.races.none}</p>
-          ) : (
-            <ul className="flex flex-col">
-              {[...races].reverse().map((r) => (
-                <li key={r.date + r.name + r.activity_ids[0]} className="grid grid-cols-[1fr_auto] gap-2 border-t border-border py-2 text-[13px] first:border-t-0">
-                  <Link href={href(r.activity_ids[r.activity_ids.length - 1])} className="hover:underline">
-                    <span className="font-medium">{raceName(r)}</span> <span className="text-ink-muted">· {fmtDay(r.date)}</span>
-                  </Link>
-                  <span className="tabular-nums text-ink-muted">{fmtKm(r.distance_km)} · {fmtClock(r.seconds)}</span>
-                </li>
+      {tab === "recovery" && (
+        <>
+          <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
+            <div className="grid gap-6 md:grid-cols-2">
+              {recoveryCharts.map((c) => (
+                <div key={c.key}>
+                  <h3 className="mb-1 text-[12.5px] font-medium">{c.title}</h3>
+                  <TrendChart
+                    label={c.label ?? c.title}
+                    {...shared}
+                    maOptions={recoveryMa}
+                    maDefault={daily ? 7 : 0}
+                    storageKey={`trends-${c.storage}`}
+                    points={c.points}
+                    format={c.format}
+                    unit={c.unit}
+                    lowerIsBetter={c.lowerIsBetter}
+                    height={140}
+                    colour={c.colour}
+                    onPick={daily ? setPicked : undefined}
+                  />
+                  {(normals[c.key] != null || c.note) && (
+                    <p className="mt-2 text-[11.5px] text-ink-muted">
+                      {normals[c.key] != null ? TT.recovery.normal(`${c.format(normals[c.key]!)}${c.unit ?? ""}`) : ""} {c.note ?? ""}
+                    </p>
+                  )}
+                </div>
               ))}
-            </ul>
+            </div>
+            {daily && (
+              <p className="mt-4 text-[11.5px] text-ink-muted">
+                {picked ? (
+                  <Link href={`/health/?day=${picked}`} className="font-semibold text-brand hover:underline">
+                    {tr.dashboard.dayLink(f.weekdayDay(picked))} →
+                  </Link>
+                ) : (
+                  TT.recovery.openDay
+                )}
+              </p>
+            )}
+          </Card>
+          {hasSleep && t.form.length > 0 && (
+            <Card title={TT.sleepLoad.title}>
+              <SleepLoad form={t.form} recovery={recovery} window={win} today={t.today} />
+            </Card>
           )}
-          <p className="mt-2 text-[11.5px] text-ink-muted">{T.races(t.rules ?? { race_min_km: 5, race_hard_pct: 85 })}</p>
-        </Card>
-      </div>
+        </>
+      )}
     </div>
   );
 }

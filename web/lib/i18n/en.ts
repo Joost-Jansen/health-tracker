@@ -79,6 +79,9 @@ export const en: Messages = {
       help: "Help",
     },
     tabs: {
+      training: "Training",
+      performance: "Performance",
+      recovery: "Recovery",
       log: "Log",
       analyses: "Analyses",
       goals: "Goals",
@@ -1028,7 +1031,8 @@ export const en: Messages = {
   },
 
   health: {
-    whyRise: "Why can this happen?",
+    whyRise: "Why does heart rate rise before waking?",
+    pickDay: "Choose a day",
     loadFailed: "Could not load this day's data.",
     previous: "Previous day",
     next: "Next day",

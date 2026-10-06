@@ -69,6 +69,9 @@ export const nl = {
       help: "Help",
     },
     tabs: {
+      training: "Training",
+      performance: "Prestaties",
+      recovery: "Herstel",
       log: "Log",
       analyses: "Analyses",
       goals: "Doelen",
@@ -1022,7 +1025,8 @@ export const nl = {
   },
 
   health: {
-    whyRise: "Waar kan dit door komen?",
+    whyRise: "Waarom stijgt de hartslag voor het wakker worden?",
+    pickDay: "Kies een dag",
     loadFailed: "Kon de gegevens van deze dag niet laden.",
     previous: "Vorige dag",
     next: "Volgende dag",

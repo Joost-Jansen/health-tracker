@@ -255,7 +255,6 @@ export const T = {
 
   /** Trends page: time bar, sport filter, insights (codes from api/trends.py), charts and explanations. */
   trends: {
-    tabs: { aria: "Onderdeel van Trends", training: "Training", performance: "Prestaties", recovery: "Herstel" },
     loading: "Laden…",
     loadError: "Kon de trends niet laden.",
 

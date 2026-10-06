@@ -91,8 +91,10 @@ def test_sleep_stages_per_night_skip_days_without_stages():
         "2026-10-05": {"sleep_h": 7.6, "deep_sleep_h": 1.8, "light_sleep_h": 4.0, "rem_sleep_h": 1.7, "awake_h": 0.7},
         "2026-10-04": {"steps": 9000},  # no night: left out
         "2026-10-03": {"deep_sleep_h": 1.5, "light_sleep_h": 4.5},  # no REM or awake recorded: 0
+        "2026-09-14": {"sleep_h": 6.7, "deep_sleep_h": 0.8, "rem_sleep_h": 0.7},  # synced before light was stored
     })
     assert out == [
+        {"date": "2026-09-14", "deep": 0.8, "light": 5.2, "rem": 0.7, "awake": 0},  # light = total - deep - REM
         {"date": "2026-10-03", "deep": 1.5, "light": 4.5, "rem": 0, "awake": 0},
         {"date": "2026-10-05", "deep": 1.8, "light": 4.0, "rem": 1.7, "awake": 0.7},
     ]

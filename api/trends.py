@@ -182,6 +182,11 @@ def sleep_stages(wellness: dict) -> list[dict]:
     for day in sorted(wellness):
         w = wellness[day] or {}
         row = {stage: w.get(key) if isinstance(w.get(key), (int, float)) and w.get(key) > 0 else 0 for stage, key in SLEEP_STAGE_KEYS.items()}
+        # Nights synced before light sleep was stored have only the total, deep and REM; Garmin's sleep time is
+        # deep + light + REM, so light is the rest. Awake stays unknown (0) for those nights.
+        total = w.get("sleep_h")
+        if "light_sleep_h" not in w and isinstance(total, (int, float)) and total > row["deep"] + row["rem"]:
+            row["light"] = total - row["deep"] - row["rem"]
         if row["deep"] + row["light"] + row["rem"] > 0:
             out.append({"date": day[:10], **{k: round(v, 2) for k, v in row.items()}})
     return out

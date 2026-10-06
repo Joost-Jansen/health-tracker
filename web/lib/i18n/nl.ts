@@ -1097,6 +1097,8 @@ export const nl = {
     lastSync: (when: string) => `Laatste sync: ${when}`,
     lastImport: (when: string) => `Laatste Apple Gezondheid-import: ${when}`,
     importNewer: "importeer een nieuwere export",
+    importStale: (days: number): string => `Dat was ${days} dagen geleden: trainingen en nachten van daarna ontbreken, want een Apple Watch stuurt zijn data niet vanzelf. Exporteer opnieuw in de Gezondheid-app op je iPhone en upload het.`,
+    importNow: "Upload een nieuwe export",
     formTitle: "Vorm",
     allTrends: "Alle trends",
     statuses: { transition: "Fitheid zakt weg", fresh: "Fris", neutral: "Neutraal", optimal: "Productief", high_risk: "Hoog risico" } as Record<string, string>,

@@ -1103,6 +1103,8 @@ export const en: Messages = {
     lastSync: (when: string) => `Last sync: ${when}`,
     lastImport: (when: string) => `Last Apple Health import: ${when}`,
     importNewer: "import a newer export",
+    importStale: (days: number): string => `That was ${days} days ago: workouts and nights since then are missing, because an Apple Watch doesn't send its data by itself. Export again in the Health app on your iPhone and upload it.`,
+    importNow: "Upload a new export",
     formTitle: "Form",
     allTrends: "All trends",
     statuses: { transition: "Detraining", fresh: "Fresh", neutral: "Neutral", optimal: "Productive", high_risk: "High risk" } as Record<string, string>,

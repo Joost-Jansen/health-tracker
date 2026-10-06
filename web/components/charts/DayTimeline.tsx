@@ -136,7 +136,7 @@ export default function DayTimeline({
       onMouseLeave={() => setHover(null)}
       onTouchStart={(e) => locate(e.touches[0].clientX)}
       onTouchMove={(e) => locate(e.touches[0].clientX)}
-      onTouchEnd={() => setHover(null)}
+      // no onTouchEnd: after a tap the values stay readable; tapping elsewhere (blur) clears them
     >
       {sleep && (
         <div>
@@ -222,10 +222,28 @@ export default function DayTimeline({
           ))}
         </g>
       </svg>
+      {/* Every value at the cursor in one box beside it (left of the cursor in the right half), so you need not
+          look at each panel's label row. */}
       {hover != null && (
-        <div className="ds-chart__tip" aria-live="polite" style={{ left: Math.min(Math.max(x(hover), 40), plotW - 40), top: 18 }}>
-          {clock(hover)}
-          {hStage ? ` · ${stageLabel[hStage]}` : ""}
+        <div
+          className="ds-chart__tip"
+          aria-live="polite"
+          style={{ left: x(hover) + (x(hover) > plotW / 2 ? -12 : 12), top: sleep ? STRIP + 26 : 22, transform: x(hover) > plotW / 2 ? "translateX(-100%)" : "none" }}
+        >
+          <div className="font-semibold">
+            {clock(hover)}
+            {hStage ? ` · ${stageLabel[hStage]}` : ""}
+          </div>
+          {shown.map((p) => {
+            const hv = nearest(p.points, hover);
+            return (
+              <div key={p.key} className="flex items-center gap-1.5">
+                <span aria-hidden className="inline-block h-[3px] w-2.5 rounded-full" style={{ background: p.colour }} />
+                <span className="opacity-80">{p.label}</span>
+                <span className="ml-auto pl-3 font-semibold">{hv != null ? p.format(hv) : "–"}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

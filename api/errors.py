@@ -57,6 +57,7 @@ MESSAGES: dict[str, str] = {
     # onboarding (api/onboarding.py)
     "unknown_field": "onbekend veld: {fields}",
     "invalid_choice": "kies uit: {options}",
+    "invalid_device": "kies uit: {options}",
     "invalid_done": "done is true of false",
     "invalid_step": "een stap is een getal vanaf 0",
     "unknown_banner": "onbekende banner; kies uit: {options}",
@@ -82,6 +83,10 @@ MESSAGES: dict[str, str] = {
     "upload_empty": "leeg bestand",
     "upload_too_large": "bestand groter dan {max_mb} MB",
     "fit_unreadable": "geen leesbare activiteit in dit FIT-bestand",
+    # Apple Health import (api/apple.py)
+    "not_an_export": "geen export van Apple Gezondheid (export.zip)",
+    "apple_import_running": "er loopt al een import",
+    "import_failed": "de import is mislukt",
     # feedback (api/feedback.py)
     "feedback_kind": "soort is bug of idea",
     "feedback_empty": "schrijf wat er mis is of wat je zou willen",

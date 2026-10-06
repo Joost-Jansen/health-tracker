@@ -49,18 +49,28 @@ export default function HelpGuide() {
 
       <Part id="getting-started" title={title("getting-started")}>
         <ol className="list-decimal pl-5">
-          <li>{rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}{doneNote("garmin", m.doneNote)}</li>
-          <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
+          {o?.device === "apple" ? (
+            <li>{rich(m.stepApple, { b: bold, link: link("/settings/connections/#apple") })}{doneNote("garmin", m.doneNote)}</li>
+          ) : (
+            <>
+              <li>{rich(m.stepGarmin, { b: bold, link: link("/settings/connections/") })}{doneNote("garmin", m.doneNote)}</li>
+              <li>{rich(m.stepSync, { b: bold })}{doneNote("sync", m.syncDoneNote(o?.status.activities.count ?? 0))}</li>
+            </>
+          )}
           <li>{rich(m.stepZones, { b: bold, link: link("/settings/zones/") })}{doneNote("zones", m.doneNote)}</li>
         </ol>
         <p className="text-xs text-ink-muted">{rich(m.progressAt, { link: link("/help/") })}</p>
       </Part>
 
       <Part id="data" title={title("data")}>
-        <p>{ex("garmin").intro}</p>
-        <Bullets items={ex("garmin").bullets} />
+        {/* both ways in, whichever watch you chose: Garmin (connect and sync) and Apple Watch (import the export) */}
+        <p>{t.onboarding.explain.garmin.intro}</p>
+        <Bullets items={t.onboarding.explain.garmin.bullets} />
         <p>{ex("sync").intro}</p>
         <Bullets items={ex("sync").bullets} />
+        <p><b>{m.appleTitle}</b></p>
+        <p>{t.onboarding.explain.apple.intro}</p>
+        <Bullets items={t.onboarding.explain.apple.bullets} />
       </Part>
 
       <Part id="zones" title={title("zones")}>

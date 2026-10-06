@@ -1,14 +1,18 @@
 "use client";
 
 // Connections: your own Garmin and Wahoo accounts. Your Garmin password only goes to Garmin; Wahoo you log in to at
-// Wahoo itself (OAuth, api/connections.py). The site stores both sessions encrypted.
+// Wahoo itself (OAuth, api/connections.py). The site stores both sessions encrypted. An Apple Watch has no account to
+// connect: its card imports the export of the Health app (components/connections/AppleHealthCard.tsx); for someone
+// who chose Apple in the tour it comes first.
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import AppleHealthCard from "@/components/connections/AppleHealthCard";
 import { Button, Input } from "@/components/ds";
 import { api, ApiError } from "@/lib/api";
 import { errorText, useFormat, useT } from "@/lib/i18n";
+import { useOnboarding } from "@/lib/onboarding";
 
 type Status = {
   garmin: { connected: boolean; readable: boolean | null; connected_at: string | null; last_sync: string | null; last_failed: string[]; syncing: boolean;
@@ -166,6 +170,9 @@ export default function ConnectionsPage() {
   const t = useT();
   const f = useFormat();
   const qc = useQueryClient();
+  const apple = useOnboarding().data?.device === "apple";
+  const [hash, setHash] = useState("");
+  useEffect(() => setHash(window.location.hash), []);
   const q = useQuery({
     queryKey: ["connections"],
     queryFn: () => api.get<Status>("/api/connections"),
@@ -194,6 +201,7 @@ export default function ConnectionsPage() {
         </div>
       )}
       {g.syncing && <SyncProgress p={g.progress} />}
+      {apple && <AppleHealthCard highlight={hash === "#apple"} />}
       <Card title="Garmin Connect">
         {!g.connected || g.readable === false ? (
           <>
@@ -228,6 +236,7 @@ export default function ConnectionsPage() {
         )}
       </Card>
       <WahooCard s={q.data.wahoo} syncing={g.syncing} onChange={refresh} />
+      {!apple && <AppleHealthCard highlight={hash === "#apple"} />}
       <p className="max-w-prose text-[11.5px] text-ink-muted">
         {t.connections.unofficial}
       </p>

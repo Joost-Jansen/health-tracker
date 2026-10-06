@@ -188,6 +188,7 @@ export const en: Messages = {
           "Your account: username, an optional display name, your language, and your password, stored only as a hash.",
           "If you connect Garmin: your activities (sport, times, distance, heart rate, speed, altitude, cadence and power, GPS track and the original FIT file) and your daily recovery (sleep, resting heart rate, Body Battery, stress, steps). Your Garmin password is used once to log in and is not stored; the session Garmin returns is stored encrypted.",
           "If you connect Wahoo: your completed workouts and their FIT files, read-only. The app writes nothing back to Wahoo.",
+          "If you import Apple Health: the workouts (with heart rate and GPS route), sleep, resting heart rate, HRV, breathing rate, blood oxygen, VO2max, steps and active energy from the export you upload. Everything else in the export (other health records, your date of birth) is not stored, and the uploaded file itself is deleted as soon as the import is done.",
           "What you upload or enter yourself: FIT files from other devices, your heart-rate zones, profile data (birth year, weight, height, resting heart rate), goals, training plans, log and analyses.",
           "If you connect an AI assistant: an agent token, of which only a hash is stored.",
           "Feedback you send: your message, a screenshot of the page (taken when you open the feedback dialog; you see it and can remove it before sending), the page you were on, your browser, screen size and recent error messages. Only the administrator sees it, and the AI assistant the administrator uses to work on it.",
@@ -216,7 +217,7 @@ export const en: Messages = {
       },
       {
         title: "How long",
-        text: "Until you delete it or have your account deleted. Disconnecting Garmin removes the stored access; workouts that already came in stay. Disconnecting Wahoo, or revoking access at Wahoo itself, also deletes everything that came in through Wahoo: rides that only came from Wahoo entirely, and Wahoo's part of rides that are on Garmin too. FIT files you upload yourself are yours and stay until you have them deleted. On request you can see your data or have it deleted.",
+        text: "Until you delete it or have your account deleted. Disconnecting Garmin removes the stored access; workouts that already came in stay. Disconnecting Wahoo, or revoking access at Wahoo itself, also deletes everything that came in through Wahoo: rides that only came from Wahoo entirely, and Wahoo's part of rides that are on Garmin too. FIT files you upload yourself are yours and stay until you have them deleted. “Remove Apple data” under Connections deletes everything the Apple Health import brought in. On request you can see your data or have it deleted.",
         items: [],
       },
       {
@@ -263,6 +264,9 @@ export const en: Messages = {
     upload_empty: "Empty file.",
     upload_too_large: (p: { max_mb: number }) => `File larger than ${p.max_mb} MB.`,
     fit_unreadable: "No readable activity in this FIT file.",
+    not_an_export: "This is not an Apple Health export. Upload the export.zip from the Health app (profile picture › Export All Health Data).",
+    apple_import_running: "An import is already running.",
+    import_failed: "The import failed. Try again; if it keeps failing, send feedback.",
     feedback_kind: "Choose broken or idea.",
     feedback_empty: "Write what's wrong or what you'd like.",
     feedback_too_many: "That's a lot of feedback for one day; try again tomorrow.",
@@ -286,6 +290,7 @@ export const en: Messages = {
       `${({ birth_year: "Year of birth", weight_kg: "Weight", height_cm: "Height", resting_hr: "Resting heart rate" } as Record<string, string>)[p.field] ?? p.field} between ${p.min} and ${p.max}.`,
     unknown_field: "Unknown field.",
     invalid_choice: "Unknown choice.",
+    invalid_device: "Unknown watch.",
     invalid_done: "Invalid value.",
     invalid_step: "Invalid step.",
     unknown_banner: "Unknown notice.",
@@ -355,6 +360,48 @@ export const en: Messages = {
     disconnect: "Disconnect",
     disconnectConfirm: "Disconnect Garmin? The data already fetched stays; nothing new is added.",
     keepsFailing: "If it keeps failing, disconnect and connect again: Garmin sometimes lets a session expire.",
+    apple: {
+      title: "Apple Health (Apple Watch)",
+      intro: "Got an Apple Watch? Apple has no online account the site can connect to: your data lives in the Health app on your iPhone. Export it there and upload the file here. Later, upload a newer export to bring in what's new; nothing is counted twice.",
+      steps: [
+        "On your iPhone, open the Health app and tap your profile picture at the top right.",
+        "Tap “Export All Health Data” and then “Export”. With years of data this can take a few minutes.",
+        "Choose “Save to Files” (or AirDrop it to your computer). The file is called export.zip.",
+        "Here, tap “Choose export.zip” and pick that file. Uploading straight from your iPhone works too.",
+      ],
+      choose: "Choose export.zip",
+      again: "Import a newer export",
+      againHint: "Export again on your iPhone whenever you want your latest workouts and nights here. Workouts already imported are recognised, not added twice.",
+      uploading: "Uploading",
+      progress: {
+        starting: "Starting the import",
+        read: "Reading your export",
+        workouts: (done: number | null, total: number | null): string => (total ? `Saving workouts (${done ?? 0} of ${total})` : "Saving workouts"),
+        days: "Saving sleep and recovery",
+        derive: "Working out zones and routes",
+      },
+      lastImport: "Last import",
+      workouts: "Workouts",
+      workoutsValue: (n: number, merged: number): string => `${n}${merged ? ` (${merged} already here, merged)` : ""}`,
+      nights: "Nights",
+      nightsValue: (n: number, staged: number): string => `${n}${staged ? `, ${staged} with sleep stages` : ""}`,
+      period: "Period",
+      keptGarmin: (n: number): string => `${n} ${n === 1 ? "day" : "days"} already had Garmin data; Garmin's values were kept`,
+      remove: "Remove Apple data",
+      removeConfirm: "Remove everything that came from the Apple Health import? Workouts that Garmin also has stay.",
+      removed: (workouts: number, days: number): string => `Removed: ${workouts} workouts and ${days} days of sleep and recovery.`,
+      failed: "The import failed.",
+      whatTitle: "What comes in",
+      what: [
+        "Workouts with distance, heart rate and GPS route: running, cycling, swimming and other sports",
+        "Sleep with stages (deep, core = light, REM, awake), resting heart rate, heart rate while asleep",
+        "HRV, breathing rate and blood oxygen at night, VO2max, steps and active energy",
+        "Not from Apple: Body Battery and the stress score, those are Garmin's",
+        "Apple measures HRV as SDNN, Garmin as RMSSD: the numbers are not comparable with Garmin's",
+        "Also use Garmin? Garmin's data stays leading; Apple only fills what Garmin doesn't have",
+        "The uploaded file is only used for the import and deleted right after",
+      ],
+    },
     wahoo: {
       title: "Wahoo",
       intro: "Connect your Wahoo account to bring in your rides from an ELEMNT or KICKR, with heart rate, power and GPS. You log in at Wahoo itself; the app only reads your workouts. The first time it fetches the past year, after that every morning whatever is new. A ride that is on Garmin too is merged, not counted twice.",
@@ -825,6 +872,11 @@ export const en: Messages = {
       site: { title: "Just the site", text: "See your sessions, zones, trends, loops and plan on the site." },
       claude: { title: "With Claude as your coach", text: "Everything on the site, plus Claude working with your data: analyses, plans and your log." },
     },
+    devices: {
+      question: "Which watch do you use?",
+      garmin: { title: "Garmin", text: "Connect your Garmin account; every morning the site brings in what's new." },
+      apple: { title: "Apple Watch", text: "Import the export of the Health app on your iPhone. Import a newer export whenever you like." },
+    },
     steps: {
       garmin: { title: "Connect Garmin", link: "Connections" },
       sync: { title: "Run your first sync", link: "Connections" },
@@ -834,6 +886,7 @@ export const en: Messages = {
       agent: { title: "Connect Claude", link: "Agents" },
       goals: { title: "Write down your goals", link: "Goals" },
       plan: { title: "Add a training plan", link: "Plan" },
+      apple: { title: "Import Apple Health", link: "Connections" },
     },
     goTo: (page: string) => `Go to ${page}`,
     pages: {
@@ -859,6 +912,7 @@ export const en: Messages = {
       requiredTodo: "Three quick steps and the site runs on your own data: connect Garmin, run the first sync and set your heart-rate zones. Everything else is optional.",
       laterPrefix: "Then, if you like: ",
       laterSuffix: "You'll also find all of this under <link>Help</link>.",
+      requiredTodoApple: "Two quick steps and the site runs on your own data: import your Apple Health export and set your heart-rate zones. Everything else is optional.",
     },
     banner: {
       notConnected: "No sessions yet. Connect your Garmin account and this page fills up on its own.",
@@ -867,14 +921,18 @@ export const en: Messages = {
       how: "How it works",
       waiting: "Garmin is connected, but no sessions have come in yet.",
       toConnections: "Go to Connections",
+      notImported: "No sessions yet. Import the export of your Apple Health app and this page fills up.",
+      importApple: "Import Apple Health",
+      importing: "Your Apple Health export is being imported. This takes a minute or two.",
     },
     tour: {
+      useQuestion: "How would you like to use it?",
       aria: "Tour",
       welcome: "Welcome",
       tour: "Tour",
       pause: "Pause",
       welcomeTitle: "Welcome to health-tracker",
-      welcomeText: "How would you like to use it? We'll walk you through the setup step by step. You can change this later under Help.",
+      welcomeText: "Two quick questions, then we'll walk you through the setup step by step. You can change both later under Help.",
       back: "Back",
       skip: "Skip the tour",
       paused: (i: number, n: number) => `Tour · step ${i} of ${n}`,
@@ -895,6 +953,8 @@ export const en: Messages = {
       doneTitle: "You're all set",
       doneIntro: "That's the tour. The checklist stays on Today until the basics are in place, and you can always find it under Help → Getting started.",
       doneBullets: ["Want to see this again? Go to Help → Getting started → Restart tour", "The small print under many blocks explains how the numbers are worked out"],
+      introApple: "health-tracker reads the workouts, sleep and recovery from your Apple Watch and analyses everything using your own heart-rate zones. Two quick steps get you started; the rest can wait.",
+      phasesApple: ["Export from the Health app and upload it", "Set your heart-rate zones"],
     },
     summary: {
       garminConnected: (since: string | null) => `Connected${since ? ` since ${since}` : ""}. Your password isn't stored, only an encrypted session.`,
@@ -918,6 +978,11 @@ export const en: Messages = {
       planDone: (active: boolean, n: number) =>
         `${active ? "You have an active plan" : `${f.plural(n, { one: "# plan", other: "# plans" })}, none active`}; Today shows your upcoming sessions.`,
       planTodo: "Import a plan (CSV or a markdown table), or ask Claude to make one.",
+      appleDone: (workouts: number, days: number, at: string | null) =>
+        `${f.plural(workouts, { one: "# workout", other: "# workouts" })} and ${f.plural(days, { one: "# day", other: "# days" })} of sleep and recovery imported${at ? ` (${at})` : ""}. Import a newer export to bring in what's new.`,
+      appleTodo: "Export your data from the Health app on your iPhone and upload export.zip here.",
+      appleRunning: "Your Apple Health export is being imported. This step ticks itself off when it's done.",
+      appleFailed: "The last import failed. Check that you chose export.zip from the Health app and try again.",
     },
     explain: {
       garmin: {
@@ -926,6 +991,15 @@ export const en: Messages = {
           "Settings → Connections: your Garmin email and password",
           "If Garmin asks for a code (two-step verification), you'll enter it next",
           "Your password goes only to Garmin; the site keeps just an encrypted session",
+        ],
+      },
+      apple: {
+        intro: "An Apple Watch keeps your data in the Health app on your iPhone; Apple has no account the site can connect to. So you export it once and upload the file. Later, upload a newer export to add what's new.",
+        bullets: [
+          "On your iPhone: Health app → your profile picture (top right) → “Export All Health Data” → Export",
+          "Save the file (export.zip) to Files, then upload it under Settings → Connections → Apple Health",
+          "Workouts with heart rate and GPS, sleep with stages, resting heart rate, HRV, breathing rate and VO2max come in",
+          "Body Battery and the stress score are Garmin's: with an Apple Watch those cards stay empty",
         ],
       },
       sync: [
@@ -962,6 +1036,7 @@ export const en: Messages = {
       intro:
         "health-tracker fetches your sessions and recovery from Garmin and works everything out with your own heart-rate zones. Below you see what is in place and what else you can do; each step ticks itself off. How the numbers are calculated is shown under the blocks themselves, and in more detail in the guide.",
       using: "I use:",
+      watch: "My watch:",
       usingAria: "How you use the site",
       restart: "Restart tour",
       progress: "Your progress",
@@ -984,6 +1059,8 @@ export const en: Messages = {
         "The site fetches your sessions (with GPS and heart rate per second) and your recovery (sleep, resting heart rate, Body Battery) from Garmin, and works everything out with your own heart-rate zones: time per zone, load, form, loops and records.",
       contentsAria: "Contents",
       stepGarmin: "<b>Connect Garmin</b> under <link>Settings, Connections</link>.",
+      stepApple: "With an Apple Watch: <b>import Apple Health</b> under <link>Settings, Connections</link> (export it from the Health app on your iPhone first).",
+      appleTitle: "With an Apple Watch",
       stepSync: "Wait for <b>the first sync</b>: it starts by itself.",
       stepZones: "Set your <b>heart-rate zones</b> under <link>Settings, Zones and profile</link>.",
       doneNote: "Done.",
@@ -1023,6 +1100,8 @@ export const en: Messages = {
   dashboard: {
     loadFailed: "Could not load the dashboard.",
     lastSync: (when: string) => `Last sync: ${when}`,
+    lastImport: (when: string) => `Last Apple Health import: ${when}`,
+    importNewer: "import a newer export",
     formTitle: "Form",
     allTrends: "All trends",
     statuses: { transition: "Detraining", fresh: "Fresh", neutral: "Neutral", optimal: "Productive", high_risk: "High risk" } as Record<string, string>,
@@ -1126,7 +1205,7 @@ export const en: Messages = {
     unit: { hr: "bpm", stress: "", bb: "", resp: "/min", spo2: "%" },
     range: (lo: string, hi: string) => `${lo}–${hi}`,
     normalLine: (v: number) => `normal resting heart rate ${v}`,
-    source: "Garmin measures heart rate and breathing about every 2 minutes, stress and Body Battery every 3, blood oxygen only when the watch does; a line breaks where there is no reading (watch off, or during a workout). Normal is the median of the 60 days before.",
+    source: "The watch measures heart rate and breathing every few minutes (a Garmin about every 2, an Apple Watch every 5 to 10 while you are still), stress and Body Battery every 3 (Garmin only), blood oxygen only when the watch does; a line breaks where there is no reading (watch off, or during a workout). Normal is the median of the 60 days before.",
   },
 
   zones: {

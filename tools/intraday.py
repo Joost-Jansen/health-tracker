@@ -22,7 +22,11 @@ SERIES = ("hr", "stress", "bb", "resp", "spo2")
 
 LAST_HOURS_MIN = 120  # "the last two hours of sleep"
 MIN_NIGHT_MIN = 180  # a night summary only for a sleep of 3 h or more
-MIN_COVERAGE = 0.5  # ... with heart rate for at least half of it (Garmin gives one about every 2 minutes)
+# ... with heart rate through the whole night: readings in at least 80% of its half hours, and 12 or more. Spread, not
+# a rate: Garmin gives one about every 2 minutes, an Apple Watch every 5 to 10 while asleep.
+MIN_COVERAGE = 0.8
+COVERAGE_BLOCK_MIN = 30
+MIN_READINGS = 12
 
 
 def _gmt_seconds(text) -> float | None:
@@ -136,7 +140,9 @@ def night_summary(points: list[list[int]], sleep: dict | None) -> dict | None:
     if end - start < MIN_NIGHT_MIN:
         return None
     inside = [(m, v) for m, v in points if start <= m <= end]
-    if len(inside) < MIN_COVERAGE * (end - start) / 2:
+    blocks = range(start, end, COVERAGE_BLOCK_MIN)
+    covered = {(m - start) // COVERAGE_BLOCK_MIN for m, _ in inside}
+    if len(inside) < MIN_READINGS or len(covered) < MIN_COVERAGE * len(blocks):
         return None
     split = end - LAST_HOURS_MIN
     last = [v for m, v in inside if m >= split]

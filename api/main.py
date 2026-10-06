@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import agent_tokens, connections, daily, errors, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
+from api import agent_tokens, apple, connections, daily, errors, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
 from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
@@ -162,8 +162,10 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.include_router(agent_tokens.make_router(current_user))
     app.include_router(connections.make_router(current_user, runner, runner.key, garmin_auth, today))
     app.include_router(settings_api.make_router(current_user))
-    app.include_router(onboarding.make_router(current_user, runner))
     app.include_router(uploads.make_router(current_user))
+    app.state.apple = apple.AppleImports(stores, on_done=cache.clear)
+    app.include_router(apple.make_router(current_user, app.state.apple))
+    app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
     app.include_router(feedback.make_router(engine, current_user))
     app.include_router(mcp.make_router(today, current_user, token_user))
 

@@ -17,10 +17,12 @@ from tools.sports import garmin_sport, strava_sport
 MATCH_WINDOW_S = 120
 # Which source wins for a scalar field when both have it; default is garmin first.
 # `manual`: what the user corrected on the site (tools/distance.py), always first.
-FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo_api", "wahoo", "fit"), "distance_km": ("manual", "garmin", "strava", "wahoo_api", "wahoo", "fit")}
+FIELD_PRIORITY = {"name": ("strava", "garmin", "wahoo_api", "wahoo", "fit", "apple"), "distance_km": ("manual", "garmin", "strava", "wahoo_api", "wahoo", "fit", "apple")}
 # Uploaded FIT files (Wahoo, or any other device) come after the synced sources. A Wahoo cloud connection needs a
 # source name of its own, so that remove_source() on disconnect leaves the files someone uploaded themselves.
-DEFAULT_PRIORITY = ("garmin", "strava", "wahoo_api", "wahoo", "fit")  # wahoo_api: the Wahoo cloud connection (tools/wahoo.py)
+# apple: an Apple Health import (tools/apple_import.py), last: a Garmin or FIT recording of the same session is the
+# device's own file, Apple's is a summary of what the phone stored.
+DEFAULT_PRIORITY = ("garmin", "strava", "wahoo_api", "wahoo", "fit", "apple")  # wahoo_api: the Wahoo cloud connection (tools/wahoo.py)
 SCALAR_FIELDS = (
     "name",
     "distance_km",

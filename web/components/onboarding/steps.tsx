@@ -50,12 +50,22 @@ export function CheckRow({ done, title, optional, children, action }: {
   );
 }
 
+/** A step's title: the first step is "Connect Garmin", or "Import Apple Health" for an Apple Watch. */
+export function stepTitle(id: StepId, o: Pick<Onboarding, "device"> | null, t: Messages): string {
+  return id === "garmin" && o?.device === "apple" ? t.onboarding.steps.apple.title : t.onboarding.steps[id].title;
+}
+
 /** What a step says now: what is already there, or what you need to do. Short, for a checklist. */
 export function stepSummary(id: StepId, o: Onboarding, t: Messages, f: Format): React.ReactNode {
   const st = o.status;
   const s = t.onboarding.summary;
   switch (id) {
     case "garmin":
+      if (o.device === "apple") {
+        if (st.apple.running) return s.appleRunning;
+        if (st.apple.imported) return s.appleDone(st.apple.workouts ?? 0, st.apple.days ?? 0, st.apple.imported_at ? f.day(st.apple.imported_at) : null);
+        return st.apple.failed ? s.appleFailed : s.appleTodo;
+      }
       return st.garmin.connected ? s.garminConnected(st.garmin.connected_at ? f.day(st.garmin.connected_at) : null) : s.garminTodo;
     case "sync":
       if (st.sync.running && !o.steps.sync) return s.syncRunning;
@@ -93,7 +103,7 @@ export function stepExplain(id: StepId, o: Onboarding | null, t: Messages): { in
   const T = t.texts.onboarding;
   switch (id) {
     case "garmin":
-      return ex.garmin;
+      return o?.device === "apple" ? ex.apple : ex.garmin;
     case "sync":
       return { intro: T.firstSync(FIRST_SYNC_DAYS), bullets: ex.sync };
     case "zones": {

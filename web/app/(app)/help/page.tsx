@@ -7,7 +7,7 @@ import Card from "@/components/Card";
 import { Button, ButtonLink, Tabs } from "@/components/ds";
 import { countSteps, Progress, StepList } from "@/components/onboarding/Checklist";
 import { useT } from "@/lib/i18n";
-import { CHOICES, PAUSED_KEY, useOnboarding, useSetOnboarding, type Choice } from "@/lib/onboarding";
+import { CHOICES, DEVICES, PAUSED_KEY, useOnboarding, useSetOnboarding, type Choice, type Device } from "@/lib/onboarding";
 
 export default function HelpStart() {
   const t = useT();
@@ -23,6 +23,9 @@ export default function HelpStart() {
       <Card title={h.title}>
         <p className="mb-3 max-w-prose text-[13px] leading-relaxed text-ink-muted">{h.intro}</p>
         <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-ink-muted">{h.watch}</span>
+          <Tabs variant="segmented" ariaLabel={t.onboarding.devices.question} items={DEVICES.map((d) => ({ id: d, label: t.onboarding.devices[d].title }))}
+            value={o.device} onChange={(v) => set.mutate({ device: v as Device })} />
           <span className="text-xs text-ink-muted">{h.using}</span>
           <Tabs variant="segmented" ariaLabel={h.usingAria} items={CHOICES.map((c) => ({ id: c, label: t.onboarding.choices[c].title }))}
             value={o.choice ?? "site"} onChange={(v) => set.mutate({ choice: v as Choice })} />

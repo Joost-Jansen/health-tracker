@@ -19,6 +19,7 @@ import RecentActivities from "@/components/dashboard/RecentActivities";
 import Upcoming from "@/components/dashboard/Upcoming";
 import LineChart from "@/components/charts/LineChart";
 import { api } from "@/lib/api";
+import { useOnboarding } from "@/lib/onboarding";
 import { useFormat, useT } from "@/lib/i18n";
 import { periodLabel } from "@/lib/i18n/period";
 import type { Dashboard, ZonesForPeriod } from "@/lib/training";
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<"week" | "month">("week");
   const [offset, setOffset] = useState(0);
   const q = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/api/dashboard") });
+  const apple = useOnboarding().data?.status.apple;
   const zq = useQuery({
     queryKey: ["zones", period, offset],
     queryFn: () => api.get<ZonesForPeriod>(`/api/zones?period=${period}&offset=${offset}`),
@@ -86,7 +88,15 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {syncAge >= 2 ? (
+      {!syncDay && apple?.imported_at ? (
+        // An Apple Watch has no sync: when the last import was, and how to bring in newer data
+        <p className="text-[12.5px] text-ink-muted">
+          {m.lastImport(f.dateTime(apple.imported_at))}
+          {dayNo(d.today) - dayNo(apple.imported_at.slice(0, 10)) >= 2 && (
+            <> · <Link href="/settings/connections/#apple" className="underline underline-offset-4">{m.importNewer}</Link></>
+          )}
+        </p>
+      ) : syncAge >= 2 ? (
         <p role="status" className="flex items-start gap-2 rounded border border-border bg-surface px-3 py-2 text-[12.5px] leading-relaxed">
           <span aria-hidden="true" className="mt-[6px] inline-block h-2 w-2 flex-none rounded-full bg-warn" />
           <span><span className="font-medium">{m.lastSync(lastSync)}.</span> <span className="text-ink-muted">{T.syncStale(syncAge)}</span></span>

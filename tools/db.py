@@ -255,6 +255,17 @@ def connect(url: str) -> Engine:
         url = "postgresql+psycopg://" + url[len("postgres://") :]
     elif url.startswith("postgresql://"):
         url = "postgresql+psycopg://" + url[len("postgresql://") :]
+    if url.startswith("sqlite"):
+        # local runs and tests: wait for a lock instead of failing at once (a background import writes while the page
+        # reads), and WAL so readers do not wait for a writer. Postgres (production) needs neither.
+        engine = create_engine(url, pool_pre_ping=True, future=True, connect_args={"timeout": 30})
+        if ":memory:" not in url and url.rstrip("/") not in ("sqlite:", "sqlite:/"):
+            from sqlalchemy import event
+
+            @event.listens_for(engine, "connect")
+            def _wal(dbapi_conn, _record):
+                dbapi_conn.execute("PRAGMA journal_mode=WAL")
+        return engine
     return create_engine(url, pool_pre_ping=True, future=True)
 
 

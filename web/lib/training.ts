@@ -123,6 +123,8 @@ export type HealthDay = {
   prev: string | null;
   next: string | null;
   latest: string | null;
+  /** Today where the user lives: the date picker goes up to it, also before it has data. */
+  today: string | null;
   from: number;
   to: number;
   series: Partial<Record<DaySeriesKey, [number, number][]>>;

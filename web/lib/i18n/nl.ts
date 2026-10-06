@@ -1066,6 +1066,7 @@ export const nl = {
     latest: "Laatste",
     none: "Nog geen gegevens van je horloge. Die komen binnen met de volgende sync (de eerste keer de laatste twee weken door de dag heen).",
     empty: "Geen gegevens van deze dag: horloge niet gedragen, nog niet gesynchroniseerd, of de data komt niet van Garmin.",
+    emptyToday: "Van vandaag staat nog niets bij Garmin. Je horloge stuurt zijn data via de Garmin Connect-app op je telefoon: open de app, wacht tot die gesynchroniseerd is en synchroniseer dan hier.",
     normal: (v: string) => `normaal ${v}`,
     bpm: (v: number) => `${v} bpm`,
     sleep: "Slaap",

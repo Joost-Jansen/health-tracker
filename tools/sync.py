@@ -63,6 +63,18 @@ def fetch_metric(stats: dict, name: str, fn, day: str):
     return value
 
 
+def today_report(values: dict, series: dict | None) -> str:
+    """What today's sync brought in, for the log. Garmin answers a day the watch has not uploaded yet with empty
+    responses (counted "ok" above), so without this the log cannot tell that apart from a day with data."""
+    last = max((pts[-1][0] for k, pts in (series or {}).items() if k != "sleep" and isinstance(pts, list) and pts), default=None)
+    if not values and last is None:
+        return "nog niets bij Garmin (horloge nog niet gesynchroniseerd met Garmin Connect)"
+    out = f"{len(values)} dagwaarden"
+    if last is not None:
+        out += f", laatste meting {last // 60:02d}:{last % 60:02d}"
+    return out
+
+
 class FileSink:
     """Legacy target: JSON files in the repo (data/)."""
 
@@ -374,6 +386,8 @@ def sync_garmin(target, client, state: dict, today: date, since: date | None = N
             g["last_intraday_day"] = iso
         sink.write_wellness(iso, values)
         g["last_wellness_day"] = iso
+        if day == today:
+            print(f"garmin vandaag: {today_report(values, series if with_intraday and day >= day_start else None)}")
         day += timedelta(days=1)
     return count
 

@@ -376,6 +376,8 @@ export const textsEn = {
     },
     sleepStages: {
       title: "Sleep stages",
+      hours: "Hours",
+      unit: "Percentage or hours",
       night: "Night",
       per: "Per night, week or month",
       none: "No nights with sleep stages in this period.",
@@ -383,8 +385,8 @@ export const textsEn = {
       asleep: (h: string): string => `${h} asleep`,
       asleepAvg: (h: string, nights: number): string => `${h} asleep per night (${nights} nights)`,
       overTime: "Deep sleep and REM over time",
-      rolling: (n: number, p: "night" | "week" | "month"): string => `share of the time in bed, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
-      note: "Share of the time in bed (asleep and awake); the hours are per night. Deep sleep is usually 13-23% and REM 20-25% of the night; your own trend says more than one night.",
+      rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string => `${mode === "hours" ? "hours per night" : "share of the time in bed"}, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
+      note: "%: the share of the time in bed (asleep and awake). Hours: per night, on average over the bar's nights. Deep sleep is usually 13-23% and REM 20-25% of the night; your own trend says more than one night. Older nights, synced before awake time was stored, show none.",
     },
     records: {
       title: "Records",

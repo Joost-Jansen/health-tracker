@@ -438,6 +438,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
 
       {tab === "recovery" && (
         <>
+          <SleepStages nights={t.sleep_stages ?? []} window={win} />
           <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
             <div className="grid gap-6 md:grid-cols-2">
               {recoveryCharts.map((c) => (
@@ -477,7 +478,6 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
               </p>
             )}
           </Card>
-          <SleepStages nights={t.sleep_stages ?? []} window={win} />
         </>
       )}
     </div>

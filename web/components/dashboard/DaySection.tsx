@@ -10,6 +10,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Card from "@/components/Card";
+import SyncButton from "@/components/SyncButton";
 import { Button, Columns, IconButton } from "@/components/ds";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import DayTimeline, { clock, STAGE_COLOUR, type TimelinePanel } from "@/components/charts/DayTimeline";
@@ -129,7 +130,7 @@ export default function DaySection() {
             type="date"
             aria-label={h.pickDay}
             value={v.day}
-            max={v.latest}
+            max={v.today ?? v.latest}
             onChange={(e) => /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && go(e.target.value)}
             className="h-8 rounded border border-border bg-surface px-2 text-[13px] tabular-nums text-[var(--text-primary)]"
           />
@@ -144,7 +145,15 @@ export default function DaySection() {
       </div>
 
       {!hasDay ? (
-        <Card><p className="text-[13px] text-ink-muted">{h.empty}</p></Card>
+        v.day === v.today ? (
+          // Garmin has nothing of today until the watch has uploaded it through the Garmin Connect app
+          <Card>
+            <p className="text-[13px] text-ink-muted">{h.emptyToday}</p>
+            <div className="mt-3"><SyncButton text /></div>
+          </Card>
+        ) : (
+          <Card><p className="text-[13px] text-ink-muted">{h.empty}</p></Card>
+        )
       ) : (
         <>
           <Columns template="lg:grid-cols-2" left={[

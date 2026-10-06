@@ -78,6 +78,7 @@ def day_view(s: db.Scope, wellness: dict, day: date | None, rhr_fallback: float 
         "prev": next((d for d in reversed(days) if d < iso), None),
         "next": next((d for d in days if d > iso), None),
         "latest": days[-1] if days else None,
+        "today": today.isoformat() if today else None,
         "from": start,
         "to": end,
         "series": series,

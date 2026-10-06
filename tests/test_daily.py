@@ -12,7 +12,7 @@ from tests.test_sync import FakeGarmin
 from tools import db
 from tools.intraday import intraday_from_garmin, night_summary
 from tools.store import wellness_from_garmin
-from tools.sync import DbSink, GarminClient, sync_garmin
+from tools.sync import DbSink, GarminClient, sync_garmin, today_report
 
 
 def ms(iso_utc: str) -> int:
@@ -162,6 +162,12 @@ def test_sync_fetches_two_weeks_of_series_the_first_time_then_continues():
     assert client.intraday_days == ["2026-09-30", "2026-10-01"]  # the last day again: it was not finished yet
 
 
+def test_today_report_tells_an_empty_garmin_day_from_one_with_data():
+    assert "nog niets bij Garmin" in today_report({}, {})  # the watch has not uploaded today yet
+    assert today_report({"steps": 4000}, {"hr": [[-30, 50], [745, 70]], "sleep": {"start": -60}}) == "1 dagwaarden, laatste meting 12:25"
+    assert today_report({"steps": 4000}, None) == "1 dagwaarden"
+
+
 def test_a_long_backfill_caps_the_series_at_90_days_but_not_wellness():
     s, client = scope(), FakeGarminDay()
     state = {"garmin": {"last_activity_day": "2026-09-30"}}
@@ -246,6 +252,7 @@ def test_day_view_joins_the_evening_before_and_finds_neighbours():
     assert day_view(s, {"2026-10-09": {"steps": 10}}, None)["day"] == "2026-10-09"  # a day with only a summary counts too
     empty = day_view(scope(), {}, None, today=date(2026, 10, 6))
     assert empty["day"] == "2026-10-06" and empty["series"] == {} and empty["night"] is None
+    assert empty["today"] == "2026-10-06"  # the date picker goes up to today, also before today has data
     assert "Geen data" in as_markdown(empty)
 
 

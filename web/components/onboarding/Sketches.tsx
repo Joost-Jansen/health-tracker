@@ -1,11 +1,10 @@
-// Small cartoon sketches of the site for the tour: a browser window with a stylised version of a page. Inline SVG with
-// the theme's own tokens, so light and dark mode both work; placeholder bars instead of text, so there is nothing to
-// translate. Decorative only (aria-hidden): the step's own title and text say what the page is for.
+// Small cartoon sketches of the site for the setup steps of the tour: a browser window with a stylised version of a
+// page. Inline SVG with the theme's own tokens, so light and dark mode both work; placeholder bars instead of text, so
+// there is nothing to translate. Decorative only (aria-hidden): the step's own title and text say what the page is for.
 
 import type { StepId } from "@/lib/onboarding";
-import type { NavItem } from "@/lib/nav";
 
-export type SketchId = Exclude<StepId, "explore" | "goals" | "plan"> | "goals-plan" | NavItem["id"];
+export type SketchId = Exclude<StepId, "explore" | "goals" | "plan"> | "goals-plan";
 
 const LINE = "var(--border-strong)";
 const SOFT = "var(--surface-inset)";
@@ -23,11 +22,11 @@ function Box({ x, y, w, h, fill = CARD }: { x: number; y: number; w: number; h: 
   return <rect x={x} y={y} width={w} height={h} rx={6} fill={fill} stroke="var(--border)" />;
 }
 
-function Tick({ x, y, done = true }: { x: number; y: number; done?: boolean }) {
+function Tick({ x, y }: { x: number; y: number }) {
   return (
     <g>
-      <circle cx={x} cy={y} r={5} fill={done ? POS : SOFT} />
-      {done && <path d={`M${x - 2.4} ${y} l1.7 1.8 l3.2 -3.4`} fill="none" stroke={CARD} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />}
+      <circle cx={x} cy={y} r={5} fill={POS} />
+      <path d={`M${x - 2.4} ${y} l1.7 1.8 l3.2 -3.4`} fill="none" stroke={CARD} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
     </g>
   );
 }
@@ -37,15 +36,6 @@ function Field({ x, y, w }: { x: number; y: number; w: number }) {
     <g>
       <Bar x={x} y={y} w={w * 0.35} h={4} />
       <rect x={x} y={y + 7} width={w} height={12} rx={4} fill={CARD} stroke="var(--border)" />
-    </g>
-  );
-}
-
-function Toggle({ x, y, on }: { x: number; y: number; on: boolean }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={20} height={11} rx={5.5} fill={on ? BRAND : SOFT} stroke="var(--border)" />
-      <circle cx={on ? x + 14.5 : x + 5.5} cy={y + 5.5} r={3.8} fill={CARD} />
     </g>
   );
 }
@@ -123,103 +113,6 @@ const PAGES: Record<SketchId, React.ReactNode> = {
       <Bar x={34} y={46} w={50} h={6} fill={BRAND} />
       {[0, 1, 2, 3].map((r) => <Bar key={r} x={34} y={62 + r * 13} w={[76, 60, 70, 44][r]} />)}
       <PlanGrid x={140} y={36} w={144} rows={3} />
-    </g>
-  ),
-  dashboard: (
-    <g>
-      <Box x={20} y={34} w={84} h={52} />
-      <circle cx={62} cy={60} r={15} fill="none" stroke={SOFT} strokeWidth={5} />
-      <path d="M62 45 a15 15 0 1 1 -14.3 19.6" fill="none" stroke={POS} strokeWidth={5} strokeLinecap="round" />
-      <Box x={112} y={34} w={84} h={52} />
-      {[1, 2, 3, 4, 5].map((z) => <rect key={z} x={122 + (z - 1) * 13} y={74 - [10, 24, 14, 7, 4][z - 1]} width={10} height={[10, 24, 14, 7, 4][z - 1]} rx={2} fill={`var(--zone-${z})`} />)}
-      <Box x={204} y={34} w={96} h={52} />
-      <Bar x={214} y={44} w={40} />
-      <path d="M214 74 l14 -8 l14 4 l14 -12 l14 6 l14 -10" fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Box x={20} y={94} w={280} h={32} />
-      <Tick x={34} y={110} />
-      <Bar x={46} y={107.5} w={90} />
-      <Tick x={170} y={110} done={false} />
-      <Bar x={182} y={107.5} w={80} />
-    </g>
-  ),
-  trends: (
-    <g>
-      {[0, 1, 2, 3].map((r) => <line key={r} x1={30} x2={290} y1={44 + r * 24} y2={44 + r * 24} stroke="var(--data-grid)" />)}
-      <path d="M30 108 C70 100 90 70 130 76 S190 56 220 60 S270 40 290 42 L290 116 L30 116 Z" fill="var(--chart-1)" opacity={0.14} />
-      <path d="M30 108 C70 100 90 70 130 76 S190 56 220 60 S270 40 290 42" fill="none" stroke="var(--chart-1)" strokeWidth={2.4} strokeLinecap="round" />
-      <path d="M30 96 C80 92 120 96 160 88 S240 84 290 74" fill="none" stroke="var(--chart-3)" strokeWidth={1.8} strokeDasharray="4 4" strokeLinecap="round" />
-      <circle cx={290} cy={42} r={4} fill="var(--chart-1)" />
-    </g>
-  ),
-  routes: (
-    <g>
-      <rect x={20} y={34} width={280} height={92} rx={6} fill={SOFT} />
-      <path d="M20 70 Q120 60 300 86 M110 34 Q130 80 100 126 M210 34 Q230 90 260 126" fill="none" stroke={CARD} strokeWidth={5} />
-      <path d="M90 104 C60 90 70 52 120 50 S210 40 236 64 S226 110 180 108 S120 116 90 104 Z" fill="none" stroke={BRAND} strokeWidth={3} strokeLinejoin="round" />
-      <circle cx={90} cy={104} r={5} fill={CARD} stroke={BRAND} strokeWidth={2.5} />
-    </g>
-  ),
-  history: (
-    <g>
-      <Box x={20} y={34} w={280} h={30} />
-      {Array.from({ length: 14 }, (_, n) => {
-        const h = [8, 14, 6, 18, 10, 4, 12, 16, 7, 20, 9, 5, 13, 11][n];
-        return <rect key={n} x={32 + n * 19} y={58 - h} width={12} height={h} rx={2} fill="var(--chart-1)" opacity={0.75} />;
-      })}
-      {[0, 1, 2].map((r) => (
-        <g key={r}>
-          <Box x={20} y={70 + r * 19} w={280} h={15} />
-          <circle cx={32} cy={77.5 + r * 19} r={3.5} fill={`var(--chart-${r + 1})`} />
-          <Bar x={42} y={75 + r * 19} w={[70, 56, 64][r]} />
-          {[1, 2, 3, 4, 5].map((z) => {
-            const w = [[6, 30, 10, 4, 2], [10, 20, 14, 6, 2], [4, 36, 8, 2, 2]][r][z - 1];
-            const x = 230 + [[0, 6, 36, 46, 50], [0, 10, 30, 44, 50], [0, 4, 40, 48, 50]][r][z - 1];
-            return <rect key={z} x={x} y={75 + r * 19} width={w} height={5} fill={`var(--zone-${z})`} />;
-          })}
-        </g>
-      ))}
-    </g>
-  ),
-  plan: <PlanGrid x={24} y={34} w={272} rows={3} />,
-  log: (
-    <g>
-      <Box x={24} y={34} w={168} h={92} />
-      <Bar x={36} y={45} w={60} h={6} fill={BRAND} />
-      {[0, 1, 2, 3, 4].map((r) => <Bar key={r} x={36} y={60 + r * 12} w={[140, 120, 132, 90, 110][r]} />)}
-      {[0, 1, 2].map((r) => (
-        <g key={r}>
-          <Box x={204} y={34 + r * 32} w={92} h={26} />
-          <Bar x={214} y={42 + r * 32} w={[56, 44, 62][r]} />
-          <Bar x={214} y={51 + r * 32} w={36} h={4} fill={SOFT} />
-        </g>
-      ))}
-    </g>
-  ),
-  settings: (
-    <g>
-      {[0, 1, 2, 3].map((r) => <Bar key={r} x={24} y={40 + r * 16} w={[48, 62, 40, 54][r]} fill={r === 1 ? BRAND : LINE} />)}
-      <Box x={100} y={34} w={196} h={92} />
-      <Field x={112} y={42} w={172} />
-      {[0, 1].map((r) => (
-        <g key={r}>
-          <Bar x={112} y={76 + r * 22} w={[90, 70][r]} />
-          <Toggle x={264} y={73 + r * 22} on={r === 0} />
-        </g>
-      ))}
-    </g>
-  ),
-  help: (
-    <g>
-      <Box x={24} y={34} w={176} h={92} />
-      {[0, 1, 2, 3].map((r) => (
-        <g key={r}>
-          <Tick x={40} y={50 + r * 20} done={r < 2} />
-          <Bar x={52} y={47.5 + r * 20} w={[110, 90, 120, 76][r]} />
-        </g>
-      ))}
-      <circle cx={250} cy={72} r={30} fill="var(--brand-tint)" stroke="var(--border)" />
-      <path d="M241 64 a9 9 0 1 1 13 8 c-3 2 -4 3 -4 7" fill="none" stroke={BRAND} strokeWidth={3.5} strokeLinecap="round" />
-      <circle cx={250} cy={88} r={2.4} fill={BRAND} />
     </g>
   ),
 };

@@ -6,8 +6,9 @@
 //      "connect Claude" is added). Can be changed later under Help.
 //   2. The steps: connect Garmin, first sync, zones, profile, (Claude), goals and plan. Every step
 //      says from your own data whether it is done, and ticks itself off (also during the first sync).
-//   3. A walk past the pages in the navigation, one step per page: what it is for and a button to open it. This
-//      replaces the "look around" step of the checklist (opening the pages ticks it off).
+//   3. A walk past the pages in the navigation, one step per page. These steps are not in the modal but a coach mark
+//      on the page itself (CoachMark.tsx): it opens the page, rings its item in the sidebar and says what it is for.
+//      This replaces the "look around" step of the checklist (opening the pages ticks it off).
 //   4. Back is always possible, forward with Next; a step unlocks once you have been to the previous one.
 //
 // If a step sends you somewhere (Connections, Zones), the tour pauses and you continue with the button
@@ -20,11 +21,16 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons
 import { CHOICES, PAGES, PAUSED_KEY, STEPS, stepShown, useOnboarding, useSetOnboarding, type Choice } from "@/lib/onboarding";
 import { localizeNav, NAV } from "@/lib/nav";
 import { useT } from "@/lib/i18n";
+import CoachMark from "./CoachMark";
 import { Sketch } from "./Sketches";
 import { Check, stepExplain } from "./steps";
 
 type Action = { label: string; href: string };
-type TourStep = { key: string; title: string; done?: boolean; intro: React.ReactNode; bullets: React.ReactNode[]; visual?: React.ReactNode; actions: Action[] };
+type TourStep = {
+  key: string; title: string; done?: boolean; intro: React.ReactNode; bullets: React.ReactNode[]; visual?: React.ReactNode; actions: Action[];
+  /** A step of the walk past the pages: shown as a coach mark next to this nav item, on its page. */
+  page?: { id: string; href: string };
+};
 
 function Phases({ lines }: { lines: string[] }) {
   return (
@@ -129,11 +135,7 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
     const intro = page ? w.shows(item.label, t.onboarding.pages[page.id].text)
       : item.id === "plan" || item.id === "log" || item.id === "settings" || item.id === "help" ? w[item.id] : null;
     if (!intro) continue;
-    tour.push({
-      key: `page-${item.id}`, title: item.label,
-      intro, bullets: [], visual: <Sketch id={item.id} />,
-      actions: [{ label: t.onboarding.goTo(item.label), href: item.href }],
-    });
+    tour.push({ key: `page-${item.id}`, title: item.label, intro, bullets: [], actions: [], page: { id: item.id, href: item.href } });
   }
   tour.push({
     key: "done", title: tr.doneTitle,
@@ -161,6 +163,13 @@ export default function Welcome({ enabled }: { enabled: boolean }) {
     setReached((b) => Math.max(b, n));
     save(n);
   };
+
+  if (here.page && !onChoice) {
+    return (
+      <CoachMark navId={here.page.id} href={here.page.href} title={here.title} text={here.intro} index={i} total={tour.length}
+        onBack={() => go(i - 1)} onNext={() => go(i + 1)} onSkip={finish} onPause={() => pause()} />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr.aria}>

@@ -869,6 +869,7 @@ export const nl = {
       pause: "Pauzeren",
       welcomeTitle: "Welkom bij health-tracker",
       welcomeText: "Hoe wil je het gebruiken? Daarna loop je stap voor stap door wat erbij hoort. Je kunt het later veranderen, onder Help.",
+      back: "Terug",
       skip: "Sla de rondleiding over",
       paused: (i: number, n: number) => `Rondleiding · stap ${i} van ${n}`,
       resume: "Verder",

@@ -217,7 +217,7 @@ export default function DashboardPage() {
             </Card>
           ),
           (
-            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="/health/">
+            <Card title={m.recoveryTitle} more={m.dayDetail} moreHref="/dashboard/body/">
               {d.recovery.days.length === 0 ? (
                 <p className="text-[13px] text-ink-muted">{m.noRecovery}</p>
               ) : (
@@ -238,7 +238,7 @@ export default function DashboardPage() {
                         <tr key={day} className={`border-t border-border ${w ? "" : "text-ink-muted"}`}>
                           <td className="py-1.5">
                             {w ? (
-                              <Link href={`/health/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
+                              <Link href={`/dashboard/body/?day=${day}`} aria-label={m.dayLink(f.weekdayDay(day))} className="hover:text-brand hover:underline">
                                 {f.weekdayDay(day)}
                               </Link>
                             ) : (

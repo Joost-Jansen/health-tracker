@@ -1,13 +1,13 @@
 "use client";
 
-// Trends and Health over time: one view in three modes, each its own address (the tabs sit in the top bar, lib/nav.ts):
+// Trends, in three tabs, each its own address (the tabs sit in the top bar, lib/nav.ts):
 //   /trends/              training: what you do and what it does to your fitness: insights (on your own goal from the plan), form,
 //                         VO2max, volume per week per sport, time per zone over time and Z2 pace;
 //   /trends/performance/  what you can do and did in a race: predicted race times, longest run per week, records
 //                         and races;
-//   /health/over-time/    the body: recovery per day or week against your own normal (with HRV when available).
-// Training and the body share the card "Training and body" (TrainingBody), so sport and body sit on one date axis
-// from either side; the time window is the same on both pages (useTimeRange's storage key).
+//   /trends/recovery/     the body: recovery per day or week against your own normal (with HRV when available).
+// Training ends with "Training and body" (TrainingBody): sport and body values on one date axis. A day clicked in a
+// chart opens it under Today, Sleep & body (/dashboard/body/?day=…).
 //
 // One time window for the whole page (TimeFilterBar, sticks under the top bar; lives in the address bar), and one
 // sport filter (also in the address bar). Every chart shares that time axis; panning or zooming in one chart moves the
@@ -54,7 +54,7 @@ const RECORD_COLOUR: Record<RecordKey, string> = { "1k": "var(--chart-4)", "5k":
 const href = (id: string) => `/history/activity/?id=${encodeURIComponent(id)}`;
 const levelColour = (level: string) => (level === "good" ? "var(--zone-2)" : level === "watch" ? "var(--zone-4)" : "var(--zone-1)");
 
-export type TrendsTab = "training" | "performance" | "body";
+export type TrendsTab = "training" | "performance" | "recovery";
 
 export default function TrendsView({ tab }: { tab: TrendsTab }) {
   const tr = useT();
@@ -185,7 +185,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
       <TimeFilterBar range={range} first={first} last={last} overview={t.form.map((r) => ({ d: r.date, v: r.ctl }))} />
 
       {/* The body is not per sport. */}
-      {sports.length > 1 && tab !== "body" && (
+      {sports.length > 1 && tab !== "recovery" && (
         <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
           <Select aria-label={TT.sport.label} value={sport} onChange={(e) => chooseSport(e.target.value)} className="!h-[32px] !w-auto min-w-[9rem]">
             <option value={ALL_SPORTS}>{TT.sport.all}</option>
@@ -362,11 +362,8 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
         </>
       )}
 
-      {tab === "body" && (
+      {tab === "recovery" && (
         <>
-          <Card title={tr.trainingBody.title}>
-            <TrainingBody t={t} window={win} />
-          </Card>
           <Card title={daily ? TT.recovery.titleDay : TT.recovery.titleWeek}>
             <div className="grid gap-6 md:grid-cols-2">
               {recoveryCharts.map((c) => (
@@ -397,7 +394,7 @@ export default function TrendsView({ tab }: { tab: TrendsTab }) {
             {daily && (
               <p className="mt-4 text-[11.5px] text-ink-muted">
                 {picked ? (
-                  <Link href={`/health/?day=${picked}`} className="font-semibold text-brand hover:underline">
+                  <Link href={`/dashboard/body/?day=${picked}`} className="font-semibold text-brand hover:underline">
                     {tr.dashboard.dayLink(f.weekdayDay(picked))} →
                   </Link>
                 ) : (

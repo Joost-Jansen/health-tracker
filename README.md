@@ -38,15 +38,16 @@ this run compares with earlier runs on the same route. A heatmap tab draws every
 
 ![Activity detail: route coloured by zone, time in zones, insights and the heart-rate, pace and altitude chart](docs/screenshots/activity.jpg)
 
-**Trends.** Your sport over time, in two tabs. Training: fitness/fatigue/form (CTL/ATL/TSB) with race markers, VO2max,
+**Trends.** Your sport and body over time, in three tabs. Training: fitness/fatigue/form (CTL/ATL/TSB) with race markers, VO2max,
 weekly volume per sport, time per heart-rate zone and Z2 pace. Performance: predicted race times (Riegel), longest run,
 record progression and detected races. Every chart has a time filter (4W to all time, custom range), pan and zoom,
 moving averages, trend lines and peak markers.
 
-**Health.** Your body from the watch. Day: the night's sleep and stages, heart rate, breathing, stress and SpO2 while
-asleep, Body Battery and activity, each against your own normal, and the night and day as aligned panels. Over time:
-recovery per day or week against your normal. "Training and body", on both Trends and Health, puts sport and body
-values on one date axis, so you see your pace drop in the weeks your resting heart rate goes up.
+**Today** has a second tab, **Sleep & body**: the night's sleep and stages, heart rate, breathing, stress
+and SpO2 while asleep, Body Battery and activity, each against your own normal, and the night and day as aligned
+panels; last night by default, any other day through the date field. Trends has a third tab, **Recovery**: the body
+per day or week against your normal. "Training and body" (Trends, Training) puts sport and body values on one date
+axis, so you see your pace drop in the weeks your resting heart rate goes up.
 
 ![Trends: insights, predicted race times and the form chart](docs/screenshots/trends.jpg)
 

@@ -21,14 +21,13 @@ const tab = (id: NavTab["id"], href: string, adminOnly?: boolean): NavTab => ({ 
 export const NAV: NavGroup[] = [
   {
     items: [
-      { id: "dashboard", label: "", href: "/dashboard/", icon: "layout" },
-      { id: "health", label: "", href: "/health/", icon: "heart", tabs: [tab("day", "/health/"), tab("overTime", "/health/over-time/")] },
+      { id: "dashboard", label: "", href: "/dashboard/", icon: "layout", tabs: [tab("overview", "/dashboard/"), tab("sleepBody", "/dashboard/body/")] },
       {
         id: "trends",
         label: "",
         href: "/trends/",
         icon: "chart",
-        tabs: [tab("training", "/trends/"), tab("performance", "/trends/performance/")],
+        tabs: [tab("training", "/trends/"), tab("performance", "/trends/performance/"), tab("recovery", "/trends/recovery/")],
       },
       { id: "routes", label: "", href: "/routes/", icon: "route" },
       { id: "history", label: "", href: "/history/", icon: "map" },

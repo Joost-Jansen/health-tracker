@@ -69,7 +69,6 @@ export const en: Messages = {
   nav: {
     items: {
       dashboard: "Today",
-      health: "Health",
       trends: "Trends",
       routes: "Loops",
       history: "History",
@@ -79,10 +78,11 @@ export const en: Messages = {
       help: "Help",
     },
     tabs: {
+      overview: "Overview",
+      sleepBody: "Sleep & body",
       training: "Training",
       performance: "Performance",
-      day: "Day",
-      overTime: "Over time",
+      recovery: "Recovery",
       log: "Log",
       analyses: "Analyses",
       goals: "Goals",
@@ -1034,7 +1034,7 @@ export const en: Messages = {
     bb: "Body Battery",
     baselineRhr: (bpm: number, source: string) => `Your normal resting heart rate (${source}): ${bpm} bpm.`,
     dayDetail: "Day in detail",
-    dayLink: (day: string) => `${day} in detail, under Health`,
+    dayLink: (day: string) => `${day} in detail, under Sleep & body`,
   },
 
   trainingBody: {
@@ -1044,7 +1044,7 @@ export const en: Messages = {
     noData: "No data in this period.",
     fasterUp: "faster up",
     method:
-      "Every panel shares the date axis, so you see what moves together. Body values per day show faint with their 7-day average; the dashed line is your normal (60-day median). Hover or tap for the values; click a day to open it under Health.",
+      "Every panel shares the date axis, so you see what moves together. Body values per day show faint with their 7-day average; the dashed line is your normal (60-day median). Hover or tap for the values; click a day to open it under Today, Sleep & body.",
     metric: {
       fitness: "Fitness",
       form: "Form",

@@ -375,6 +375,7 @@ export const textsEn = {
       openDay: "Click a day in a chart to see that day in detail under Today, Sleep & body.",
     },
     sleepStages: {
+      explain: "Explanation",
       title: "Sleep stages",
       hours: "Hours",
       unit: "Percentage or hours",

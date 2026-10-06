@@ -413,6 +413,7 @@ export const T = {
 
 
     sleepStages: {
+      explain: "Uitleg",
       title: "Slaapfases",
       hours: "Uren",
       unit: "Procent of uren",

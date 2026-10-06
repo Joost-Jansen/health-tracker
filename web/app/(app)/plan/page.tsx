@@ -110,7 +110,9 @@ export default function PlanPage() {
   return (
     <div className="flex flex-col gap-4">
       {warn}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+      {/* Stretched on purpose: the km chart grows to the header's height (its bars are a share of it), so the pair ends
+          level without empty space (docs/DEVELOPMENT.md rule 11, an elastic card). */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <PlanHeader
           plan={plan}
           race={race}

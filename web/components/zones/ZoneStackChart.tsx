@@ -51,31 +51,8 @@ export default function ZoneStackChart({
 
   return (
     <div>
-      <div className="mb-2 flex min-h-[54px] flex-col gap-1 sm:min-h-[40px]">
-        {shown ? (
-          <>
-            <span className="text-[13px]">
-              <span className="font-semibold">{shown.label}</span>
-              <span className="text-ink-muted"> · {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}{shown.partial ? ` · ${t.zones.running}` : ""}</span>
-              {shown.total_s > 0 && <span className="font-medium"> · {t.zones.easyShort} {Math.round(easyPct(shown.pct))}%</span>}
-            </span>
-            {shown.total_s > 0 && (
-              <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
-                {ZONES.map((z) => (
-                  <span key={z} className="inline-flex items-center gap-1">
-                    <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[z] }} />
-                    <span className="text-ink-muted">{z}</span>
-                    <span className="font-medium">{Math.round(shown.pct[z])}%</span>
-                    <span className="text-ink-muted">{f.duration(shown.seconds[z])}</span>
-                  </span>
-                ))}
-              </span>
-            )}
-          </>
-        ) : (
-          <span className="text-[13px] text-ink-muted">{summary}</span>
-        )}
-      </div>
+      {/* The summary stays put; the bar under the pointer gets a box beside it, as on the other charts. */}
+      <div className="mb-2 text-[13px] text-ink-muted">{summary}</div>
 
       {/* Z1 and Z2 sit at the bottom, so where their top meets the dashed line the 80/20 aim is met. */}
       <div className="relative">
@@ -116,6 +93,37 @@ export default function ZoneStackChart({
           </button>
         ))}
       </div>
+      {shown && active != null && (
+        <div
+          className="ds-chart__tip"
+          aria-live="polite"
+          style={{
+            left: `calc(${((active + 0.5) / bars.length) * 100}% ${active >= bars.length / 2 ? "- 10px" : "+ 10px"})`,
+            top: 8,
+            transform: active >= bars.length / 2 ? "translateX(-100%)" : "none",
+            zIndex: 20,
+          }}
+        >
+          <div className="font-semibold">{shown.label}</div>
+          <div className="opacity-80">
+            {shown.total_s ? f.hours(shown.total_s) : t.zones.noHr}
+            {shown.partial ? ` · ${t.zones.running}` : ""}
+          </div>
+          {shown.total_s > 0 && (
+            <>
+              <div className="flex justify-between gap-3"><span className="opacity-80">{t.zones.easyShort}</span><span className="font-semibold">{Math.round(easyPct(shown.pct))}%</span></div>
+              {ZONES.map((z) => (
+                <div key={z} className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLOUR[z] }} />
+                  <span className="opacity-80">{z}</span>
+                  <span className="ml-auto pl-3 font-semibold">{Math.round(shown.pct[z])}%</span>
+                  <span className="w-10 text-right opacity-80">{f.duration(shown.seconds[z])}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
       </div>
 
       {/* Flex instead of text-center: a label wider than its bar then sticks out equally on both sides

@@ -279,6 +279,22 @@ export const T = {
     },
 
     sport: { label: "Sport", all: "Alle sporten", runOnly: "Tempo in Z2, VO2max, langste run, records en voorspellingen gaan alleen over hardlopen: kies Alle sporten of Hardlopen om ze te zien." },
+    /** Prestaties bij zwemmen en fietsen (api/trends.py sport_performance). */
+    sportPerf: {
+      bests: (s: string) => `Beste prestaties ${s.toLowerCase()}`,
+      bestsAll: "Beste prestaties zwemmen en fietsen",
+      longest: (s: string) => `Langste ${s.toLowerCase()} per week`,
+      longestLabel: "Langste",
+      speed: (sport: string): string => (sport === "swim" ? "Tempo per week" : "Snelheid per week"),
+      speedLabel: (sport: string): string => (sport === "swim" ? "Tempo" : "Snelheid"),
+      key: (key: string, sport: string): string => (key === "longest" ? "Langste" : `Snelste vanaf ${key.slice(5)} km`),
+      method: (sport: string): string =>
+        sport === "swim"
+          ? "Hele sessies, bewegende tijd, tempo per 100 m. Open water zonder betrouwbare afstand telt niet mee. Tempo per week: alle afstand van die week gedeeld door alle tijd."
+          : "Hele ritten, bewegende tijd, gemiddelde snelheid. Snelheid per week: alle afstand van die week gedeeld door alle tijd.",
+      none: "Nog geen sessies met afstand voor deze sport.",
+      noPerf: "Voor deze sport zijn er nog geen prestaties: alleen wedstrijden hieronder.",
+    },
 
     insights: {
       title: "Inzichten",

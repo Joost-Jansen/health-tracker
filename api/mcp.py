@@ -274,7 +274,7 @@ class Server:
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)
             f = dash["form"]
             parts = [f"# Trainingscontext {today.isoformat()}", f"Laatste sync: {s.last_sync}.", "", "## Profiel", profile["body"] if profile else "(leeg)", "", "## Doelen", goals["body"] if goals else "(leeg)", "", "## Actief schema", plan_md(self._full(db.active_plan(self.engine)))]
-            rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f))
+            rd = readiness(s.wellness, today, today_tsb(f), today_form_pct(f), s.rhr_fallback)
             if rd:
                 parts.append(f"\n## Klaar voor vandaag\n{readiness_text(rd)}")
             if f:

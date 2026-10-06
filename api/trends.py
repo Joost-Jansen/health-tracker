@@ -13,7 +13,7 @@ from statistics import mean
 from typing import Callable
 
 from api.dashboard import max_by_sport, resting_hr, sync_day
-from api.readiness import baseline
+from api.readiness import baseline, normal_resting_hr
 from tools import hrquality
 from tools.analytics import fitness_series
 from tools.summarize import run_sessions
@@ -493,7 +493,7 @@ def build_trends(
     day, as on the dashboard (api/dashboard.py build_dashboard), because the days since are unknown, not rest days."""
     synced = sync_day(last_sync)
     stopped = synced is not None and synced < today - timedelta(days=1)
-    form = fitness_series(activities, resting_hr(wellness, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today)
+    form = fitness_series(activities, resting_hr(wellness, today, rhr_fallback), max_by_sport(zones, activities), end=synced if stopped else today)
     weekly = weekly_volume(activities)
     flags = hr_flags(activities, streams_fn)
     recs = records(activities)
@@ -510,7 +510,7 @@ def build_trends(
         "vo2max": vo2max(activities),
         "recovery_weekly": recovery_weekly(wellness),
         "recovery_daily": recovery_daily(wellness),
-        "recovery_normals": recovery_normals(wellness, today),
+        "recovery_normals": {**recovery_normals(wellness, today), "resting_hr": normal_resting_hr(wellness, today + timedelta(days=1), rhr_fallback)[0]},
         "records": recs,
         "recent_records": recent,
         "races": races(activities),

@@ -108,6 +108,8 @@ function ZonesCard({ data }: { data: ZonesResp }) {
 function FactsCard() {
   const t = useT();
   const q = useQuery({ queryKey: ["profile-facts"], queryFn: () => api.get<Facts>("/api/settings/profile") });
+  // what the site calculates now: the entered resting HR is only a fallback for when there are no measured nights
+  const rhr = useQuery({ queryKey: ["resting-hr"], queryFn: () => api.get<{ value: number | null; source: string | null }>("/api/settings/resting-hr") });
   const [f, setF] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
@@ -139,6 +141,7 @@ function FactsCard() {
         <Button type="submit" size="sm" variant="primary">{t.common.save}</Button>
         {msg && <span className="text-[12.5px] text-ink-muted">{msg}</span>}
       </form>
+      {rhr.data && <p className="mt-3 max-w-prose text-[12px] text-ink-muted">{t.zonesSettings.restingHrHint(rhr.data.value, rhr.data.source)}</p>}
     </Card>
   );
 }

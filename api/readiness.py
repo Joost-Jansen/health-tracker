@@ -33,7 +33,30 @@ def _note(code: str, **params) -> dict:
     return {"code": code, "params": {k: v for k, v in params.items() if v is not None}}
 
 
-def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: float | None = None) -> dict | None:
+NORMAL_DAYS = 60  # the normal is the median of this many days before
+RECENT_NIGHTS = 7  # with too few nights in those days: the median of the last this many measured nights, however old
+
+
+def normal_resting_hr(wellness: dict, day: date, fallback: float | None = None) -> tuple[float | None, str | None]:
+    """Your normal resting HR before `day` and where it comes from, in this order:
+        "60d"      the median of the last 60 days (at least 7 measured nights);
+        "recent"   else the median of the last 7 measured nights, however old (one night is too noisy: a cold or a late
+                   meal would become the normal);
+        "profile"  else what you entered in Settings (`fallback`), for when the watch never measured a night;
+        (None, None) without any of these.
+    One definition for readiness, Today, Health, Trends and the training load."""
+    base = baseline(wellness, "resting_hr", day, NORMAL_DAYS)
+    if base is not None:
+        return base, "60d"
+    nights = sorted((d for d, w in wellness.items() if w.get("resting_hr") and date.fromisoformat(d) < day), reverse=True)[:RECENT_NIGHTS]
+    if nights:
+        return median(wellness[d]["resting_hr"] for d in nights), "recent"
+    if fallback:
+        return float(fallback), "profile"
+    return None, None
+
+
+def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: float | None = None, rhr_fallback: float | None = None) -> dict | None:
     """{verdict: klaar|rustig aan|herstel|onbekend, date: night used or None, no_night, signals: [{key, value, level, note}]}.
     `note` is {code, params}: vs_baseline {delta, baseline}, sleep {score?, baseline?}, highest {date, days_ago},
     form_yesterday {} (form is yesterday's fitness minus fatigue)."""
@@ -43,7 +66,7 @@ def readiness(wellness: dict, today: date, tsb: float | None = None, form_pct: f
     illness_hint = False
     if latest:
         w = wellness[latest]
-        base_rhr = baseline(wellness, "resting_hr", date.fromisoformat(latest), 60)
+        base_rhr, _ = normal_resting_hr(wellness, date.fromisoformat(latest), rhr_fallback)
         if w.get("resting_hr") and base_rhr:
             delta = w["resting_hr"] - base_rhr
             level = "warn" if delta >= 5 else "attention" if delta >= 3 else "ok"

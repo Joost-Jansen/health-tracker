@@ -93,3 +93,18 @@ def test_form_is_judged_as_a_share_of_fitness():
     assert signal(readiness(w, TODAY, tsb=-25, form_pct=-28), "tsb")["level"] == "ok"
     assert signal(readiness(w, TODAY, tsb=-25, form_pct=-50), "tsb")["level"] == "warn"
     assert "vorm -25 (-28%)" in as_text(readiness(w, TODAY, tsb=-25, form_pct=-28))
+
+
+def test_normal_resting_hr_comes_from_60_days_then_the_last_7_nights_then_settings():
+    from datetime import date
+
+    from api.readiness import normal_resting_hr
+
+    day = date(2026, 10, 6)
+    recent = {f"2026-09-{d:02d}": {"resting_hr": 44 + d % 3} for d in range(10, 30)}
+    assert normal_resting_hr(recent, day, 60) == (45, "60d")
+    # fewer than 7 nights in the last 60 days: the median of the last 7 measured nights, however old
+    old = {f"2026-0{m}-01": {"resting_hr": v} for m, v in [(1, 40), (2, 50), (3, 46), (4, 48), (5, 47), (6, 49), (7, 45), (8, 70)]}
+    assert normal_resting_hr(old, day, 60) == (48, "recent")  # Feb..Aug, not January
+    assert normal_resting_hr({}, day, 52) == (52.0, "profile")
+    assert normal_resting_hr({}, day) == (None, None)

@@ -14,9 +14,8 @@ from typing import Callable
 
 from fastapi import APIRouter, Depends
 
-from api.dashboard import resting_hr
 from api.errors import ApiError
-from api.readiness import baseline
+from api.readiness import baseline, normal_resting_hr as normal_rhr_with_source
 from tools import db
 from tools.intraday import SERIES, SLEEP_STAGES, night_summary
 
@@ -27,12 +26,10 @@ NORMAL_KEYS = ("resting_hr", "sleep_hr", "sleep_h", "sleep_resp", "sleep_stress"
 
 
 def normal_resting_hr(wellness: dict, day: date, fallback: float | None = None) -> float | None:
-    """The 60-day median before `day` (as readiness uses it); with too little history the median of everything, else
-    what the user entered. None without any of these: no reference line rather than a population guess."""
-    base = baseline(wellness, "resting_hr", day, BASELINE_DAYS)
-    if base is None and any(w.get("resting_hr") for w in wellness.values()):
-        base = resting_hr(wellness)
-    return round(base, 1) if base is not None else fallback
+    """Your normal resting HR before `day` (api/readiness.py normal_resting_hr). None without any: no reference line
+    rather than a population guess."""
+    base, _ = normal_rhr_with_source(wellness, day, fallback)
+    return round(base, 1) if base is not None else None
 
 
 def normals(wellness: dict, day: date, rhr_fallback: float | None = None) -> dict:

@@ -268,12 +268,11 @@ that only takes a URL. The token is then part of that URL, so treat the URL as a
 if it leaks. Settings, Agents shows the steps for the assistant you pick, with the token filled in. Open the one you
 need:
 
-<details><summary><b>Claude app / claude.ai</b></summary>
+<details><summary><b>Claude</b> (app, claude.ai, Claude Code)</summary>
 
-Settings, Connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`.
-</details>
-
-<details><summary><b>Claude Code</b></summary>
+At claude.ai/customize/connectors, Add custom connector, URL `https://<your-domain>/api/mcp/<token>`. Once per account: it then works in the
+Claude app, on claude.ai and in Claude Code logged in with that account (also in the cloud). Only Claude Code with an
+API key instead of a claude.ai login needs its own entry:
 
 ```bash
 claude mcp add --transport http --scope user health-tracker https://<your-domain>/api/mcp \
@@ -298,36 +297,24 @@ http_headers = { "Authorization" = "Bearer <token>" }
 ```
 </details>
 
-<details><summary><b>GitHub Copilot in VS Code</b></summary>
+<details><summary><b>GitHub Copilot</b> (VS Code, CLI)</summary>
 
-Command Palette, "MCP: Open User Configuration", and add under `servers`:
+Each keeps its own list. In VS Code: Command Palette, "MCP: Open User Configuration", and add under `servers`:
 
 ```json
 "health-tracker": { "type": "http", "url": "https://<your-domain>/api/mcp", "headers": { "Authorization": "Bearer <token>" } }
 ```
-</details>
 
-<details><summary><b>GitHub Copilot CLI</b></summary>
+Copilot CLI, once:
 
 ```bash
 copilot mcp add --transport http health-tracker https://<your-domain>/api/mcp/<token>
 ```
 </details>
 
-<details><summary><b>Cursor</b></summary>
+<details><summary><b>Another MCP client</b> (Cursor, Gemini CLI, …)</summary>
 
-In `~/.cursor/mcp.json`, under `mcpServers`:
-
-```json
-"health-tracker": { "url": "https://<your-domain>/api/mcp", "headers": { "Authorization": "Bearer <token>" } }
-```
-</details>
-
-<details><summary><b>Gemini CLI</b></summary>
-
-```bash
-gemini mcp add --transport http --scope user --header "Authorization: Bearer <token>" health-tracker https://<your-domain>/api/mcp
-```
+URL `https://<your-domain>/api/mcp` with header `Authorization: Bearer <token>`, or, if it only takes a URL, `https://<your-domain>/api/mcp/<token>`.
 </details>
 
 - **CLI / scripts:** `TRAINING_API_URL=https://<your-domain> TRAINING_API_TOKEN=<token> python tools/tr.py context`

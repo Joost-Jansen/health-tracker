@@ -41,24 +41,16 @@ function Copy({ label, value, secret = false }: { label: string; value: string; 
 
 const SITE = "health-tracker";
 
-// Where you connect the assistant. Every client gets the same server: streamable HTTP with the token as a Bearer
-// header, or in the URL for a client that only takes a URL (a connector in a web app).
-const CLIENTS = ["claude", "claude-code", "chatgpt", "codex", "vscode", "copilot-cli", "cursor", "gemini", "other"] as const;
+// Where you connect the assistant: one choice per set of steps. Every client gets the same server: streamable HTTP
+// with the token as a Bearer header, or in the URL for a client that only takes a URL (a connector in a web app). A
+// claude.ai connector also works in the Claude app and in Claude Code logged in with that account, so Claude is one
+// choice.
+const CLIENTS = ["claude", "chatgpt", "codex", "copilot", "other"] as const;
 type Client = (typeof CLIENTS)[number];
-const NAMES: Record<Client, string> = {
-  claude: "Claude",
-  "claude-code": "Claude Code",
-  chatgpt: "ChatGPT",
-  codex: "Codex",
-  vscode: "GitHub Copilot in VS Code",
-  "copilot-cli": "GitHub Copilot CLI",
-  cursor: "Cursor",
-  gemini: "Gemini CLI",
-  other: "MCP",
-};
+const NAMES: Record<Client, string> = { claude: "Claude", chatgpt: "ChatGPT", codex: "Codex", copilot: "GitHub Copilot", other: "MCP" };
 
 function clientLabel(c: Client, t: Messages) {
-  return c === "claude" ? t.agents.clients.claude : c === "other" ? t.agents.clients.other : NAMES[c];
+  return c === "claude" || c === "copilot" || c === "other" ? t.agents.clients[c] : NAMES[c];
 }
 
 function howTo(c: Client, t: Messages, origin: string, token: string): { intro: ReactNode; snippets: { label: string; value: string }[] } {
@@ -66,27 +58,27 @@ function howTo(c: Client, t: Messages, origin: string, token: string): { intro: 
   const url = `${origin}/api/mcp`;
   const urlToken = `${url}/${token}`;
   const bearer = `Bearer ${token}`;
-  const json = (o: object) => JSON.stringify(o, null, 2);
   switch (c) {
     case "claude":
       return {
         intro: rich(a.appText, { link: (x) => <a className="underline" href="https://claude.ai/customize/connectors" target="_blank" rel="noreferrer">{x}</a> }),
-        snippets: [{ label: a.connectorUrl, value: urlToken }],
+        snippets: [
+          { label: a.connectorUrl, value: urlToken },
+          { label: a.apiKeyCode, value: `claude mcp add --transport http --scope user ${SITE} ${url} --header "Authorization: ${bearer}"` },
+        ],
       };
-    case "claude-code":
-      return { intro: a.runOnce, snippets: [{ label: a.command, value: `claude mcp add --transport http --scope user ${SITE} ${url} --header "Authorization: ${bearer}"` }] };
     case "chatgpt":
       return { intro: a.chatgpt, snippets: [{ label: a.connectorUrl, value: urlToken }] };
     case "codex":
       return { intro: a.codex, snippets: [{ label: "config.toml", value: `[mcp_servers.${SITE}]\nurl = "${url}"\nhttp_headers = { "Authorization" = "${bearer}" }` }] };
-    case "vscode":
-      return { intro: a.vscode, snippets: [{ label: "mcp.json", value: json({ servers: { [SITE]: { type: "http", url, headers: { Authorization: bearer } } } }) }] };
-    case "copilot-cli":
-      return { intro: a.copilotCli, snippets: [{ label: a.command, value: `copilot mcp add --transport http ${SITE} ${urlToken}` }] };
-    case "cursor":
-      return { intro: a.cursor, snippets: [{ label: "mcp.json", value: json({ mcpServers: { [SITE]: { url, headers: { Authorization: bearer } } } }) }] };
-    case "gemini":
-      return { intro: a.runOnce, snippets: [{ label: a.command, value: `gemini mcp add --transport http --scope user --header "Authorization: ${bearer}" ${SITE} ${url}` }] };
+    case "copilot":
+      return {
+        intro: a.copilot,
+        snippets: [
+          { label: "VS Code: mcp.json", value: JSON.stringify({ servers: { [SITE]: { type: "http", url, headers: { Authorization: bearer } } } }, null, 2) },
+          { label: a.copilotCli, value: `copilot mcp add --transport http ${SITE} ${urlToken}` },
+        ],
+      };
     case "other":
       return {
         intro: a.other,
@@ -129,7 +121,7 @@ export default function AgentsPage() {
           {t.agents.intro1} {t.agents.intro2}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <select className="ds-select h-9 w-56 pl-2.5 text-[13px]" value={client} onChange={(e) => setClient(e.target.value as Client)} aria-label={t.agents.assistant}>
+          <select className="ds-select h-9 w-72 pl-2.5 text-[13px]" value={client} onChange={(e) => setClient(e.target.value as Client)} aria-label={t.agents.assistant}>
             {CLIENTS.map((c) => (
               <option key={c} value={c}>{clientLabel(c, t)}</option>
             ))}

@@ -97,59 +97,63 @@ export default function DashboardPage() {
 
       <OnboardingCard />
 
-      {/* Two columns that stack independently (Columns), so a card with little to say (one sport this week, no plan)
-          leaves no empty space inside it or next to it; on a phone one column in reading order. Cards without anything
-          to say drop out. */}
+      {/* Side by side in two blocks of independent columns (Columns): every card as tall as its content, the lists
+          (upcoming sessions, recent activities) show as many rows as fit so both columns end level; form across the
+          full width between them. On a phone one column in reading order. Cards without anything to say drop out. */}
+      <Columns
+        left={[d.readiness && <ReadinessCard key="ready" r={d.readiness} />, d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />]}
+        right={[form && <LoadCard key="load" load={form.load} />, d.plan_week && <Upcoming key="upcoming" sessions={d.upcoming} title={d.plan_title} fill />]}
+      />
+
+      {form && (
+        <Card title={m.formTitle} more={m.allTrends} moreHref="/trends/">
+          <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="font-display text-[27px] font-light">{m.statuses[form.status] ?? form.status}</div>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
+              </div>
+              <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
+                <div><dt className="text-ink-muted">{m.fitness}</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
+                <div><dt className="text-ink-muted">{m.fatigue}</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
+                <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}{form.pct != null && <span className="ml-1 text-[12px] text-ink-muted">({form.pct > 0 ? "+" : ""}{form.pct}%)</span>}</dd></div>
+              </dl>
+              <p className="text-[11.5px] leading-relaxed text-ink-muted">{form.stopped_at_sync ? "" : `${T.formTsb} `}{m.peak(Math.round(form.ctl_peak), f.weekdayDay(form.ctl_peak_date))}</p>
+              {form.stopped_at_sync && (
+                <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
+                  <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
+                  {T.today.formStopped(f.weekdayDay(form.until))}
+                </p>
+              )}
+            </div>
+            <div>
+            <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
+              {FORM_LINES.map((l) => (
+                <span key={l.key} className="flex items-center gap-1.5">
+                  <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={l.colour} strokeWidth="2" strokeDasharray={l.dash ? "4 3" : undefined} /></svg>
+                  {m[l.key]}
+                </span>
+              ))}
+            </div>
+            <LineChart
+              endLabels={false}
+              height={190}
+              ariaLabel={m.formAria}
+              format={(v) => String(Math.round(v))}
+              baseline={0}
+              series={[
+                { label: m.fitness, colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
+                { label: m.fatigue, colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
+                { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
+              ]}
+            />
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Columns
         left={[
-          d.readiness && <ReadinessCard key="ready" r={d.readiness} />,
-          d.plan_week && <PlanWeekCard key="plan" week={d.plan_week} race={d.race} />,
-          form && (
-            <Card title={m.formTitle} more={m.allTrends} moreHref="/trends/">
-                      <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-                        <div className="flex flex-col gap-3">
-                          <div>
-                            <div className="font-display text-[27px] font-light">{m.statuses[form.status] ?? form.status}</div>
-                            <p className="text-[12.5px] leading-relaxed text-ink-muted">{T.formStatus[form.status]}</p>
-                          </div>
-                          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] tabular-nums">
-                            <div><dt className="text-ink-muted">{m.fitness}</dt><dd className="text-[17px]">{Math.round(form.ctl)}</dd></div>
-                            <div><dt className="text-ink-muted">{m.fatigue}</dt><dd className="text-[17px]">{Math.round(form.atl)}</dd></div>
-                            <div><dt className="text-ink-muted">{m.form}</dt><dd className="text-[17px]">{form.tsb > 0 ? "+" : ""}{Math.round(form.tsb)}{form.pct != null && <span className="ml-1 text-[12px] text-ink-muted">({form.pct > 0 ? "+" : ""}{form.pct}%)</span>}</dd></div>
-                          </dl>
-                          <p className="text-[11.5px] leading-relaxed text-ink-muted">{form.stopped_at_sync ? "" : `${T.formTsb} `}{m.peak(Math.round(form.ctl_peak), f.weekdayDay(form.ctl_peak_date))}</p>
-                          {form.stopped_at_sync && (
-                            <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-muted">
-                              <span aria-hidden="true" className="mt-[5px] inline-block h-1.5 w-1.5 flex-none rounded-full bg-warn" />
-                              {T.today.formStopped(f.weekdayDay(form.until))}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                        <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-muted">
-                          {FORM_LINES.map((l) => (
-                            <span key={l.key} className="flex items-center gap-1.5">
-                              <svg width="16" height="6" aria-hidden><line x1="0" x2="16" y1="3" y2="3" stroke={l.colour} strokeWidth="2" strokeDasharray={l.dash ? "4 3" : undefined} /></svg>
-                              {m[l.key]}
-                            </span>
-                          ))}
-                        </div>
-                        <LineChart
-                          endLabels={false}
-                          height={190}
-                          ariaLabel={m.formAria}
-                          format={(v) => String(Math.round(v))}
-                          baseline={0}
-                          series={[
-                            { label: m.fitness, colour: "var(--chart-1)", width: 2, points: form.series.map((r) => ({ d: r.date, v: r.ctl })) },
-                            { label: m.fatigue, colour: "var(--chart-3)", points: form.series.map((r) => ({ d: r.date, v: r.atl })) },
-                            { label: m.form, colour: "var(--chart-4)", dash: "dashed", points: form.series.map((r) => ({ d: r.date, v: r.tsb })) },
-                          ]}
-                        />
-                        </div>
-                      </div>
-                    </Card>
-          ),
           (
             <Card title={m.zonesTitle} action={
               <div className="flex flex-wrap items-center gap-2">
@@ -181,8 +185,6 @@ export default function DashboardPage() {
           ),
         ]}
         right={[
-          form && <LoadCard key="load" load={form.load} />,
-          d.plan_week && <Upcoming key="upcoming" sessions={d.upcoming} title={d.plan_title} />,
           (
             <Card title={m.volumeTitle}>
               {volSports.length === 0 ? (
@@ -256,9 +258,8 @@ export default function DashboardPage() {
             </Card>
           ),
         ]}
+        filler={<RecentActivities items={d.recent} fill />}
       />
-
-      <RecentActivities items={d.recent} />
 
     </div>
   );

@@ -386,7 +386,7 @@ export const textsEn = {
       asleepAvg: (h: string, nights: number): string => `${h} asleep per night (${nights} nights)`,
       overTime: "Deep sleep and REM over time",
       rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string => `${mode === "hours" ? "hours per night" : "share of the time in bed"}, average of the last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}`,
-      note: "%: the share of the time in bed (asleep and awake). Hours: per night, on average over the bar's nights. Older nights, synced before awake time was stored, show none.",
+      note: "%: the share of the time in bed (asleep and awake). Hours: per night, on average over the bar's nights. Older nights, synced before awake time was stored, show none. The stages are the watch's estimate from heart rate and movement (not brain waves) and deep sleep is the hardest to get right, so read the trend over weeks rather than single nights; the goals are general guidelines for adults, and deep sleep naturally decreases with age.",
       goal: (stage: string, v: string): string => `${stage} goal ${v}`,
       lastN: (n: number, p: "night" | "week" | "month"): string => `Last ${n} ${p === "night" ? "nights" : p === "week" ? "weeks" : "months"}, per night:`,
       asleepPart: (v: string, vs: string, goal: string): string => `asleep ${v} (goal ${goal}, ${vs})`,

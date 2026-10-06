@@ -1090,6 +1090,7 @@ export const en: Messages = {
     sleepStress: "Stress while asleep",
     spo2: "Blood oxygen (SpO2)",
     bbCharged: "Body Battery charged",
+    estimate: "Sleep stages are the watch's estimate from heart rate and movement, not a measurement of brain waves: one night can be off, the trend over weeks is more reliable.",
     noNight: "Too few heart-rate readings while asleep for a summary of the night.",
     day: "Day",
     restingHr: "Resting heart rate",

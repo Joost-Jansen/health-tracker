@@ -424,7 +424,7 @@ export const T = {
       asleepAvg: (h: string, nights: number): string => `${h} geslapen per nacht (${nights} nachten)`,
       overTime: "Diepe slaap en REM door de tijd",
       rolling: (n: number, p: "night" | "week" | "month", mode: "pct" | "hours"): string => `${mode === "hours" ? "uren per nacht" : "aandeel van de tijd in bed"}, gemiddelde van de laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}`,
-      note: "%: het aandeel van de tijd in bed (slapend en wakker). Uren: per nacht, gemiddeld over de nachten van de balk. Oudere nachten, gesynchroniseerd voordat wakkere tijd werd opgeslagen, tonen die niet.",
+      note: "%: het aandeel van de tijd in bed (slapend en wakker). Uren: per nacht, gemiddeld over de nachten van de balk. Oudere nachten, gesynchroniseerd voordat wakkere tijd werd opgeslagen, tonen die niet. De fases zijn een schatting van het horloge uit hartslag en beweging (geen hersengolven) en diepe slaap is het lastigst te herkennen, dus kijk naar het verloop over weken en niet naar losse nachten; de doelen zijn algemene richtlijnen voor volwassenen, en diepe slaap neemt met de leeftijd vanzelf af.",
       goal: (stage: string, v: string): string => `${stage} doel ${v}`,
       lastN: (n: number, p: "night" | "week" | "month"): string => `Laatste ${n} ${p === "night" ? "nachten" : p === "week" ? "weken" : "maanden"}, per nacht:`,
       asleepPart: (v: string, vs: string, goal: string): string => `geslapen ${v} (doel ${goal}, ${vs})`,

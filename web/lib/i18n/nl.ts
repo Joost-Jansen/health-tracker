@@ -1084,6 +1084,7 @@ export const nl = {
     sleepStress: "Stress in de slaap",
     spo2: "Zuurstof (SpO2)",
     bbCharged: "Body Battery opgeladen",
+    estimate: "Slaapfases zijn een schatting van het horloge uit hartslag en beweging, geen meting van hersengolven: één nacht kan ernaast zitten, het verloop over weken is betrouwbaarder.",
     noNight: "Te weinig hartslagmetingen in de slaap voor een samenvatting van de nacht.",
     day: "Dag",
     restingHr: "Rusthartslag",

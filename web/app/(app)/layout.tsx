@@ -6,6 +6,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SidebarNav from "@/components/ds/SidebarNav";
+import SyncButton from "@/components/SyncButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { IconButton, Tabs } from "@/components/ds";
 import SubNav from "@/components/ds/SubNav";
@@ -94,6 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ) : null}
             <span className={`ds-topbar__spacer ${tabs.length > 1 ? "lg:hidden" : ""}`} />
             <div className="flex flex-none items-center gap-1.5">
+              <SyncButton />
               <ThemeToggle />
             </div>
           </header>

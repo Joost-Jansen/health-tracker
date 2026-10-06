@@ -58,6 +58,7 @@ function NavList({
               <Link
                 key={item.id}
                 href={item.href}
+                data-nav-id={item.id}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={`ds-navitem ${active ? "ds-navitem--active" : ""}`}

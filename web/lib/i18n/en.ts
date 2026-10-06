@@ -875,6 +875,7 @@ export const en: Messages = {
       pause: "Pause",
       welcomeTitle: "Welcome to health-tracker",
       welcomeText: "How would you like to use it? We'll walk you through the setup step by step. You can change this later under Help.",
+      back: "Back",
       skip: "Skip the tour",
       paused: (i: number, n: number) => `Tour · step ${i} of ${n}`,
       resume: "Continue",

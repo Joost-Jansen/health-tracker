@@ -29,7 +29,7 @@ def admin(app):
 def anna(app, admin):
     admin.patch("/api/admin/settings", json={"registration": "open"})
     c = TestClient(app)
-    assert c.post("/api/register", json={"username": "anna", "password": ANNA_PW}).status_code == 200
+    assert c.post("/api/register", json={"username": "anna", "password": ANNA_PW, "consent": True}).status_code == 200
     return c
 
 

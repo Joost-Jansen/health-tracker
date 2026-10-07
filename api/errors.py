@@ -31,6 +31,7 @@ MESSAGES: dict[str, str] = {
     "password_too_long": "wachtwoord van maximaal {max} tekens",
     "password_too_common": "dit wachtwoord staat op de lijst van veelgebruikte wachtwoorden; kies een ander",
     "password_is_username": "je wachtwoord mag niet je gebruikersnaam zijn",
+    "consent_required": "geef toestemming voor het verwerken van je gezondheidsgegevens om een account te maken",
     "csrf_origin": "verzoek vanaf een andere site geweigerd",
     "name_too_long": "naam van maximaal {max} tekens",
     "wrong_current_password": "huidig wachtwoord klopt niet",

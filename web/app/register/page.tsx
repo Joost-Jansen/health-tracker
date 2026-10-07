@@ -8,10 +8,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button, Input, Logomark } from "@/components/ds";
+import { Button, Checkbox, Input, Logomark } from "@/components/ds";
 import type { RegistrationMode } from "@/lib/training";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import { errorText, useLocale, useT } from "@/lib/i18n";
+import { rich } from "@/lib/i18n/rich";
 
 function RegisterForm() {
   const router = useRouter();
@@ -23,6 +24,7 @@ function RegisterForm() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [invite, setInvite] = useState(params.get("invite") ?? "");
+  const [consent, setConsent] = useState(false); // explicit and unticked by default: health data needs it (GDPR art. 9)
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +36,7 @@ function RegisterForm() {
     setError(null);
     setLoading(true);
     try {
-      await api.post("/api/register", { username, password, display_name: displayName || undefined, invite: invite || undefined, locale });
+      await api.post("/api/register", { username, password, display_name: displayName || undefined, invite: invite || undefined, locale, consent });
       router.push("/settings/connections/");
     } catch (err) {
       setError(errorText(err, t, t.auth.registerFailed));
@@ -63,9 +65,15 @@ function RegisterForm() {
             <Input label={t.auth.displayName} autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             <Input label={t.auth.password} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint={t.auth.passwordHint} />
             {mode === "invite" && !config.data.first_user && <Input label={t.auth.invite} value={invite} onChange={(e) => setInvite(e.target.value)} />}
+            <Checkbox
+              checked={consent}
+              onChange={setConsent}
+              className="items-start text-[12.5px] leading-relaxed text-ink-muted"
+              label={rich(t.auth.consent, { link: (c) => <Link href="/privacy/" target="_blank" className="underline underline-offset-2">{c}</Link> })}
+            />
             {error && <p className="text-[12.5px] text-loss">{error}</p>}
           </div>
-          <Button type="submit" variant="primary" size="lg" block disabled={loading || !username || !password}>
+          <Button type="submit" variant="primary" size="lg" block disabled={loading || !username || !password || !consent}>
             {loading ? t.common.busy : t.auth.createAccount}
           </Button>
         </>

@@ -151,3 +151,20 @@ def test_schema_6_adds_the_user_columns_to_an_older_database(tmp_path):
     assert u["session_version"] == 0 and u["totp_enabled"] is False and u["consent_at"] is None  # existing users are not blocked
     assert db.bump_session_version(e, 1) == 1
     assert "totp_secret" not in u and "password_hash" not in u
+
+
+def test_registration_needs_explicit_consent_and_records_it(app, engine, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("PRIVACY_CONTROLLER", "Joost Jansen")
+    monkeypatch.setenv("PRIVACY_CONTACT", "privacy@example.org")
+    admin = TestClient(app)
+    login(admin)
+    admin.patch("/api/admin/settings", json={"registration": "open"})
+    c = TestClient(app)
+    r = c.post("/api/register", json={"username": "anna", "password": "anna-wachtwoord-1"})
+    assert r.status_code == 422 and r.json()["code"] == "consent_required"
+    assert c.post("/api/register", json={"username": "anna", "password": "anna-wachtwoord-1", "consent": True}).status_code == 200
+    row = db.get_user_by_name(engine, "anna")
+    assert row["consent_at"] and row["privacy_version"]
+    assert db.get_user(engine, 1)["consent_at"] is None and login(TestClient(app)).status_code == 200  # existing users are not blocked
+    privacy = TestClient(app).get("/api/auth/config").json()["privacy"]
+    assert privacy == {"controller": "Joost Jansen", "contact": "privacy@example.org", "version": row["privacy_version"]}

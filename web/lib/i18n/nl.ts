@@ -120,6 +120,7 @@ export const nl = {
     invite: "Uitnodigingscode",
     haveAccount: "Al een account?",
     privacy: "Privacy",
+    consent: "Ik geef toestemming voor het verwerken van mijn gezondheidsgegevens (trainingen, hartslag, slaap en herstel) om mijn eigen overzicht te tonen, zoals beschreven in de <link>privacyverklaring</link>. Intrekken kan altijd door je account te verwijderen.",
   },
 
   /** Feedback: something broken or an idea (components/feedback, settings/feedback). */
@@ -169,8 +170,11 @@ export const nl = {
   /** Public privacy statement (app/privacy). Generic: the same code runs for whoever hosts an installation. */
   privacy: {
     title: "Privacy",
-    updated: "Laatst bijgewerkt op 5 oktober 2026.",
-    intro: "health-tracker is een persoonlijk trainingsdashboard: je trainingen, slaap en herstel, je schema en je logboek. Deze installatie wordt beheerd door degene die hem host (\u201cde beheerder\u201d). Hieronder staat welke gegevens de app gebruikt, waarvoor, en wat je ermee kunt.",
+    updated: "Laatst bijgewerkt op 7 oktober 2026.",
+    intro: "health-tracker is een persoonlijk trainingsdashboard: je trainingen, slaap en herstel, je schema en je logboek. Deze installatie wordt beheerd door degene die hem host (\u201cde beheerder\u201d); die is de verwerkingsverantwoordelijke voor je gegevens. Hieronder staat welke gegevens de app gebruikt, waarvoor, op welke grond, hoe lang, en wat je ermee kunt.",
+    controllerTitle: "Wie is verantwoordelijk",
+    controller: (name: string | null, contact: string | null) =>
+      `Verwerkingsverantwoordelijke: ${name ?? "de beheerder van deze installatie"}${contact ? `, bereikbaar via ${contact}` : ""}. Vragen over je gegevens of deze verklaring stel je daar.`,
     sections: [
       {
         title: "Welke gegevens",
@@ -191,6 +195,11 @@ export const nl = {
         items: [],
       },
       {
+        title: "Op welke grond",
+        text: "Gezondheidsgegevens (hartslag, slaap, herstel) zijn bijzondere persoonsgegevens. De app verwerkt ze alleen met je uitdrukkelijke toestemming, die je geeft bij het maken van je account (AVG art. 9 lid 2 onder a, en art. 6 lid 1 onder a). Je trekt die toestemming in door je account te verwijderen; wat al verwerkt is blijft daarvóór rechtmatig. Accounts van vóór deze versie van de verklaring vallen onder dezelfde voorwaarden; verwijder je account als je daar niet mee instemt.",
+        items: [],
+      },
+      {
         title: "Waar en wie erbij kan",
         text: "Alle gegevens staan in de database van deze installatie, per gebruiker gescheiden: andere gebruikers kunnen jouw gegevens niet zien. De beheerder heeft als host technisch toegang tot de server.",
         items: [],
@@ -208,7 +217,7 @@ export const nl = {
       },
       {
         title: "Hoe lang",
-        text: "Tot je ze verwijdert of je account laat verwijderen. Garmin ontkoppelen wist de opgeslagen toegang; je trainingen die al binnen zijn blijven staan. Wahoo ontkoppelen, of de toegang intrekken bij Wahoo zelf, wist ook alles wat via Wahoo binnenkwam: ritten die alleen van Wahoo kwamen helemaal, en bij ritten die ook op Garmin staan het deel van Wahoo. FIT-bestanden die je zelf uploadt zijn van jou en blijven staan tot je ze laat verwijderen. ‘Apple-data verwijderen’ onder Koppelingen wist alles wat de Apple Gezondheid-import binnenbracht. Op verzoek krijg je je gegevens te zien of worden ze gewist.",
+        text: "Tot je ze verwijdert of je account verwijdert: dat wist direct alles van je account. Reservekopieën van de server worden maximaal twaalf maanden bewaard en dan overschreven. Garmin ontkoppelen wist de opgeslagen toegang; je trainingen die al binnen zijn blijven staan. Wahoo ontkoppelen, of de toegang intrekken bij Wahoo zelf, wist ook alles wat via Wahoo binnenkwam: ritten die alleen van Wahoo kwamen helemaal, en bij ritten die ook op Garmin staan het deel van Wahoo. FIT-bestanden die je zelf uploadt zijn van jou en blijven staan tot je ze laat verwijderen. ‘Apple-data verwijderen’ onder Koppelingen wist alles wat de Apple Gezondheid-import binnenbracht. Een onvoltooide upload wordt na een uur gewist.",
         items: [],
       },
       {
@@ -216,12 +225,14 @@ export const nl = {
         text: "",
         items: [
           "Koppelingen en agent-tokens beheer en verwijder je zelf onder Instellingen.",
-          "Voor inzage, correctie, een export of het verwijderen van je account met alle bijbehorende gegevens neem je contact op met de beheerder van deze installatie.",
+          "Al je gegevens downloaden (een zip met JSON per tabel en je FIT-bestanden) of je account met alles erin verwijderen doe je zelf onder Instellingen, Account (AVG art. 15, 17 en 20).",
+          "Voor correctie of andere vragen neem je contact op met de verwerkingsverantwoordelijke hierboven.",
+          "Ben je het niet eens met hoe je gegevens worden verwerkt, dan kun je een klacht indienen bij de Autoriteit Persoonsgegevens.",
         ],
       },
       {
         title: "Beveiliging",
-        text: "De verbinding loopt via HTTPS. Wachtwoorden en agent-tokens worden alleen als hash bewaard, de sessies bij Garmin en Wahoo versleuteld, en elke vraag aan de app ziet alleen de gegevens van wie hem stelt.",
+        text: "De verbinding loopt via HTTPS. Wachtwoorden en agent-tokens worden alleen als hash bewaard, de sessies bij Garmin en Wahoo versleuteld, en elke vraag aan de app ziet alleen de gegevens van wie hem stelt. Inloggen in twee stappen (met een authenticator-app) zet je aan onder Instellingen, Account.",
         items: [],
       },
     ],
@@ -247,6 +258,7 @@ export const nl = {
     password_too_long: (p: { max: number }) => `Een wachtwoord heeft maximaal ${p.max} tekens.`,
     password_too_common: "Dit wachtwoord staat op de lijst van veelgebruikte wachtwoorden; kies een ander.",
     password_is_username: "Je wachtwoord mag niet je gebruikersnaam zijn.",
+    consent_required: "Vink de toestemming voor het verwerken van je gezondheidsgegevens aan; zonder kan de app niets voor je doen.",
     csrf_origin: "Geweigerd: het verzoek kwam van een andere site. Laad de pagina opnieuw en probeer het nog eens.",
     name_too_long: (p: { max: number }) => `Een naam heeft maximaal ${p.max} tekens.`,
     wrong_current_password: "Je huidige wachtwoord klopt niet.",

@@ -8,6 +8,7 @@ from `agent_tokens` (or the legacy env hash, which belongs to the first admin).
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import secrets
 import time
@@ -31,6 +32,8 @@ REGISTRATION_MODES = ("closed", "invite", "open")
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,39}$")
 MIN_PASSWORD = 10
 LOCALES = ("nl", "en")  # site language per user (setting `locale`); unset = the browser's language
+# The privacy statement (web/lib/i18n privacy) a new account consents to; change it with the statement's substance.
+PRIVACY_VERSION = "2026-10-07"
 RENEW_AFTER_S = 24 * 3600  # a session in use gets a fresh cookie once a day: SESSION_DAYS counts from the last use
 
 
@@ -119,6 +122,12 @@ def check_locale(locale: str | None) -> None:
         raise ApiError(422, "invalid_locale", options=list(LOCALES))
 
 
+def privacy_info() -> dict:
+    """Who runs this installation (the controller under the GDPR): PRIVACY_CONTROLLER, PRIVACY_CONTACT."""
+    return {"controller": os.environ.get("PRIVACY_CONTROLLER", "").strip() or None, "contact": os.environ.get("PRIVACY_CONTACT", "").strip() or None,
+            "version": PRIVACY_VERSION}
+
+
 def bootstrap(engine, username: str, password_hash: str) -> int | None:
     """First start of a multi-user database: the env login (TRAINING_USER, TRAINING_PASSWORD_HASH) becomes user 1, admin.
     Data migrated from the single-user database already belongs to user 1. Without env login and without users, the
@@ -203,6 +212,7 @@ class Registration(BaseModel):
     display_name: str | None = None
     invite: str | None = None
     locale: str | None = None
+    consent: bool = False  # explicit consent to processing health data (GDPR art. 9(2)(a)), a box on the form
 
 
 class PasswordChange(BaseModel):
@@ -252,8 +262,8 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
 
     @r.get("/api/auth/config")
     def auth_config():
-        """Public: what the login page should offer."""
-        return {"registration": registration_mode(), "first_user": db.count_users(engine) == 0}
+        """Public: what the login and registration pages should offer, and who runs this installation (privacy page)."""
+        return {"registration": registration_mode(), "first_user": db.count_users(engine) == 0, "privacy": privacy_info()}
 
     @r.post("/api/login")
     def login(creds: Credentials, request: Request, response: Response):
@@ -303,7 +313,10 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(409, "username_taken")
         check_new_password(body.password, name)
         check_locale(body.locale)
-        uid = db.create_user(engine, name, hash_password(body.password), is_admin=first, display_name=(body.display_name or "").strip() or None)
+        if not body.consent:
+            raise ApiError(422, "consent_required")
+        uid = db.create_user(engine, name, hash_password(body.password), is_admin=first, display_name=(body.display_name or "").strip() or None,
+                             consent_at=datetime.now(timezone.utc), privacy_version=PRIVACY_VERSION)
         if body.locale:
             db.set_setting(db.Scope(engine, uid), "locale", body.locale)
         if mode == "invite":

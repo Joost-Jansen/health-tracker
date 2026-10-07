@@ -130,6 +130,7 @@ export const en: Messages = {
     invite: "Invite code",
     haveAccount: "Already have an account?",
     privacy: "Privacy",
+    consent: "I consent to the processing of my health data (workouts, heart rate, sleep and recovery) to show me my own overview, as described in the <link>privacy statement</link>. I can withdraw it at any time by deleting my account.",
   },
 
   /** Feedback: something broken or an idea (components/feedback, settings/feedback). */
@@ -178,8 +179,11 @@ export const en: Messages = {
 
   privacy: {
     title: "Privacy",
-    updated: "Last updated on 5 October 2026.",
-    intro: "health-tracker is a personal training dashboard: your workouts, sleep and recovery, your plan and your log. This installation is run by whoever hosts it (\u201cthe administrator\u201d). Below is what data the app uses, what for, and what you can do about it.",
+    updated: "Last updated on 7 October 2026.",
+    intro: "health-tracker is a personal training dashboard: your workouts, sleep and recovery, your plan and your log. This installation is run by whoever hosts it (\u201cthe administrator\u201d), who is the controller of your data. Below is what data the app uses, what for, on what basis, for how long, and what you can do about it.",
+    controllerTitle: "Who is responsible",
+    controller: (name: string | null, contact: string | null) =>
+      `Controller: ${name ?? "the administrator of this installation"}${contact ? `, reachable at ${contact}` : ""}. Ask there about your data or this statement.`,
     sections: [
       {
         title: "What data",
@@ -200,6 +204,11 @@ export const en: Messages = {
         items: [],
       },
       {
+        title: "On what basis",
+        text: "Health data (heart rate, sleep, recovery) is a special category of personal data. The app only processes it with your explicit consent, which you give when you create your account (GDPR art. 9(2)(a) and art. 6(1)(a)). You withdraw that consent by deleting your account; what was processed before stays lawful. Accounts from before this version of the statement fall under the same terms; delete your account if you do not agree with them.",
+        items: [],
+      },
+      {
         title: "Where, and who can see it",
         text: "All data is in this installation's database, separated per user: other users cannot see your data. As the host, the administrator has technical access to the server.",
         items: [],
@@ -217,7 +226,7 @@ export const en: Messages = {
       },
       {
         title: "How long",
-        text: "Until you delete it or have your account deleted. Disconnecting Garmin removes the stored access; workouts that already came in stay. Disconnecting Wahoo, or revoking access at Wahoo itself, also deletes everything that came in through Wahoo: rides that only came from Wahoo entirely, and Wahoo's part of rides that are on Garmin too. FIT files you upload yourself are yours and stay until you have them deleted. “Remove Apple data” under Connections deletes everything the Apple Health import brought in. On request you can see your data or have it deleted.",
+        text: "Until you delete it or delete your account, which removes everything of your account at once. Backups of the server are kept for at most twelve months and then overwritten. Disconnecting Garmin removes the stored access; workouts that already came in stay. Disconnecting Wahoo, or revoking access at Wahoo itself, also deletes everything that came in through Wahoo: rides that only came from Wahoo entirely, and Wahoo's part of rides that are on Garmin too. FIT files you upload yourself are yours and stay until you have them deleted. “Remove Apple data” under Connections deletes everything the Apple Health import brought in. An unfinished upload is deleted after an hour.",
         items: [],
       },
       {
@@ -225,12 +234,14 @@ export const en: Messages = {
         text: "",
         items: [
           "Manage and remove connections and agent tokens yourself under Settings.",
-          "For access, correction, an export, or deleting your account with all its data, contact the administrator of this installation.",
+          "Download all your data (a zip with JSON per table and your FIT files) or delete your account with everything in it yourself under Settings, Account (GDPR art. 15, 17 and 20).",
+          "For a correction or other questions, contact the controller above.",
+          "If you disagree with how your data is processed, you can lodge a complaint with the data protection authority (in the Netherlands the Autoriteit Persoonsgegevens).",
         ],
       },
       {
         title: "Security",
-        text: "The connection uses HTTPS. Passwords and agent tokens are stored only as hashes, the Garmin and Wahoo sessions encrypted, and every request to the app sees only the data of whoever makes it.",
+        text: "The connection uses HTTPS. Passwords and agent tokens are stored only as hashes, the Garmin and Wahoo sessions encrypted, and every request to the app sees only the data of whoever makes it. Turn on two-step login (with an authenticator app) under Settings, Account.",
         items: [],
       },
     ],
@@ -255,6 +266,7 @@ export const en: Messages = {
     password_too_long: (p: { max: number }) => `A password has at most ${p.max} characters.`,
     password_too_common: "This password is on the list of commonly used passwords; choose another one.",
     password_is_username: "Your password can't be your username.",
+    consent_required: "Tick the box to consent to the processing of your health data; without it the app cannot work for you.",
     csrf_origin: "Refused: the request came from another site. Reload the page and try again.",
     name_too_long: (p: { max: number }) => `A name has at most ${p.max} characters.`,
     wrong_current_password: "Your current password is wrong.",

@@ -270,6 +270,9 @@ class Server:
 
     def call(self, name: str, args: dict, who: str) -> str:
         s, today = self.store, self.today()
+        for field, most in (("title", 200), ("race", 200), ("goal", 5000)):  # as the columns in tools/db.py
+            if isinstance(args.get(field), str) and len(args[field]) > most:
+                raise ToolError(f"{field} is langer dan {most} tekens")
         if name == "get_context":
             profile, goals = db.get_document(self.engine, "profile"), db.get_document(self.engine, "goals")
             dash = build_dashboard(s.activities, s.wellness, s.zones, today, s.last_sync, s.rhr_fallback)

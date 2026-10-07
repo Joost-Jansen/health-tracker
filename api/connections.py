@@ -25,6 +25,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from api.errors import MESSAGES, ApiError
+from api.websec.throttle import Limiter
 from tools import db, wahoo
 from tools.derive import derive
 from tools.secretbox import WrongKey, decrypt, encrypt
@@ -144,6 +145,8 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
     r = APIRouter(prefix="/api/connections")
     auth = auth or GarminAuth()
     pending: dict[int, tuple[float, object]] = {}  # user id -> (time, MFA handle)
+    # The server logs in at Garmin for the user: without a limit it would be a free proxy for guessing Garmin passwords.
+    garmin_logins = Limiter(10, 60 * 60)
     guard = threading.Lock()
 
     def person(u=Depends(current_user)):
@@ -167,6 +170,8 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
     def connect(body: GarminCredentials, u=Depends(person)):
         if not body.email.strip() or not body.password:
             raise ApiError(422, "missing_garmin_credentials")
+        if not garmin_logins.hit(str(u.id)):
+            raise ApiError(429, "too_many_attempts")
         try:
             kind, value = auth.start(body.email.strip(), body.password)
         except GarminLoginError as err:

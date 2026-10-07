@@ -9,7 +9,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.dashboard import build_dashboard
 from api.errors import ApiError
@@ -20,14 +20,14 @@ DOC_KEYS = {"profile", "goals"}
 
 
 class DocBody(BaseModel):
-    body: str
+    body: str = Field(max_length=500_000)
 
 
-class EntryIn(BaseModel):
+class EntryIn(BaseModel):  # lengths as the columns (tools/db.py): Postgres would refuse longer ones with a 500
     kind: Literal["log", "analysis"]
-    title: str
-    body: str
-    day: str | None = None
+    title: str = Field(max_length=200)
+    body: str = Field(max_length=500_000)
+    day: str | None = Field(None, max_length=10)
 
 
 def content_router(current_user) -> APIRouter:

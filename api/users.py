@@ -352,12 +352,15 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         check_locale(body.locale)
         if not body.consent:
             raise ApiError(422, "consent_required")
+        if body.display_name and len(body.display_name.strip()) > 80:
+            raise ApiError(422, "name_too_long", max=80)
         uid = db.create_user(engine, name, hash_password(body.password), is_admin=first, display_name=(body.display_name or "").strip() or None,
                              consent_at=datetime.now(timezone.utc), privacy_version=PRIVACY_VERSION)
         if body.locale:
             db.set_setting(db.Scope(engine, uid), "locale", body.locale)
-        if mode == "invite":
-            db.use_invite(engine, body.invite.strip(), uid)
+        if mode == "invite" and not db.use_invite(engine, body.invite.strip(), uid):
+            db.delete_user(engine, uid)  # two sign-ups raced for one code: the second one loses it
+            raise ApiError(403, "invalid_invite")
         set_session(response, uid, 0)
         return {"username": name, "is_admin": first}
 

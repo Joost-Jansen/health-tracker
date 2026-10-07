@@ -93,6 +93,10 @@ MESSAGES: dict[str, str] = {
     "not_an_export": "geen export van Apple Gezondheid (export.zip)",
     "apple_import_running": "er loopt al een import",
     "import_failed": "de import is mislukt",
+    "upload_not_found": "upload niet gevonden of verlopen; begin opnieuw",
+    "upload_out_of_order": "verkeerd deel; verwacht deel {expected}",
+    "upload_size_mismatch": "dit deel heeft niet de verwachte grootte ({expected} bytes)",
+    "upload_incomplete": "de upload is nog niet compleet ({received} van {size} bytes)",
     # feedback (api/feedback.py)
     "feedback_kind": "soort is bug of idea",
     "feedback_empty": "schrijf wat er mis is of wat je zou willen",

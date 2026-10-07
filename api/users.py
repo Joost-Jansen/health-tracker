@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Callable
@@ -21,12 +22,39 @@ from pydantic import BaseModel
 from api import auth, example
 from api.data import DataStore
 from api.errors import ApiError
+from api.websec.client_ip import client_ip, trusted_networks
+from api.websec.passwords import MAX_LENGTH as MAX_PASSWORD, check_password
+from api.websec.throttle import Limiter
 from tools import db
 
 REGISTRATION_MODES = ("closed", "invite", "open")
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,39}$")
 MIN_PASSWORD = 10
 LOCALES = ("nl", "en")  # site language per user (setting `locale`); unset = the browser's language
+RENEW_AFTER_S = 24 * 3600  # a session in use gets a fresh cookie once a day: SESSION_DAYS counts from the last use
+
+
+@dataclass
+class Guards:
+    """Rate limits and the client address (shared with stock-tracker: the same numbers in both apps).
+
+    In memory: a restart forgets them; the durable layer is a rate-limit rule at the edge (Cloudflare)."""
+
+    trusted: list = field(default_factory=list)  # TRUSTED_PROXIES
+    login_user: Limiter = field(default_factory=lambda: Limiter(10, 15 * 60))
+    login_ip: Limiter = field(default_factory=lambda: Limiter(30, 15 * 60))
+    register_ip: Limiter = field(default_factory=lambda: Limiter(5, 60 * 60))
+    token_ip: Limiter = field(default_factory=lambda: Limiter(20, 15 * 60))  # failed agent/MCP tokens
+
+    @classmethod
+    def from_env(cls, trusted_proxies: str) -> "Guards":
+        return cls(trusted=trusted_networks(trusted_proxies))
+
+    def ip(self, request: Request) -> str:
+        return client_ip(request, self.trusted)
+
+    def too_many(self, limiter: Limiter, key: str) -> ApiError:
+        return ApiError(429, "too_many_attempts", headers={"Retry-After": str(limiter.remaining_s(key) or 60)})
 
 
 @dataclass
@@ -38,6 +66,7 @@ class User:
     via: str  # cookie | agent
     store: DataStore = field(repr=False)
     example: bool = False  # the store is the read-only example account (api/example.py), not this user's data
+    totp_enabled: bool = False
 
     @property
     def scope(self) -> db.Scope:
@@ -49,7 +78,8 @@ class User:
         return "agent" if self.via == "agent" else self.username
 
     def public(self) -> dict:
-        return {"id": self.id, "username": self.username, "display_name": self.display_name, "is_admin": self.is_admin, "via": self.via}
+        return {"id": self.id, "username": self.username, "display_name": self.display_name, "is_admin": self.is_admin, "via": self.via,
+                "totp_enabled": self.totp_enabled}
 
 
 class Stores:
@@ -69,12 +99,19 @@ class Stores:
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    # bcrypt reads 72 bytes; bcrypt 5 raises on more instead of cutting silently (auth.verify_password cuts the same way)
+    return bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt(rounds=12)).decode()
 
 
-def check_new_password(password: str) -> None:
-    if len(password) < MIN_PASSWORD:
-        raise ApiError(422, "password_too_short", min=MIN_PASSWORD)
+def check_new_password(password: str, username: str | None = None) -> None:
+    """Long enough, not a password attackers try first, not the username (api/websec/passwords.py)."""
+    code = check_password(password, username)
+    if code == "password_too_short":
+        raise ApiError(422, code, min=MIN_PASSWORD)
+    if code == "password_too_long":
+        raise ApiError(422, code, max=MAX_PASSWORD)
+    if code:
+        raise ApiError(422, code)
 
 
 def check_locale(locale: str | None) -> None:
@@ -91,15 +128,25 @@ def bootstrap(engine, username: str, password_hash: str) -> int | None:
     return db.create_user(engine, username, password_hash, is_admin=True, user_id=1)
 
 
-def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = "", examples: "example.ExampleData | None" = None) -> tuple[Callable, Callable]:
-    """Returns (current_user dependency, token_user(token) -> User | None). With `examples`, a site login that asks for
-    example data on a data route gets the example account's read-only store instead of its own (api/example.py)."""
+def set_session_cookie(response: Response, user_id: int, session_version: int, jwt_secret: str, days: int, secure: bool) -> None:
+    token = auth.create_token(f"u:{user_id}", jwt_secret, days, session_version)
+    response.set_cookie(auth.COOKIE, token, max_age=days * 86400, httponly=True, secure=secure, samesite="lax", path="/")
 
-    def load(user_id: int | None, via: str) -> User | None:
+
+def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = "", examples: "example.ExampleData | None" = None,
+              session_days: int = 14, cookie_secure: bool = True, guards: Guards | None = None) -> tuple[Callable, Callable]:
+    """Returns (current_user dependency, token_user(token) -> User | None). With `examples`, a site login that asks for
+    example data on a data route gets the example account's read-only store instead of its own (api/example.py).
+    A session cookie is valid `session_days` after its last renewal and only while its session version is the user's."""
+    guards = guards or Guards()
+
+    def load(user_id: int | None, via: str, session_version: int | None = None) -> User | None:
         u = db.get_user(engine, user_id) if user_id else None
         if not u or u["suspended"]:
             return None
-        return User(u["id"], u["username"], u.get("display_name"), bool(u["is_admin"]), via, stores.get(u["id"]))
+        if session_version is not None and session_version != u["session_version"]:
+            return None  # the password changed (or two-step login) after this session began
+        return User(u["id"], u["username"], u.get("display_name"), bool(u["is_admin"]), via, stores.get(u["id"]), totp_enabled=u["totp_enabled"])
 
     def token_user(token: str | None) -> User | None:
         if not token:
@@ -110,23 +157,29 @@ def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = 
             uid = next((u["id"] for u in db.list_users(engine) if u["is_admin"]), None)
         return load(uid, "agent")
 
-    def current_user(request: Request) -> User:
+    def current_user(request: Request, response: Response) -> User:
         header = request.headers.get("authorization", "")
         if header.lower().startswith("bearer "):
+            ip = guards.ip(request)
+            if guards.token_ip.blocked(ip):
+                raise guards.too_many(guards.token_ip, ip)
             u = token_user(header[7:].strip())
             if not u:
+                guards.token_ip.hit(ip)  # someone guessing tokens
                 raise ApiError(401, "invalid_agent_token")
             return u
-        sub = auth.token_user(request.cookies.get(auth.COOKIE), jwt_secret)
-        uid = None
-        if sub and sub.startswith("u:") and sub[2:].isdigit():
+        claims = auth.token_claims(request.cookies.get(auth.COOKIE), jwt_secret) or {}
+        sub, uid = claims.get("sub"), None
+        if isinstance(sub, str) and sub.startswith("u:") and sub[2:].isdigit():
             uid = int(sub[2:])
-        elif sub:  # cookie from before multi-user: carried the username
+        elif isinstance(sub, str) and sub:  # cookie from before multi-user: carried the username
             found = db.get_user_by_name(engine, sub)
             uid = found["id"] if found else None
-        u = load(uid, "cookie")
+        u = load(uid, "cookie", int(claims.get("sv") or 0))
         if not u:
             raise ApiError(401, "not_logged_in")
+        if time.time() - int(claims.get("iat") or 0) > RENEW_AFTER_S:  # sliding session: renewed while in use
+            set_session_cookie(response, u.id, int(claims.get("sv") or 0), jwt_secret, session_days, cookie_secure)
         if examples is not None and example.serves(request):
             # only the data comes from the example account; never another real user's, and never writable
             return User(example.EXAMPLE_USER_ID, u.username, u.display_name, False, "cookie", examples.store(), example=True)
@@ -141,6 +194,7 @@ def make_auth(engine, stores: Stores, jwt_secret: str, legacy_agent_hash: str = 
 class Credentials(BaseModel):
     username: str
     password: str
+    totp: str | None = None  # the authenticator code (or a backup code) when two-step login is on
 
 
 class Registration(BaseModel):
@@ -174,13 +228,14 @@ class InviteIn(BaseModel):
     days: int | None = 14
 
 
-def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str, cookie_secure: bool, token_days: int) -> APIRouter:
+def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str, cookie_secure: bool, session_days: int,
+                guards: Guards | None = None) -> APIRouter:
     r = APIRouter()
-    throttles: dict[str, auth.Throttle] = {}
+    guards = guards or Guards()
 
-    def set_session(response: Response, user_id: int) -> None:
-        token = auth.create_token(f"u:{user_id}", jwt_secret, token_days)
-        response.set_cookie(auth.COOKIE, token, max_age=token_days * 86400, httponly=True, secure=cookie_secure, samesite="lax", path="/")
+    def set_session(response: Response, user_id: int, session_version: int | None = None) -> None:
+        version = db.session_version(engine, user_id) if session_version is None else session_version
+        set_session_cookie(response, user_id, version or 0, jwt_secret, session_days, cookie_secure)
 
     def registration_mode() -> str:
         return "open" if db.count_users(engine) == 0 else db.get_app_setting(engine, "registration", "closed")
@@ -201,23 +256,26 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         return {"registration": registration_mode(), "first_user": db.count_users(engine) == 0}
 
     @r.post("/api/login")
-    def login(creds: Credentials, response: Response):
-        name = creds.username.strip().lower()[:40]
-        if len(throttles) > 10_000:  # many different names: keep memory bounded
-            throttles.clear()
-        throttle = throttles.setdefault(name, auth.Throttle())
-        if throttle.locked():
-            raise ApiError(429, "too_many_attempts")
+    def login(creds: Credentials, request: Request, response: Response):
+        name, ip = creds.username.strip().lower()[:40], guards.ip(request)
+        for limiter, key in ((guards.login_user, name), (guards.login_ip, ip)):
+            if limiter.blocked(key):
+                raise guards.too_many(limiter, key)
+
+        def failed(code: str) -> ApiError:
+            guards.login_user.hit(name)
+            guards.login_ip.hit(ip)
+            return ApiError(401, code)
+
         u = db.get_user_by_name(engine, name, with_hash=True)
-        ok = auth.verify_password(creds.password, u["password_hash"] if u else "")
+        ok = auth.verify_password(creds.password[:MAX_PASSWORD], u["password_hash"] if u else None)
         if not u or not ok:
-            throttle.fail()
-            raise ApiError(401, "bad_credentials")
+            raise failed("bad_credentials")
         if u["suspended"]:
             raise ApiError(403, "account_suspended")
-        throttle.succeed()
+        guards.login_user.reset(name)
         db.update_user(engine, u["id"], last_login_at=datetime.now(timezone.utc))
-        set_session(response, u["id"])
+        set_session(response, u["id"], u.get("session_version") or 0)
         return {"username": u["username"]}
 
     @r.post("/api/logout")
@@ -226,7 +284,10 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         return {"ok": True}
 
     @r.post("/api/register")
-    def register(body: Registration, response: Response):
+    def register(body: Registration, request: Request, response: Response):
+        ip = guards.ip(request)
+        if not guards.register_ip.hit(ip):  # every attempt counts: also guessing invite codes
+            raise guards.too_many(guards.register_ip, ip)
         mode = registration_mode()
         first = db.count_users(engine) == 0
         if mode == "closed":
@@ -240,14 +301,14 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(409, "username_reserved")
         if db.get_user_by_name(engine, name):
             raise ApiError(409, "username_taken")
-        check_new_password(body.password)
+        check_new_password(body.password, name)
         check_locale(body.locale)
         uid = db.create_user(engine, name, hash_password(body.password), is_admin=first, display_name=(body.display_name or "").strip() or None)
         if body.locale:
             db.set_setting(db.Scope(engine, uid), "locale", body.locale)
         if mode == "invite":
             db.use_invite(engine, body.invite.strip(), uid)
-        set_session(response, uid)
+        set_session(response, uid, 0)
         return {"username": name, "is_admin": first}
 
     @r.get("/api/me")
@@ -267,12 +328,14 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         return {**db.get_user(engine, u.id), "locale": db.get_setting(u.scope, "locale")}
 
     @r.post("/api/account/password")
-    def change_password(body: PasswordChange, u: User = Depends(person)):
+    def change_password(body: PasswordChange, response: Response, u: User = Depends(person)):
+        """Every other session ends (a stolen cookie with it); this browser gets a new one."""
         row = db.get_user(engine, u.id, with_hash=True)
-        if not auth.verify_password(body.current, row["password_hash"]):
+        if not auth.verify_password(body.current[:MAX_PASSWORD], row["password_hash"]):
             raise ApiError(403, "wrong_current_password")
-        check_new_password(body.new)
+        check_new_password(body.new, u.username)
         db.update_user(engine, u.id, password_hash=hash_password(body.new))
+        set_session(response, u.id, db.bump_session_version(engine, u.id))
         return {"ok": True}
 
     # --- admin ---------------------------------------------------------------------------------------------------
@@ -300,8 +363,9 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
     def admin_reset(user_id: int, a: User = Depends(admin)):
         if not db.get_user(engine, user_id):
             raise ApiError(404, "user_not_found")
-        temporary = secrets.token_urlsafe(9)
+        temporary = secrets.token_urlsafe(12)
         db.update_user(engine, user_id, password_hash=hash_password(temporary))
+        db.bump_session_version(engine, user_id)  # whoever was logged in with the old password is out
         db.add_audit(engine, a.username, "reset_password", db.get_user(engine, user_id)["username"])
         return {"password": temporary}
 

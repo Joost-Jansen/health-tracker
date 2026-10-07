@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from datetime import date, timedelta
-from statistics import median
 
 from api.plans import activity_weeks, parse_date
 from tools.analytics import fitness_series

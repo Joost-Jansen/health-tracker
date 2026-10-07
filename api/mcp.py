@@ -14,9 +14,10 @@ import json
 from datetime import date
 from typing import Callable
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
+from api.errors import ApiError
 from api.dashboard import build_dashboard, today_form_pct, today_tsb
 from api.daily import as_markdown as day_md, day_view
 from api.history import activity_detail, list_activities
@@ -414,9 +415,11 @@ class Server:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
-def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None]) -> APIRouter:
+def make_router(today: Callable[[], date], bearer_user: Callable[[Request], object], token_user: Callable[[str], object | None], guards=None) -> APIRouter:
     """`bearer_user(request)` authenticates the header (raises 401) and returns the User; `token_user(token)` checks a
-    token from the path. Each request is answered for that user only."""
+    token from the path. Each request is answered for that user only. Only tokens: a browser session cookie is no way
+    in (the CSRF origin check leaves /api/mcp out, because MCP clients are not browsers). Failed tokens count against
+    the caller's IP (`guards.token_ip`)."""
     r = APIRouter()
     log_redact.install()  # access logs print the path: keep the token of /api/mcp/<token> out of them
 
@@ -427,20 +430,29 @@ def make_router(today: Callable[[], date], bearer_user: Callable[[Request], obje
         except ValueError:
             return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}, status_code=400)
         if isinstance(body, list):
-            out = [x for x in (server.handle(m, who) for m in body) if x]
+            out = [x for x in (server.handle(m, who) for m in body if isinstance(m, dict)) if x]
             return JSONResponse(out) if out else Response(status_code=202)
+        if not isinstance(body, dict):
+            return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}}, status_code=400)
         res = server.handle(body, who)
         return JSONResponse(res) if res else Response(status_code=202)
 
     @r.post("/api/mcp")
     async def mcp(request: Request):
-        return await serve(request, bearer_user(request))
+        if not request.headers.get("authorization", "").lower().startswith("bearer "):
+            raise ApiError(401, "invalid_agent_token")
+        return await serve(request, bearer_user(request, Response()))
 
     @r.post("/api/mcp/{token}")
     async def mcp_path(token: str, request: Request):
+        ip = guards.ip(request) if guards else None
+        if guards and guards.token_ip.blocked(ip):
+            raise guards.too_many(guards.token_ip, ip)
         who = token_user(token)
         if not who:
-            raise HTTPException(status_code=401, detail="ongeldig token")
+            if guards:
+                guards.token_ip.hit(ip)
+            raise ApiError(401, "invalid_agent_token")
         return await serve(request, who)
 
     @r.get("/api/mcp")

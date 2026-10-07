@@ -30,7 +30,7 @@ from api.history import activity_detail, heatmap, list_activities
 from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
 from api.trends import build_trends, hr_flags
-from tools import db
+from tools import db, secretbox
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -73,6 +73,28 @@ def today():
     return datetime.now(TZ).date()
 
 
+def insecure_allowed() -> bool:
+    """ALLOW_INSECURE_DEFAULTS=true: the one opt-out (local development) of the checks below."""
+    return os.environ.get("ALLOW_INSECURE_DEFAULTS", "").lower() == "true"
+
+
+def check_production_secrets(settings: Settings) -> None:
+    """Refuse to start with secrets that would make the install unsafe, instead of running with them quietly."""
+    if insecure_allowed():
+        return
+    if len(settings.jwt_secret) < 32:
+        raise RuntimeError("TRAINING_JWT_SECRET is shorter than 32 characters; make one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+    key = secretbox.configured_key()
+    if not key:
+        raise RuntimeError(
+            "APP_ENCRYPTION_KEY is not set. New install: python -m tools.secretbox --new-key. Existing install that ran without it: "
+            "python -m tools.secretbox --print-derived-key (with the same TRAINING_JWT_SECRET) keeps stored connections readable. "
+            "ALLOW_INSECURE_DEFAULTS=true skips this check (development only)."
+        )
+    if not secretbox.valid_key(key):
+        raise RuntimeError("APP_ENCRYPTION_KEY is not a valid Fernet key (32 url-safe base64-encoded bytes)")
+
+
 def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None, garmin_auth=None, garmin_client=None,
                example_dir: Path | None = None, **sync_kwargs) -> FastAPI:
     """`garmin_auth`, `garmin_client` and `sync_kwargs` replace the real Garmin login, client and FIT reader (tests).
@@ -82,6 +104,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         raise RuntimeError("TRAINING_JWT_SECRET ontbreekt")
     production = engine is None  # engine from DATABASE_URL: the real service (tests pass their own engine)
     if production:
+        check_production_secrets(settings)
         engine = db.connect(os.environ["DATABASE_URL"])
     migrated = db.create_schema(engine)
     if migrated:
@@ -90,7 +113,9 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     stores = users.Stores(engine)
     examples = example.ExampleData(example_dir, today)
-    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples)
+    guards = users.Guards.from_env(settings.trusted_proxies)
+    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples,
+                                               settings.session_days, settings.cookie_secure, guards)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     errors.install(app)
     log_redact.install()  # the MCP token in /api/mcp/<token> and Bearer values never reach the logs
@@ -115,7 +140,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def health():
         return {"status": "ok"}
 
-    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days))
+    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days, guards))
 
     @app.get("/api/dashboard")
     def dashboard(u=Depends(current_user)):
@@ -191,7 +216,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.include_router(apple.make_router(current_user, app.state.apple))
     app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
     app.include_router(feedback.make_router(engine, current_user))
-    app.include_router(mcp.make_router(today, current_user, token_user))
+    app.include_router(mcp.make_router(today, current_user, token_user, guards))
 
     static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():

@@ -1,5 +1,3 @@
-import json
-
 import bcrypt
 import pytest
 from fastapi.testclient import TestClient
@@ -72,7 +70,7 @@ def test_login_sets_httponly_cookie_and_unlocks_data(client):
     r = login(client)
     assert r.status_code == 200
     assert "httponly" in r.headers["set-cookie"].lower()
-    assert client.get("/api/me").json() == {"id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie", "locale": None}
+    assert client.get("/api/me").json() == {"id": 1, "username": "alice", "display_name": None, "is_admin": True, "via": "cookie", "totp_enabled": False, "locale": None}
     d = client.get("/api/dashboard").json()
     assert d["last_sync"] == "2026-09-30 06:02"
     assert d["recent"][0]["name"] == "Ochtendloop"
@@ -85,9 +83,10 @@ def test_logout_clears_session(client):
 
 
 def test_repeated_failures_lock_the_account_for_a_while(client):
-    for _ in range(5):
+    for _ in range(10):
         login(client, password="fout")
-    assert login(client).status_code == 429
+    r = login(client)
+    assert r.status_code == 429 and int(r.headers["retry-after"]) > 0
 
 
 def test_tampered_token_is_rejected(client):

@@ -25,4 +25,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import os,urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:%s/api/health' % os.environ.get('PORT','8000')).getcode()==200 else 1)"
 # HOST 0.0.0.0, not :: (otherwise the IPv4 healthcheck on Railway fails).
-CMD ["sh", "-c", "exec uvicorn api.main:create_app --factory --host \"${HOST:-0.0.0.0}\" --port \"${PORT:-8000}\""]
+CMD ["sh", "-c", "exec uvicorn api.main:create_app --factory --host \"${HOST:-0.0.0.0}\" --port \"${PORT:-8000}\" --no-proxy-headers --no-server-header"]

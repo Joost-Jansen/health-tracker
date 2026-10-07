@@ -1,12 +1,15 @@
 "use client";
 
-// Markdown from the log, the analyses and the goals. Raw HTML in the text is shown as text, not
-// executed: agents write here too.
+// Markdown from the log, the analyses, the goals and plans. Raw HTML in the text is shown as text, not
+// executed: agents write here too, and an agent can be talked into writing anything. Everything that ends up in
+// the HTML goes through `escape` (quotes included, so nothing breaks out of an attribute); a link's text is
+// rendered from its tokens (the raw `text` would carry HTML as is); images are only shown from this site.
 
 import { useMemo } from "react";
 import { Marked } from "marked";
 
-const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escape = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const md = new Marked({
   gfm: true,
@@ -15,9 +18,14 @@ const md = new Marked({
     html({ text }) {
       return escape(text);
     },
-    link({ href, text }) {
-      const safe = /^(https?:|\/|#)/.test(href) ? href : "#";
-      return `<a href="${escape(safe)}" target="${safe.startsWith("http") ? "_blank" : "_self"}" rel="noreferrer">${text}</a>`;
+    link({ href, tokens }) {
+      const safe = /^(https?:\/\/|\/(?!\/)|#)/i.test(href) ? href : "#";
+      const external = /^https?:/i.test(safe);
+      return `<a href="${escape(safe)}"${external ? ' target="_blank"' : ""} rel="noreferrer noopener">${this.parser.parseInline(tokens)}</a>`;
+    },
+    image({ href, text }) {
+      // remote images would leak who reads the page (and the CSP blocks them anyway): show the alt text instead
+      return /^\/(?!\/)/.test(href) ? `<img src="${escape(href)}" alt="${escape(text)}">` : escape(text);
     },
   },
 });

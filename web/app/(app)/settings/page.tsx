@@ -1,8 +1,10 @@
 "use client";
 
-// Account: your name as the site and coaching agents call you, your password and the language of the site.
+// Account: your name as the site and coaching agents call you, your password, two-step login and the language of
+// the site.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import qrcode from "qrcode-generator";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@/components/Card";
 import LanguageSwitch from "@/components/LanguageSwitch";
@@ -65,7 +67,7 @@ function PasswordCard() {
           if (next !== repeat) return setMsg({ ok: false, text: t.account.mismatch });
           try {
             await api.post("/api/account/password", { current, new: next });
-            setMsg({ ok: true, text: t.account.changed });
+            setMsg({ ok: true, text: `${t.account.changed} ${t.account.otherSessions}` });
             setCurrent("");
             setNext("");
             setRepeat("");
@@ -86,6 +88,155 @@ function PasswordCard() {
   );
 }
 
+/** The otpauth URI as a QR code image (a data: URL: no request leaves the browser with the secret). */
+function Qr({ text }: { text: string }) {
+  const src = useMemo(() => {
+    const qr = qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    return qr.createDataURL(4, 4);
+  }, [text]);
+  return <img src={src} alt="" width={180} height={180} className="rounded bg-white p-1 [image-rendering:pixelated]" />;
+}
+
+function TwoStepCard({ me }: { me: Me }) {
+  const t = useT();
+  const m = t.account.twoStep;
+  const qc = useQueryClient();
+  const [setup, setSetup] = useState<{ secret: string; otpauth_uri: string } | null>(null);
+  const [backup, setBackup] = useState<string[] | null>(null);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fail = (err: unknown) => setMsg({ ok: false, text: errorText(err, t, m.failed) });
+  const reset = () => { setCode(""); setPassword(""); setMsg(null); };
+
+  if (backup) {
+    return (
+      <Card title={m.backupTitle}>
+        <p className="mb-3 max-w-prose text-[12.5px] text-ink-muted">{m.backupText}</p>
+        <ul className="mb-4 grid max-w-xs grid-cols-2 gap-x-6 gap-y-1 font-mono text-[13px]">
+          {backup.map((c) => <li key={c}>{c}</li>)}
+        </ul>
+        <Button size="sm" variant="primary" onClick={() => { setBackup(null); qc.invalidateQueries({ queryKey: ["me"] }); }}>{m.done}</Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title={m.title}>
+      {me.totp_enabled ? (
+        <form
+          className="flex max-w-sm flex-col gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              await api.post("/api/account/totp/disable", { password, code });
+              reset();
+              setMsg({ ok: true, text: m.turnedOff });
+              qc.invalidateQueries({ queryKey: ["me"] });
+            } catch (err) {
+              fail(err);
+            }
+          }}
+        >
+          <p className="text-[12.5px] text-gain">{m.on}</p>
+          <p className="text-[12.5px] text-ink-muted">{m.turnOffText}</p>
+          <Input type="password" autoComplete="current-password" label={m.password} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input inputMode="numeric" autoComplete="one-time-code" label={m.codeOrBackup} value={code} onChange={(e) => setCode(e.target.value)} />
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" variant="secondary" disabled={!password || !code}>{m.turnOff}</Button>
+            {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
+          </div>
+        </form>
+      ) : setup ? (
+        <form
+          className="flex max-w-sm flex-col gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const r = await api.post<{ backup_codes: string[] }>("/api/account/totp/enable", { code });
+              reset();
+              setSetup(null);
+              setBackup(r.backup_codes);
+            } catch (err) {
+              fail(err);
+            }
+          }}
+        >
+          <p className="text-[12.5px] text-ink-muted">{m.scan}</p>
+          <Qr text={setup.otpauth_uri} />
+          <p className="text-[12px] text-ink-muted">{m.key}: <span className="select-all break-all font-mono text-[var(--text-primary)]">{setup.secret}</span></p>
+          <Input inputMode="numeric" autoComplete="one-time-code" label={m.code} hint={m.codeHint} value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" variant="primary" disabled={code.trim().length < 6}>{m.confirm}</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setSetup(null); reset(); }}>{m.cancel}</Button>
+            {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
+          </div>
+        </form>
+      ) : (
+        <div className="flex max-w-prose flex-col gap-3">
+          <p className="text-[12.5px] text-ink-muted">{m.off}</p>
+          {me.is_admin && <p className="text-[12.5px]">{m.adminHint}</p>}
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="primary" onClick={async () => {
+              reset();
+              try {
+                setSetup(await api.post<{ secret: string; otpauth_uri: string }>("/api/account/totp/setup"));
+              } catch (err) {
+                fail(err);
+              }
+            }}>{m.turnOn}</Button>
+            {msg && <span className={`text-[12.5px] ${msg.ok ? "text-gain" : "text-loss"}`}>{msg.text}</span>}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function DataCard({ me }: { me: Me }) {
+  const t = useT();
+  const m = t.account.data;
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <Card title={m.title}>
+      <div className="flex max-w-prose flex-col gap-3">
+        <p className="text-[12.5px] text-ink-muted">{m.exportText}</p>
+        {/* a plain link: the browser downloads the zip itself, however large */}
+        <a href="/api/account/export" download className="self-start rounded border border-border px-3 py-1.5 text-[12.5px] hover:bg-[var(--surface-sunken)]">
+          {m.export}
+        </a>
+      </div>
+      <form
+        className="mt-6 flex max-w-sm flex-col gap-3 border-t border-border pt-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!confirm(m.deleteConfirm)) return;
+          try {
+            await api.del("/api/account", { password, ...(me.totp_enabled ? { totp: code } : {}) });
+            alert(m.deleted);
+            window.location.href = "/login/";
+          } catch (err) {
+            setMsg(errorText(err, t, m.failed));
+          }
+        }}
+      >
+        <h3 className="text-[13.5px] font-semibold">{m.deleteTitle}</h3>
+        <p className="text-[12.5px] text-ink-muted">{m.deleteText}</p>
+        <Input type="password" autoComplete="current-password" label={m.deletePassword} value={password} onChange={(e) => setPassword(e.target.value)} />
+        {me.totp_enabled && <Input inputMode="numeric" autoComplete="one-time-code" label={m.deleteCode} value={code} onChange={(e) => setCode(e.target.value)} />}
+        <div className="flex items-center gap-3">
+          <Button type="submit" size="sm" variant="danger" disabled={!password || (!!me.totp_enabled && !code)}>{m.delete}</Button>
+          {msg && <span className="text-[12.5px] text-loss">{msg}</span>}
+        </div>
+      </form>
+    </Card>
+  );
+}
+
 export default function AccountPage() {
   const t = useT();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me") });
@@ -95,8 +246,12 @@ export default function AccountPage() {
       <div className="flex flex-col gap-4">
         <NameCard me={me.data} />
         <LanguageCard />
+        <DataCard me={me.data} />
       </div>
-      <PasswordCard />
+      <div className="flex flex-col gap-4">
+        <PasswordCard />
+        <TwoStepCard me={me.data} />
+      </div>
     </div>
   );
 }

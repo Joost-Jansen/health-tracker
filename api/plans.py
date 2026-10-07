@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from typing import Callable
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.errors import ApiError
 from tools import db
@@ -412,30 +412,31 @@ def enrich(plan: dict, activities: list[dict], routes: list[dict], today: date) 
 # --- API ----------------------------------------------------------------------------------
 
 
+# Lengths as the columns in tools/db.py: Postgres refuses longer values with an error (a 500) instead of a 422.
 class SessionIn(BaseModel):
-    date: str
-    sport: str = "run"
-    kind: str | None = None
+    date: str = Field(max_length=10)
+    sport: str = Field("run", max_length=40)
+    kind: str | None = Field(None, max_length=60)
     distance_km: float | None = None
     duration_min: int | None = None
-    target_zone: str | None = None
-    description: str | None = None
-    route_id: str | None = None
+    target_zone: str | None = Field(None, max_length=20)
+    description: str | None = Field(None, max_length=5000)
+    route_id: str | None = Field(None, max_length=20)
 
 
 class PlanIn(BaseModel):
-    title: str
-    goal: str | None = None
-    race: str | None = None
-    notes: str | None = None
-    sessions: list[SessionIn] = []
+    title: str = Field(max_length=200)
+    goal: str | None = Field(None, max_length=5000)
+    race: str | None = Field(None, max_length=200)
+    notes: str | None = Field(None, max_length=50_000)
+    sessions: list[SessionIn] = Field([], max_length=2000)
 
 
 class PlanPatch(BaseModel):
-    title: str | None = None
-    goal: str | None = None
-    race: str | None = None
-    notes: str | None = None
+    title: str | None = Field(None, max_length=200)
+    goal: str | None = Field(None, max_length=5000)
+    race: str | None = Field(None, max_length=200)
+    notes: str | None = Field(None, max_length=50_000)
     status: str | None = None
 
 
@@ -446,10 +447,10 @@ class LinkIn(BaseModel):
 
 
 class ImportIn(BaseModel):
-    text: str
-    title: str | None = None
-    goal: str | None = None
-    race: str | None = None
+    text: str = Field(max_length=500_000)
+    title: str | None = Field(None, max_length=200)
+    goal: str | None = Field(None, max_length=5000)
+    race: str | None = Field(None, max_length=200)
     preview: bool = False
 
 

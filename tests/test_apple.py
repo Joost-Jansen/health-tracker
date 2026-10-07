@@ -197,7 +197,9 @@ def test_wrong_files_are_refused(client):  # noqa: F811
     post = lambda data: client.post("/api/apple/import", content=data, headers={"content-type": "application/octet-stream"})  # noqa: E731
     assert post(b"").status_code == 400
     assert post(b"\x89PNG not an export").status_code == 422
-    r = post(b"PK\x03\x04 broken zip")
+    r = post(b"PK\x03\x04 broken zip")  # refused before the background work: the zip is checked first
+    assert r.status_code == 422 and r.json()["code"] == "not_an_export"
+    r = post(b"<?xml version='1.0'?><Broken")
     assert r.status_code == 202
     for _ in range(100):
         state = client.get("/api/apple/import").json()
@@ -205,6 +207,114 @@ def test_wrong_files_are_refused(client):  # noqa: F811
             break
         time.sleep(0.05)
     assert state["last"]["status"] == "failed" and state["last"]["error"] == "not_an_export"
+
+
+def wait_done(c):
+    for _ in range(300):
+        state = c.get("/api/apple/import").json()
+        if not state["running"]:
+            return state
+        time.sleep(0.1)
+    raise AssertionError("import still running")
+
+
+@pytest.fixture
+def chunked(engine, tmp_path):  # noqa: F811
+    """An app whose Apple uploads go in 64 kB parts, so the test export needs many."""
+    from fastapi.testclient import TestClient
+
+    from api.apple import AppleImports
+    from api.main import create_app
+    from tests.test_api import make_settings
+
+    app = create_app(engine=engine, static_dir=tmp_path / "missing", settings=make_settings())
+    imports = app.state.apple
+    imports.chunk_size, imports.dir = 64 * 1024, tmp_path / "uploads"
+    assert isinstance(imports, AppleImports)
+    c = TestClient(app)
+    login(c)
+    return c, imports
+
+
+def put(c, upload_id, index, data):
+    return c.put(f"/api/apple/upload/{upload_id}/{index}", content=data, headers={"content-type": "application/octet-stream"})
+
+
+def test_chunked_upload_imports_like_the_single_one(chunked, export_zip):
+    c, imports = chunked
+    start = c.post("/api/apple/upload", json={"name": "export.zip", "size": len(export_zip)})
+    assert start.status_code == 201
+    up, size = start.json()["upload_id"], start.json()["chunk_size"]
+    parts = [export_zip[i:i + size] for i in range(0, len(export_zip), size)]
+    assert len(parts) > 3
+    assert c.post(f"/api/apple/upload/{up}/finish").json()["code"] == "upload_incomplete"
+    assert put(c, up, 1, parts[1]).json() == {"detail": "verkeerd deel; verwacht deel 0", "code": "upload_out_of_order", "params": {"expected": 0}}
+    for i, part in enumerate(parts):
+        assert put(c, up, i, part).status_code == 200
+        if i == 1:  # the answer got lost: the browser sends the same part again
+            assert put(c, up, 1, part).json()["received"] == 2 * size
+    r = c.post(f"/api/apple/upload/{up}/finish")
+    assert r.status_code == 202, r.text
+    last = wait_done(c)["last"]
+    assert last["status"] == "done" and last["workouts"] > 30 and last["file"] == "export.zip"
+    assert not list(imports.dir.glob("*"))  # the parts are gone once imported
+    assert c.post(f"/api/apple/upload/{up}/finish").status_code == 404
+
+
+def test_chunk_sizes_and_totals_are_checked(chunked):
+    c, imports = chunked
+    size = imports.chunk_size
+    assert c.post("/api/apple/upload", json={"size": 0}).json()["code"] == "upload_empty"
+    r = c.post("/api/apple/upload", json={"size": imports.max_bytes + 1})
+    assert r.status_code == 413 and r.json()["code"] == "upload_too_large"
+    up = c.post("/api/apple/upload", json={"size": size + 10}).json()["upload_id"]
+    r = put(c, up, 0, b"PK" + b"x" * (size - 10))  # short part
+    assert r.status_code == 422 and r.json()["code"] == "upload_size_mismatch"
+    assert put(c, up, 0, b"x" * (size + 1)).json()["code"] == "upload_size_mismatch"  # longer than a part
+    assert put(c, up, 0, b"x" * size).status_code == 200
+    assert put(c, up, 1, b"x" * 11).json()["code"] == "upload_size_mismatch"  # beyond the declared size
+    assert put(c, up, 1, b"x" * 10).status_code == 200
+    assert put(c, up, 2, b"x").json()["code"] == "upload_out_of_order"
+    r = c.post(f"/api/apple/upload/{up}/finish")
+    assert r.status_code == 422 and r.json()["code"] == "not_an_export"
+    assert not list(imports.dir.glob("*"))
+
+
+def test_uploads_belong_to_their_user_and_expire(chunked, engine):  # noqa: F811
+    from fastapi.testclient import TestClient
+
+    c, imports = chunked
+    up = c.post("/api/apple/upload", json={"size": 100}).json()["upload_id"]
+    db.create_user(engine, "anna", "x")
+    other = TestClient(c.app)
+    other.cookies.set("training_session", __import__("api.auth", fromlist=["x"]).create_token("u:2", "x" * 32, 1))
+    assert other.get("/api/me").json()["username"] == "anna"
+    assert put(other, up, 0, b"x" * 100).status_code == 404  # someone else's id is as good as none
+    assert other.post(f"/api/apple/upload/{up}/finish").status_code == 404
+    assert other.delete(f"/api/apple/upload/{up}").status_code == 404
+    # a second upload of the same user replaces the first
+    up2 = c.post("/api/apple/upload", json={"size": 100}).json()["upload_id"]
+    assert put(c, up, 0, b"x" * 100).status_code == 404 and len(list(imports.dir.glob("*.part"))) == 1
+    imports.ttl_s = 0  # abandoned: removed on the next look
+    time.sleep(0.01)
+    assert put(c, up2, 0, b"x" * 100).status_code == 404
+    assert not list(imports.dir.glob("*.part"))
+
+
+def test_cancel_removes_the_parts(chunked):
+    c, imports = chunked
+    up = c.post("/api/apple/upload", json={"size": 100}).json()["upload_id"]
+    assert c.delete(f"/api/apple/upload/{up}").json() == {"ok": True}
+    assert not list(imports.dir.glob("*.part"))
+
+
+def test_apple_zip_bomb_is_refused(client):  # noqa: F811
+    login(client)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("apple_health_export/export.xml", b"<HealthData>" + b" " * (50 * 1024 * 1024))
+    r = client.post("/api/apple/import", content=buf.getvalue(), headers={"content-type": "application/octet-stream"})
+    assert r.status_code == 422 and r.json()["code"] == "not_an_export"
 
 
 def test_onboarding_device_choice(client):  # noqa: F811

@@ -46,7 +46,7 @@ from tools.routes import english_default_name
 from tools.sports import sport_of
 from tools.store import _rank, activity_id, merge, prepare, remove_source as _strip_source, same_start, source_distance
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 meta = MetaData()
 
 # --- global tables -------------------------------------------------------------------------------------------
@@ -62,7 +62,17 @@ users = Table(
     Column("suspended", Boolean, nullable=False, default=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("last_login_at", DateTime(timezone=True)),
+    # schema 6 (added to existing databases by _migrate_v6):
+    Column("session_version", Integer, nullable=False, default=0, server_default="0"),  # +1 ends every other session
+    Column("consent_at", DateTime(timezone=True)),  # consent to processing health data (GDPR art. 9), at registration
+    Column("privacy_version", String(20)),  # the privacy statement consented to
+    Column("totp_secret", Text),  # encrypted (tools/secretbox.py); set by setup, in use once totp_enabled_at is set
+    Column("totp_enabled_at", DateTime(timezone=True)),
+    Column("totp_last_step", Integer),  # the last code's time step: a code is only good once
+    Column("totp_backup", JSON),  # hashes of the unused backup codes
 )
+SECRET_USER_FIELDS = ("password_hash", "totp_secret", "totp_last_step", "totp_backup")  # never leave tools/db.py by default
+V6_USER_COLUMNS = ("session_version", "consent_at", "privacy_version", "totp_secret", "totp_enabled_at", "totp_last_step", "totp_backup")
 invites = Table(
     "invites",
     meta,
@@ -373,6 +383,18 @@ def _migrate_v5(conn) -> None:
         conn.execute(update(activities).where(activities.c.user_id == row["user_id"], activities.c.id == row["id"]).values(data=data))
 
 
+def _migrate_v6(conn) -> None:
+    """Columns on `users` for sessions that end on a password change, consent and two-step login."""
+    have = {c["name"] for c in inspect(conn).get_columns("users")}
+    for name in V6_USER_COLUMNS:
+        if name in have:
+            continue
+        col = users.c[name]
+        kind = col.type.compile(dialect=conn.dialect)
+        default = " NOT NULL DEFAULT 0" if name == "session_version" else ""
+        conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {kind}{default}"))
+
+
 def create_schema(engine: Engine) -> dict | None:
     """Create missing tables; migrate a single-user (v1) database to multi-user, Dutch stored values to English (v3)
     and stored sports to the codes of tools/sports.py (v4).
@@ -390,6 +412,7 @@ def create_schema(engine: Engine) -> dict | None:
             _migrate_v4(conn)
         if version is None or int(version) < 5:
             _migrate_v5(conn)
+        _migrate_v6(conn)  # checks the columns itself: cheap, and safe on a database another branch already moved on
         if version != SCHEMA_VERSION:
             conn.execute(delete(app_settings).where(app_settings.c.key == "schema_version"))
             conn.execute(insert(app_settings).values(key="schema_version", value=SCHEMA_VERSION))
@@ -401,15 +424,20 @@ def create_schema(engine: Engine) -> dict | None:
 
 def _user_row(row) -> dict:
     out = dict(row)
-    out.pop("password_hash", None)
-    for k in ("created_at", "last_login_at"):
+    for k in SECRET_USER_FIELDS:
+        out.pop(k, None)
+    out["totp_enabled"] = bool(out.pop("totp_enabled_at", None))
+    for k in ("created_at", "last_login_at", "consent_at"):
         if out.get(k):
             out[k] = out[k].isoformat()
+    out["session_version"] = out.get("session_version") or 0
     return out
 
 
-def create_user(engine: Engine, username: str, password_hash: str, is_admin: bool = False, display_name: str | None = None, user_id: int | None = None) -> int:
-    values = dict(username=username.lower(), password_hash=password_hash, is_admin=is_admin, suspended=False, display_name=display_name, created_at=_now())
+def create_user(engine: Engine, username: str, password_hash: str, is_admin: bool = False, display_name: str | None = None, user_id: int | None = None,
+                consent_at: datetime | None = None, privacy_version: str | None = None) -> int:
+    values = dict(username=username.lower(), password_hash=password_hash, is_admin=is_admin, suspended=False, display_name=display_name, created_at=_now(),
+                  session_version=0, consent_at=consent_at, privacy_version=privacy_version)
     if user_id is not None:
         values["id"] = user_id
     with engine.begin() as conn:
@@ -465,7 +493,7 @@ def count_users(engine: Engine) -> int:
 
 
 def update_user(engine: Engine, user_id: int, **fields) -> None:
-    allowed = {"username", "display_name", "password_hash", "is_admin", "suspended", "last_login_at"}
+    allowed = {"username", "display_name", "password_hash", "is_admin", "suspended", "last_login_at", *V6_USER_COLUMNS}
     values = {k: v for k, v in fields.items() if k in allowed}
     if "username" in values:
         values["username"] = values["username"].lower()
@@ -483,6 +511,76 @@ def delete_user(engine: Engine, user_id: int) -> None:
             conn.execute(delete(t).where(t.c.user_id == user_id))
         conn.execute(delete(agent_tokens).where(agent_tokens.c.user_id == user_id))
         conn.execute(delete(users).where(users.c.id == user_id))
+
+
+def bump_session_version(engine: Engine, user_id: int) -> int:
+    """Every session of the user ends (a password change, two-step login switched on or off); returns the new version."""
+    with engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == user_id).values(session_version=func.coalesce(users.c.session_version, 0) + 1))
+        return conn.execute(select(users.c.session_version).where(users.c.id == user_id)).scalar_one()
+
+
+def session_version(engine: Engine, user_id: int) -> int | None:
+    """None when the user does not exist."""
+    with engine.connect() as conn:
+        row = conn.execute(select(users.c.session_version).where(users.c.id == user_id)).first()
+    return None if row is None else (row[0] or 0)
+
+
+# Settings that hold credentials (encrypted sessions at Garmin and Wahoo): never part of an export.
+SECRET_SETTINGS = ("garmin_tokens", "wahoo_tokens")
+
+
+def _jsonable(value):
+    if isinstance(value, datetime):
+        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return None  # binary columns (FIT files, screenshots) are exported as files of their own
+    return value
+
+
+def export_tables(s: Scope):
+    """(name, rows) per table of the user's data, rows as JSON-ready dicts, read one table at a time (GDPR art. 20).
+    Without credentials and hashes: the encrypted Garmin/Wahoo sessions, token hashes, FIT and screenshot bytes."""
+    uid = s.user_id
+    with s.engine.connect() as conn:
+        user = conn.execute(select(users).where(users.c.id == uid)).mappings().first()
+        yield "account", [{k: _jsonable(v) for k, v in _user_row(user).items()}] if user else []
+        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes):
+            yield t.name, ({k: _jsonable(v) for k, v in r.items() if k != "user_id"} for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings())
+        yield "settings", ({"key": r["key"], "value": r["value"]} for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
+                           if r["key"] not in SECRET_SETTINGS)
+        plan_ids = select(plans.c.id).where(plans.c.user_id == uid).scalar_subquery()
+        yield "plan_sessions", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(sessions).where(sessions.c.plan_id.in_(plan_ids))).mappings())
+        cols = [c for c in feedback.c if c.name not in ("screenshot", "user_id")]
+        yield "feedback", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(*cols).where(feedback.c.user_id == uid)).mappings())
+        yield "agent_tokens", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(
+            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == uid)).mappings())
+
+
+def export_files(s: Scope):
+    """(path in the export, bytes): the stored FIT files and feedback screenshots, one at a time."""
+    with s.engine.connect() as conn:
+        keys = [k for (k,) in conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id).order_by(fit_files.c.activity_id))]
+        shots = conn.execute(select(feedback.c.id, feedback.c.screenshot_type).where(feedback.c.user_id == s.user_id, feedback.c.screenshot.isnot(None))).all()
+    for key in keys:
+        data = get_fit(s, key)
+        if data is not None:
+            yield f"fit/{key.replace('/', '__')}.fit", data
+    for fid, media in shots:
+        with s.engine.connect() as conn:
+            data = conn.execute(select(feedback.c.screenshot).where(feedback.c.id == fid, feedback.c.user_id == s.user_id)).scalar_one_or_none()
+        if data:
+            yield f"feedback/{fid}.{(media or 'image/png').split('/')[-1]}", data
+
+
+def count_admins(engine: Engine, except_user: int | None = None) -> int:
+    """Admins who can still log in (not suspended), optionally leaving one user out."""
+    q = select(func.count()).select_from(users).where(users.c.is_admin.is_(True), users.c.suspended.is_(False))
+    if except_user is not None:
+        q = q.where(users.c.id != except_user)
+    with engine.connect() as conn:
+        return conn.execute(q).scalar_one()
 
 
 def user_ids_with_setting(engine: Engine, key: str) -> list[int]:

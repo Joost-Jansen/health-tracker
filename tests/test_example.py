@@ -151,9 +151,9 @@ def test_admin_mcp_and_tokens_ignore_the_header(alice):
 def test_example_name_is_reserved(app, alice):
     alice.patch("/api/admin/settings", json={"registration": "open"})
     for name in ("example", "Example", " EXAMPLE "):
-        r = TestClient(app).post("/api/register", json={"username": name, "password": "a-long-password-1"})
+        r = TestClient(app).post("/api/register", json={"username": name, "password": "a-long-password-1", "consent": True})
         assert r.status_code == 409 and r.json()["code"] == "username_reserved"
-    assert TestClient(app).post("/api/register", json={"username": "examples", "password": "a-long-password-1"}).status_code == 200
+    assert TestClient(app).post("/api/register", json={"username": "examples", "password": "a-long-password-1", "consent": True}).status_code == 200
 
 
 def test_header_needs_value_one_and_a_login(alice, app):

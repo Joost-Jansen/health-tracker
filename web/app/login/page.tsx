@@ -6,7 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { Button, Input, Logomark } from "@/components/ds";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import { errorText, useT } from "@/lib/i18n";
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState<string | null>(null); // null: the password step; a string: the code step
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const config = useQuery({ queryKey: ["auth-config"], queryFn: () => api.get<{ registration: string; first_user: boolean }>("/api/auth/config") });
@@ -25,9 +26,13 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await api.post("/api/login", { username, password });
+      await api.post("/api/login", { username, password, ...(totp !== null ? { totp } : {}) });
       router.push("/dashboard/");
     } catch (err) {
+      if (err instanceof ApiError && err.code === "totp_required") {
+        setTotp(""); // the password was right; two-step login asks for the code
+        return;
+      }
       setError(errorText(err, t, t.auth.loginFailed));
     } finally {
       setLoading(false);
@@ -42,13 +47,22 @@ export default function LoginPage() {
           <h1 className="font-display text-[34px] font-light leading-tight tracking-[-0.03em]">{t.common.appName}</h1>
           <p className="text-[13px] text-ink-muted">{t.auth.tagline}</p>
         </div>
-        <div className="flex flex-col gap-4">
-          <Input id="login-username" name="username" type="text" autoComplete="username" label={t.auth.username}
-            value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
-          <Input id="login-password" name="password" type="password" autoComplete="current-password" label={t.auth.password}
-            value={password} onChange={(e) => setPassword(e.target.value)} error={error ?? undefined} />
-        </div>
-        <Button type="submit" variant="primary" size="lg" block disabled={loading}>
+        {totp === null ? (
+          <div className="flex flex-col gap-4">
+            <Input id="login-username" name="username" type="text" autoComplete="username" label={t.auth.username}
+              value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+            <Input id="login-password" name="password" type="password" autoComplete="current-password" label={t.auth.password}
+              value={password} onChange={(e) => setPassword(e.target.value)} error={error ?? undefined} />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Input id="login-totp" name="totp" type="text" inputMode="numeric" autoComplete="one-time-code" label={t.auth.totp}
+              hint={t.auth.totpHint} value={totp} onChange={(e) => setTotp(e.target.value)} error={error ?? undefined} autoFocus />
+            <button type="button" className="self-start text-[12.5px] text-ink-muted underline underline-offset-2"
+              onClick={() => { setTotp(null); setError(null); }}>{t.auth.totpBack}</button>
+          </div>
+        )}
+        <Button type="submit" variant="primary" size="lg" block disabled={loading || totp === ""}>
           {loading ? t.common.busy : t.auth.login}
         </Button>
         {config.data && config.data.registration !== "closed" && (

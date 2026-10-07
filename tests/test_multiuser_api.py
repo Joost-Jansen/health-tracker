@@ -22,13 +22,13 @@ def as_admin(app):
 
 def register(app, username="anna", password=ANNA_PW, **kw):
     c = TestClient(app)
-    return c, c.post("/api/register", json={"username": username, "password": password, **kw})
+    return c, c.post("/api/register", json={"username": username, "password": password, "consent": True, **kw})
 
 
 def test_first_env_user_is_admin_and_registration_is_closed(app):
     admin = as_admin(app)
     assert admin.get("/api/me").json()["is_admin"] is True
-    assert TestClient(app).get("/api/auth/config").json() == {"registration": "closed", "first_user": False}
+    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {"registration": "closed", "first_user": False, "privacy": None}
     _, r = register(app)
     assert r.status_code == 403
 
@@ -145,7 +145,7 @@ def test_first_person_to_register_is_admin_on_an_empty_install(tmp_path):
     settings = make_settings()
     settings.user, settings.password_hash = "", ""
     app = create_app(engine=e, static_dir=tmp_path / "missing", settings=settings)
-    assert TestClient(app).get("/api/auth/config").json() == {"registration": "open", "first_user": True}
+    assert TestClient(app).get("/api/auth/config").json() | {"privacy": None} == {"registration": "open", "first_user": True, "privacy": None}
     c, r = register(app, username="eerste")
     assert r.json()["is_admin"] is True
     assert TestClient(app).get("/api/auth/config").json()["registration"] == "closed"

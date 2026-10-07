@@ -51,7 +51,7 @@ def test_locale_is_per_user(app):
     a = admin(app)
     a.patch("/api/admin/settings", json={"registration": "open"})
     anna = TestClient(app)
-    r = anna.post("/api/register", json={"username": "anna", "password": ANNA_PW, "locale": "en"})
+    r = anna.post("/api/register", json={"username": "anna", "password": ANNA_PW, "locale": "en", "consent": True})
     assert r.status_code == 200
     assert anna.get("/api/me").json()["locale"] == "en"
     assert a.get("/api/me").json()["locale"] is None
@@ -60,9 +60,9 @@ def test_locale_is_per_user(app):
 def test_register_with_unknown_locale_fails_before_creating_the_account(app):
     admin(app).patch("/api/admin/settings", json={"registration": "open"})
     c = TestClient(app)
-    r = c.post("/api/register", json={"username": "anna", "password": ANNA_PW, "locale": "xx"})
+    r = c.post("/api/register", json={"username": "anna", "password": ANNA_PW, "locale": "xx", "consent": True})
     assert r.status_code == 422 and r.json()["code"] == "invalid_locale"
-    assert c.post("/api/register", json={"username": "anna", "password": ANNA_PW}).status_code == 200
+    assert c.post("/api/register", json={"username": "anna", "password": ANNA_PW, "consent": True}).status_code == 200
 
 
 def test_agents_cannot_set_the_locale(app):

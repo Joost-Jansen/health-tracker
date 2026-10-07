@@ -47,6 +47,9 @@ def streams_from_records(records, start: datetime | None = None, end: datetime |
     return streams
 
 
+MAX_FIT_BYTES = 100 * 1024 * 1024  # a FIT file of a 24-hour ride is ~20 MB
+
+
 def read_fit_streams(data: bytes, start: datetime | None = None, end: datetime | None = None) -> dict:
     """Streams from the zip Garmin returns for an ORIGINAL download (or a bare .fit). With `start` and `end` (UTC) only
     the records in that window: one leg of a multisport activity, whose legs share the parent's file."""
@@ -55,10 +58,12 @@ def read_fit_streams(data: bytes, start: datetime | None = None, end: datetime |
     if data[:2] == b"PK":
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as z:
-                names = [n for n in z.namelist() if n.lower().endswith(".fit")]
-                if not names:
+                infos = [i for i in z.infolist() if i.filename.lower().endswith(".fit")]
+                if not infos:
                     raise ValueError("no .fit file in Garmin download")
-                data = z.read(names[0])
+                if infos[0].file_size > MAX_FIT_BYTES:
+                    raise ValueError("the .fit file in the Garmin download is too large")
+                data = z.read(infos[0])
         except zipfile.BadZipFile as err:
             raise ValueError(f"unreadable Garmin download: {err}") from err
 
@@ -90,10 +95,12 @@ def _unzip(data: bytes) -> bytes:
         return data
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as z:
-            names = [n for n in z.namelist() if n.lower().endswith(".fit")]
-            if not names:
+            infos = [i for i in z.infolist() if i.filename.lower().endswith(".fit")]
+            if not infos:
                 raise ValueError("no .fit file in the zip")
-            return z.read(names[0])
+            if infos[0].file_size > MAX_FIT_BYTES:  # unpacked in memory: a zip bomb must not get that far
+                raise ValueError("the .fit file in the zip is too large")
+            return z.read(infos[0])
     except zipfile.BadZipFile as err:
         raise ValueError(f"unreadable zip: {err}") from err
 
@@ -159,8 +166,8 @@ def read_fit_activity(data: bytes) -> dict:
         "avg_cadence": session.get("avg_cadence"),
         "avg_power": session.get("avg_power"),
         "laps": [
-            {"distance_m": l.get("total_distance"), "time_s": l.get("total_timer_time"), "avg_hr": l.get("avg_heart_rate"), "ascent_m": l.get("total_ascent")}
-            for l in laps
+            {"distance_m": lap.get("total_distance"), "time_s": lap.get("total_timer_time"), "avg_hr": lap.get("avg_heart_rate"), "ascent_m": lap.get("total_ascent")}
+            for lap in laps
         ],
         "streams": streams_from_records(records),
     }

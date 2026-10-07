@@ -15,10 +15,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Query
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import agent_tokens, apple, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
+from api import account, agent_tokens, apple, auth, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, site, uploads, users, zones_api
+from api.websec import log_redact
+from api.websec.csrf import OriginCheckMiddleware
+from api.websec.headers import SecurityHeadersMiddleware
+from api.websec.uploads import BodyLimitMiddleware
 from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
@@ -27,13 +30,14 @@ from api.history import activity_detail, heatmap, list_activities
 from api.plans import enrich, make_router as plans_router
 from api.readiness import readiness
 from api.trends import build_trends, hr_flags
-from tools import db
+from tools import db, secretbox
 
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Amsterdam")
 
 
 MIN_KM, MAX_KM = 0.01, 1000  # a corrected distance
+JSON_BODY_MAX = 6 * 1024 * 1024  # any other request: a feedback screenshot (3 MB, base64) is the largest legitimate one
 
 
 class ActivityCorrection(BaseModel):
@@ -46,8 +50,10 @@ class Settings:
     user: str = ""  # first admin on a fresh multi-user database (bootstrap), not needed afterwards
     password_hash: str = ""
     cookie_secure: bool = True
-    token_days: int = 30
+    session_days: int = 14  # sliding: renewed while in use (api/users.py)
     agent_token_hash: str = ""  # legacy env token, belongs to the first admin
+    public_origins: tuple[str, ...] = ()  # PUBLIC_ORIGINS: extra origins allowed to post (the CSRF check)
+    trusted_proxies: str = ""  # TRUSTED_PROXIES: whose CF-Connecting-IP / X-Forwarded-For is believed
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,11 +63,36 @@ class Settings:
             password_hash=os.environ.get("TRAINING_PASSWORD_HASH", ""),
             cookie_secure=os.environ.get("COOKIE_SECURE", "true").lower() != "false",
             agent_token_hash=os.environ.get("TRAINING_AGENT_TOKEN_HASH", ""),
+            session_days=int(os.environ.get("SESSION_DAYS") or 14),
+            public_origins=tuple(o.strip() for o in os.environ.get("PUBLIC_ORIGINS", "").split(",") if o.strip()),
+            trusted_proxies=os.environ.get("TRUSTED_PROXIES", ""),
         )
 
 
 def today():
     return datetime.now(TZ).date()
+
+
+def insecure_allowed() -> bool:
+    """ALLOW_INSECURE_DEFAULTS=true: the one opt-out (local development) of the checks below."""
+    return os.environ.get("ALLOW_INSECURE_DEFAULTS", "").lower() == "true"
+
+
+def check_production_secrets(settings: Settings) -> None:
+    """Refuse to start with secrets that would make the install unsafe, instead of running with them quietly."""
+    if insecure_allowed():
+        return
+    if len(settings.jwt_secret) < 32:
+        raise RuntimeError("TRAINING_JWT_SECRET is shorter than 32 characters; make one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+    key = secretbox.configured_key()
+    if not key:
+        raise RuntimeError(
+            "APP_ENCRYPTION_KEY is not set. New install: python -m tools.secretbox --new-key. Existing install that ran without it: "
+            "python -m tools.secretbox --print-derived-key (with the same TRAINING_JWT_SECRET) keeps stored connections readable. "
+            "ALLOW_INSECURE_DEFAULTS=true skips this check (development only)."
+        )
+    if not secretbox.valid_key(key):
+        raise RuntimeError("APP_ENCRYPTION_KEY is not a valid Fernet key (32 url-safe base64-encoded bytes)")
 
 
 def create_app(engine=None, static_dir: Path | None = None, settings: Settings | None = None, garmin_auth=None, garmin_client=None,
@@ -73,6 +104,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
         raise RuntimeError("TRAINING_JWT_SECRET ontbreekt")
     production = engine is None  # engine from DATABASE_URL: the real service (tests pass their own engine)
     if production:
+        check_production_secrets(settings)
         engine = db.connect(os.environ["DATABASE_URL"])
     migrated = db.create_schema(engine)
     if migrated:
@@ -81,10 +113,21 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     stores = users.Stores(engine)
     examples = example.ExampleData(example_dir, today)
-    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples)
+    guards = users.Guards.from_env(settings.trusted_proxies)
+    current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples,
+                                               settings.session_days, settings.cookie_secure, guards)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     errors.install(app)
+    log_redact.install()  # the MCP token in /api/mcp/<token> and Bearer values never reach the logs
+    # Innermost first (each add wraps the previous): the security headers end up on every response, also a 403 or 413.
     app.middleware("http")(example.refuse_writes)
+    app.add_middleware(OriginCheckMiddleware, allowed_origins=settings.public_origins, cookie_name=auth.COOKIE, exempt_paths=("/api/mcp",))
+    app.add_middleware(BodyLimitMiddleware, default=JSON_BODY_MAX, limits={
+        "/api/activities/upload": uploads.MAX_BYTES + 1024,
+        "/api/apple/import": apple.MAX_BYTES + 1024,
+        "/api/apple/upload": apple.CHUNK_BYTES + 1024,
+    })
+    app.add_middleware(SecurityHeadersMiddleware, csp=site.API_CSP, hsts=settings.cookie_secure)
     app.state.engine, app.state.stores, app.state.examples = engine, stores, examples
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
     app.state.sync = runner
@@ -97,7 +140,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def health():
         return {"status": "ok"}
 
-    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.token_days))
+    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days, guards,
+                                        key=secretbox.default_key()))
 
     @app.get("/api/dashboard")
     def dashboard(u=Depends(current_user)):
@@ -172,10 +216,11 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.state.apple = apple.AppleImports(stores, on_done=cache.clear)
     app.include_router(apple.make_router(current_user, app.state.apple))
     app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
+    app.include_router(account.make_router(engine, stores, current_user, secretbox.default_key(), runner, app.state.apple))
     app.include_router(feedback.make_router(engine, current_user))
-    app.include_router(mcp.make_router(today, current_user, token_user))
+    app.include_router(mcp.make_router(today, current_user, token_user, guards))
 
     static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="site")
+        app.mount("/", site.SiteFiles(directory=static_dir, html=True), name="site")
     return app

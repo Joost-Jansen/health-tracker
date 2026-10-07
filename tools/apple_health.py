@@ -137,6 +137,9 @@ def _num(text) -> float | None:
 # --- the parsed export -------------------------------------------------------------------------------------------
 
 
+MAX_GPX_BYTES = 64 * 1024 * 1024  # a route of a day-long hike is a few MB
+
+
 @dataclass
 class Series:
     """Samples of one kind, compact: UTC seconds, offset in minutes, value."""
@@ -194,6 +197,8 @@ class Export:
         if hasattr(self.zip_source, "seek"):
             self.zip_source.seek(0)
         with zipfile.ZipFile(self.zip_source) as z:
+            if z.getinfo(member).file_size > MAX_GPX_BYTES:  # read into memory whole: an oversized member is skipped
+                return []
             return read_gpx(z.read(member))
 
     def source(self, name: str) -> int:

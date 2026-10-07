@@ -69,7 +69,8 @@ export const api = {
     request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  del: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
   /** A file as the raw body (FIT upload): no multipart needed on the server. */
   upload: <T>(path: string, file: Blob) =>
     request<T>(path, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } }),

@@ -130,6 +130,16 @@ def status(scope: db.Scope, key: str, running: bool, progress: dict | None = Non
     }
 
 
+def revoke_wahoo(scope: db.Scope, key: str) -> None:
+    """Revoke the user's access at Wahoo (best effort: it may already be gone, or Wahoo be unreachable)."""
+    stored, creds = db.get_setting(scope, wahoo.TOKENS_KEY), wahoo.credentials()
+    if stored and creds and key:
+        try:
+            wahoo.WahooClient(wahoo.load_tokens(stored, key), creds).deauthorize()
+        except Exception as err:  # noqa: BLE001  revoked already, or Wahoo unreachable: the data still goes
+            print(f"wahoo: intrekken bij Wahoo mislukt ({type(err).__name__})", flush=True)
+
+
 def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | None = None, today: Callable[[], date] = date.today) -> APIRouter:
     r = APIRouter(prefix="/api/connections")
     auth = auth or GarminAuth()
@@ -228,12 +238,7 @@ def make_router(current_user: Callable, runner, key: str, auth: GarminAuth | Non
     @r.delete("/wahoo")
     def wahoo_disconnect(u=Depends(person)):
         """Revoke the access at Wahoo (best effort: it may already be gone) and remove what came in through Wahoo."""
-        stored, creds = db.get_setting(u.scope, wahoo.TOKENS_KEY), wahoo.credentials()
-        if stored and creds and key:
-            try:
-                wahoo.WahooClient(wahoo.load_tokens(stored, key), creds).deauthorize()
-            except Exception as err:  # noqa: BLE001  revoked already, or Wahoo unreachable: the data still goes
-                print(f"wahoo: intrekken bij Wahoo mislukt ({type(err).__name__}: {err})", flush=True)
+        revoke_wahoo(u.scope, key)
         removed = end_wahoo(u.scope)
         state = db.get_setting(u.scope, "sync_state") or {}
         if state.pop("wahoo", None) is not None:

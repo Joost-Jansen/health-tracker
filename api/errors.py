@@ -36,6 +36,8 @@ MESSAGES: dict[str, str] = {
     "totp_invalid": "die code klopt niet (of is al gebruikt)",
     "totp_already_enabled": "inloggen in twee stappen staat al aan",
     "totp_not_set_up": "inloggen in twee stappen is nog niet ingesteld",
+    "last_admin": "je bent de enige beheerder; maak eerst iemand anders beheerder",
+    "account_busy": "er loopt nog een synchronisatie of import; probeer het over een paar minuten opnieuw",
     "csrf_origin": "verzoek vanaf een andere site geweigerd",
     "name_too_long": "naam van maximaal {max} tekens",
     "wrong_current_password": "huidig wachtwoord klopt niet",

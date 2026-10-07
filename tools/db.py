@@ -527,6 +527,62 @@ def session_version(engine: Engine, user_id: int) -> int | None:
     return None if row is None else (row[0] or 0)
 
 
+# Settings that hold credentials (encrypted sessions at Garmin and Wahoo): never part of an export.
+SECRET_SETTINGS = ("garmin_tokens", "wahoo_tokens")
+
+
+def _jsonable(value):
+    if isinstance(value, datetime):
+        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return None  # binary columns (FIT files, screenshots) are exported as files of their own
+    return value
+
+
+def export_tables(s: Scope):
+    """(name, rows) per table of the user's data, rows as JSON-ready dicts, read one table at a time (GDPR art. 20).
+    Without credentials and hashes: the encrypted Garmin/Wahoo sessions, token hashes, FIT and screenshot bytes."""
+    uid = s.user_id
+    with s.engine.connect() as conn:
+        user = conn.execute(select(users).where(users.c.id == uid)).mappings().first()
+        yield "account", [{k: _jsonable(v) for k, v in _user_row(user).items()}] if user else []
+        for t in (activities, streams, wellness, intraday, documents, entries, plans, plan_links, routes):
+            yield t.name, ({k: _jsonable(v) for k, v in r.items() if k != "user_id"} for r in conn.execute(select(t).where(t.c.user_id == uid)).mappings())
+        yield "settings", ({"key": r["key"], "value": r["value"]} for r in conn.execute(select(settings).where(settings.c.user_id == uid)).mappings()
+                           if r["key"] not in SECRET_SETTINGS)
+        plan_ids = select(plans.c.id).where(plans.c.user_id == uid).scalar_subquery()
+        yield "plan_sessions", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(sessions).where(sessions.c.plan_id.in_(plan_ids))).mappings())
+        cols = [c for c in feedback.c if c.name not in ("screenshot", "user_id")]
+        yield "feedback", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(select(*cols).where(feedback.c.user_id == uid)).mappings())
+        yield "agent_tokens", ({k: _jsonable(v) for k, v in r.items()} for r in conn.execute(
+            select(agent_tokens.c.id, agent_tokens.c.name, agent_tokens.c.created_at).where(agent_tokens.c.user_id == uid)).mappings())
+
+
+def export_files(s: Scope):
+    """(path in the export, bytes): the stored FIT files and feedback screenshots, one at a time."""
+    with s.engine.connect() as conn:
+        keys = [k for (k,) in conn.execute(select(fit_files.c.activity_id).where(fit_files.c.user_id == s.user_id).order_by(fit_files.c.activity_id))]
+        shots = conn.execute(select(feedback.c.id, feedback.c.screenshot_type).where(feedback.c.user_id == s.user_id, feedback.c.screenshot.isnot(None))).all()
+    for key in keys:
+        data = get_fit(s, key)
+        if data is not None:
+            yield f"fit/{key.replace('/', '__')}.fit", data
+    for fid, media in shots:
+        with s.engine.connect() as conn:
+            data = conn.execute(select(feedback.c.screenshot).where(feedback.c.id == fid, feedback.c.user_id == s.user_id)).scalar_one_or_none()
+        if data:
+            yield f"feedback/{fid}.{(media or 'image/png').split('/')[-1]}", data
+
+
+def count_admins(engine: Engine, except_user: int | None = None) -> int:
+    """Admins who can still log in (not suspended), optionally leaving one user out."""
+    q = select(func.count()).select_from(users).where(users.c.is_admin.is_(True), users.c.suspended.is_(False))
+    if except_user is not None:
+        q = q.where(users.c.id != except_user)
+    with engine.connect() as conn:
+        return conn.execute(q).scalar_one()
+
+
 def user_ids_with_setting(engine: Engine, key: str) -> list[int]:
     with engine.connect() as conn:
         return [uid for (uid,) in conn.execute(select(settings.c.user_id).where(settings.c.key == key).order_by(settings.c.user_id))]

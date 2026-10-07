@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, Query
 from pydantic import BaseModel
 
-from api import agent_tokens, apple, auth, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, site, uploads, users, zones_api
+from api import account, agent_tokens, apple, auth, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, site, uploads, users, zones_api
 from api.websec import log_redact
 from api.websec.csrf import OriginCheckMiddleware
 from api.websec.headers import SecurityHeadersMiddleware
@@ -216,6 +216,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     app.state.apple = apple.AppleImports(stores, on_done=cache.clear)
     app.include_router(apple.make_router(current_user, app.state.apple))
     app.include_router(onboarding.make_router(current_user, runner, app.state.apple))
+    app.include_router(account.make_router(engine, stores, current_user, secretbox.default_key(), runner, app.state.apple))
     app.include_router(feedback.make_router(engine, current_user))
     app.include_router(mcp.make_router(today, current_user, token_user, guards))
 

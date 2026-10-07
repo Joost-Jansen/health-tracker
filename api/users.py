@@ -489,6 +489,9 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise ApiError(422, "cannot_delete_self")
         if confirm != target["username"]:
             raise ApiError(422, "confirm_username")
+        from api.connections import revoke_wahoo  # here: connections is the bigger module, imported late on purpose
+
+        revoke_wahoo(db.Scope(engine, user_id), key)
         db.delete_user(engine, user_id)
         stores.drop(user_id)
         db.add_audit(engine, a.username, "delete_user", target["username"])

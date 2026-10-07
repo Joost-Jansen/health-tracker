@@ -195,6 +195,48 @@ function TwoStepCard({ me }: { me: Me }) {
   );
 }
 
+function DataCard({ me }: { me: Me }) {
+  const t = useT();
+  const m = t.account.data;
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <Card title={m.title}>
+      <div className="flex max-w-prose flex-col gap-3">
+        <p className="text-[12.5px] text-ink-muted">{m.exportText}</p>
+        {/* a plain link: the browser downloads the zip itself, however large */}
+        <a href="/api/account/export" download className="self-start rounded border border-border px-3 py-1.5 text-[12.5px] hover:bg-[var(--surface-sunken)]">
+          {m.export}
+        </a>
+      </div>
+      <form
+        className="mt-6 flex max-w-sm flex-col gap-3 border-t border-border pt-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!confirm(m.deleteConfirm)) return;
+          try {
+            await api.del("/api/account", { password, ...(me.totp_enabled ? { totp: code } : {}) });
+            alert(m.deleted);
+            window.location.href = "/login/";
+          } catch (err) {
+            setMsg(errorText(err, t, m.failed));
+          }
+        }}
+      >
+        <h3 className="text-[13.5px] font-semibold">{m.deleteTitle}</h3>
+        <p className="text-[12.5px] text-ink-muted">{m.deleteText}</p>
+        <Input type="password" autoComplete="current-password" label={m.deletePassword} value={password} onChange={(e) => setPassword(e.target.value)} />
+        {me.totp_enabled && <Input inputMode="numeric" autoComplete="one-time-code" label={m.deleteCode} value={code} onChange={(e) => setCode(e.target.value)} />}
+        <div className="flex items-center gap-3">
+          <Button type="submit" size="sm" variant="danger" disabled={!password || (!!me.totp_enabled && !code)}>{m.delete}</Button>
+          {msg && <span className="text-[12.5px] text-loss">{msg}</span>}
+        </div>
+      </form>
+    </Card>
+  );
+}
+
 export default function AccountPage() {
   const t = useT();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.get<Me>("/api/me") });
@@ -204,6 +246,7 @@ export default function AccountPage() {
       <div className="flex flex-col gap-4">
         <NameCard me={me.data} />
         <LanguageCard />
+        <DataCard me={me.data} />
       </div>
       <div className="flex flex-col gap-4">
         <PasswordCard />

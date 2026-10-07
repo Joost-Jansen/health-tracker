@@ -25,8 +25,9 @@ from api.data import DataStore
 from api.errors import ApiError
 from api.websec.client_ip import client_ip, trusted_networks
 from api.websec.passwords import MAX_LENGTH as MAX_PASSWORD, check_password
+from api.websec import totp
 from api.websec.throttle import Limiter
-from tools import db
+from tools import db, secretbox
 
 REGISTRATION_MODES = ("closed", "invite", "open")
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,39}$")
@@ -215,6 +216,15 @@ class Registration(BaseModel):
     consent: bool = False  # explicit consent to processing health data (GDPR art. 9(2)(a)), a box on the form
 
 
+class TotpCode(BaseModel):
+    code: str
+
+
+class TotpDisable(BaseModel):
+    password: str
+    code: str
+
+
 class PasswordChange(BaseModel):
     current: str
     new: str
@@ -238,8 +248,30 @@ class InviteIn(BaseModel):
     days: int | None = 14
 
 
+TOTP_ISSUER = "health-tracker"
+
+
+def second_factor_ok(engine, row: dict, code: str | None, key: str) -> bool:
+    """The authenticator code (each only once) or an unused backup code of a user with two-step login on."""
+    if not code or not row.get("totp_secret"):
+        return False
+    try:
+        secret = secretbox.decrypt(row["totp_secret"], key)
+    except secretbox.WrongKey:
+        return False  # encrypted with another key: only a backup code (or the admin) helps
+    step = totp.verify(secret, code, row.get("totp_last_step"))
+    if step is not None:
+        db.update_user(engine, row["id"], totp_last_step=step)
+        return True
+    left = totp.use_backup_code(code, row.get("totp_backup") or [])
+    if left is None:
+        return False
+    db.update_user(engine, row["id"], totp_backup=left)
+    return True
+
+
 def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str, cookie_secure: bool, session_days: int,
-                guards: Guards | None = None) -> APIRouter:
+                guards: Guards | None = None, key: str = "") -> APIRouter:
     r = APIRouter()
     guards = guards or Guards()
 
@@ -268,9 +300,9 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
     @r.post("/api/login")
     def login(creds: Credentials, request: Request, response: Response):
         name, ip = creds.username.strip().lower()[:40], guards.ip(request)
-        for limiter, key in ((guards.login_user, name), (guards.login_ip, ip)):
-            if limiter.blocked(key):
-                raise guards.too_many(limiter, key)
+        for limiter, who in ((guards.login_user, name), (guards.login_ip, ip)):
+            if limiter.blocked(who):
+                raise guards.too_many(limiter, who)
 
         def failed(code: str) -> ApiError:
             guards.login_user.hit(name)
@@ -283,6 +315,11 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
             raise failed("bad_credentials")
         if u["suspended"]:
             raise ApiError(403, "account_suspended")
+        if u.get("totp_enabled_at"):
+            if not (creds.totp or "").strip():
+                raise ApiError(401, "totp_required")  # the password was right: the page asks for the code
+            if not second_factor_ok(engine, u, creds.totp, key):
+                raise failed("totp_invalid")
         guards.login_user.reset(name)
         db.update_user(engine, u["id"], last_login_at=datetime.now(timezone.utc))
         set_session(response, u["id"], u.get("session_version") or 0)
@@ -351,6 +388,56 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         set_session(response, u.id, db.bump_session_version(engine, u.id))
         return {"ok": True}
 
+    # --- two-step login (TOTP) -----------------------------------------------------------------------------------
+
+    @r.post("/api/account/totp/setup")
+    def totp_setup(u: User = Depends(person)):
+        """A new secret for the authenticator app; two-step login is on once /enable confirms a code from it."""
+        row = db.get_user(engine, u.id, with_hash=True)
+        if row.get("totp_enabled_at"):
+            raise ApiError(409, "totp_already_enabled")
+        if not key:
+            raise ApiError(500, "no_encryption_key")
+        secret = totp.new_secret()
+        db.update_user(engine, u.id, totp_secret=secretbox.encrypt(secret, key), totp_last_step=None, totp_backup=None)
+        return {"secret": secret, "otpauth_uri": totp.otpauth_uri(secret, u.username, TOTP_ISSUER)}
+
+    @r.post("/api/account/totp/enable")
+    def totp_enable(body: TotpCode, response: Response, u: User = Depends(person)):
+        """Confirm with a code from the app; returns the backup codes (shown once). Other sessions end."""
+        row = db.get_user(engine, u.id, with_hash=True)
+        if row.get("totp_enabled_at"):
+            raise ApiError(409, "totp_already_enabled")
+        if not row.get("totp_secret"):
+            raise ApiError(409, "totp_not_set_up")
+        step = totp.verify(secretbox.decrypt(row["totp_secret"], key), body.code)
+        if step is None:
+            raise ApiError(422, "totp_invalid")
+        codes, hashes = totp.new_backup_codes()
+        db.update_user(engine, u.id, totp_enabled_at=datetime.now(timezone.utc), totp_last_step=step, totp_backup=hashes)
+        set_session(response, u.id, db.bump_session_version(engine, u.id))
+        return {"backup_codes": codes}
+
+    @r.post("/api/account/totp/disable")
+    def totp_disable(body: TotpDisable, request: Request, response: Response, u: User = Depends(person)):
+        ip = guards.ip(request)
+        if guards.login_ip.blocked(ip) or guards.login_user.blocked(u.username):
+            raise guards.too_many(guards.login_ip, ip)
+        row = db.get_user(engine, u.id, with_hash=True)
+        if not row.get("totp_enabled_at"):
+            raise ApiError(409, "totp_not_set_up")
+        if not auth.verify_password(body.password[:MAX_PASSWORD], row["password_hash"]):
+            guards.login_user.hit(u.username)
+            guards.login_ip.hit(ip)
+            raise ApiError(403, "wrong_current_password")
+        if not second_factor_ok(engine, row, body.code, key):
+            guards.login_user.hit(u.username)
+            guards.login_ip.hit(ip)
+            raise ApiError(422, "totp_invalid")
+        db.update_user(engine, u.id, totp_secret=None, totp_enabled_at=None, totp_last_step=None, totp_backup=None)
+        set_session(response, u.id, db.bump_session_version(engine, u.id))
+        return {"ok": True}
+
     # --- admin ---------------------------------------------------------------------------------------------------
 
     @r.get("/api/admin/users")
@@ -381,6 +468,17 @@ def make_router(engine, stores: Stores, current_user: Callable, jwt_secret: str,
         db.bump_session_version(engine, user_id)  # whoever was logged in with the old password is out
         db.add_audit(engine, a.username, "reset_password", db.get_user(engine, user_id)["username"])
         return {"password": temporary}
+
+    @r.delete("/api/admin/users/{user_id}/totp")
+    def admin_reset_totp(user_id: int, a: User = Depends(admin)):
+        """For a user who lost both the phone and the backup codes. Their sessions end."""
+        target = db.get_user(engine, user_id)
+        if not target:
+            raise ApiError(404, "user_not_found")
+        db.update_user(engine, user_id, totp_secret=None, totp_enabled_at=None, totp_last_step=None, totp_backup=None)
+        db.bump_session_version(engine, user_id)
+        db.add_audit(engine, a.username, "reset_totp", target["username"])
+        return db.get_user(engine, user_id)
 
     @r.delete("/api/admin/users/{user_id}")
     def admin_delete(user_id: int, confirm: str, a: User = Depends(admin)):

@@ -86,6 +86,14 @@ function Users({ me }: { me: Me }) {
                                   setNotice(t.admin.resetDone(u.username, r.password));
                                 }),
                             },
+                            ...(u.totp_enabled
+                              ? [{
+                                  label: t.admin.resetTotp,
+                                  onSelect: () => {
+                                    if (confirm(t.admin.resetTotpConfirm(u.username))) act(() => api.del(`/api/admin/users/${u.id}/totp`), t.admin.resetTotpDone(u.username));
+                                  },
+                                }]
+                              : []),
                             {
                               label: t.common.delete,
                               danger: true,

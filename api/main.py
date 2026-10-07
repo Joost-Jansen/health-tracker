@@ -140,7 +140,8 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def health():
         return {"status": "ok"}
 
-    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days, guards))
+    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days, guards,
+                                        key=secretbox.default_key()))
 
     @app.get("/api/dashboard")
     def dashboard(u=Depends(current_user)):

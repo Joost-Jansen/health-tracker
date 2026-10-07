@@ -27,7 +27,10 @@ from tools.apple_health import NotAnExport
 from tools.apple_import import import_file, remove
 
 KEY = "apple_import"  # settings: the last import's summary, or its error
-MAX_BYTES = 4 * 1024**3  # an export of years of Watch data is a few GB at most
+# Years of Watch data zip to a few hundred MB, rarely more than 1-2 GB; one user must not be able to fill the disk.
+MAX_BYTES = int(os.environ.get("APPLE_IMPORT_MAX_MB") or 2048) * 1024 * 1024
+# Parts of the chunked upload: Cloudflare's free plan refuses request bodies over 100 MB.
+CHUNK_BYTES = int(float(os.environ.get("APPLE_CHUNK_MB") or 32) * 1024 * 1024)
 
 
 class AppleImports:

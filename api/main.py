@@ -15,10 +15,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Query
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from api import agent_tokens, apple, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, uploads, users, zones_api
+from api import agent_tokens, apple, auth, connections, daily, errors, example, feedback, mcp, onboarding, routes_api, settings_api, site, uploads, users, zones_api
+from api.websec import log_redact
+from api.websec.csrf import OriginCheckMiddleware
+from api.websec.headers import SecurityHeadersMiddleware
+from api.websec.uploads import BodyLimitMiddleware
 from api.errors import ApiError
 from api.sync_runner import SyncRunner
 from api.content import content_router
@@ -34,6 +37,7 @@ TZ = ZoneInfo("Europe/Amsterdam")
 
 
 MIN_KM, MAX_KM = 0.01, 1000  # a corrected distance
+JSON_BODY_MAX = 6 * 1024 * 1024  # any other request: a feedback screenshot (3 MB, base64) is the largest legitimate one
 
 
 class ActivityCorrection(BaseModel):
@@ -46,8 +50,10 @@ class Settings:
     user: str = ""  # first admin on a fresh multi-user database (bootstrap), not needed afterwards
     password_hash: str = ""
     cookie_secure: bool = True
-    token_days: int = 30
+    session_days: int = 14  # sliding: renewed while in use (api/users.py)
     agent_token_hash: str = ""  # legacy env token, belongs to the first admin
+    public_origins: tuple[str, ...] = ()  # PUBLIC_ORIGINS: extra origins allowed to post (the CSRF check)
+    trusted_proxies: str = ""  # TRUSTED_PROXIES: whose CF-Connecting-IP / X-Forwarded-For is believed
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,6 +63,9 @@ class Settings:
             password_hash=os.environ.get("TRAINING_PASSWORD_HASH", ""),
             cookie_secure=os.environ.get("COOKIE_SECURE", "true").lower() != "false",
             agent_token_hash=os.environ.get("TRAINING_AGENT_TOKEN_HASH", ""),
+            session_days=int(os.environ.get("SESSION_DAYS") or 14),
+            public_origins=tuple(o.strip() for o in os.environ.get("PUBLIC_ORIGINS", "").split(",") if o.strip()),
+            trusted_proxies=os.environ.get("TRUSTED_PROXIES", ""),
         )
 
 
@@ -84,7 +93,16 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     current_user, token_user = users.make_auth(engine, stores, settings.jwt_secret, settings.agent_token_hash, examples)
     app = FastAPI(title="health-tracker", docs_url=None, redoc_url=None, openapi_url=None)
     errors.install(app)
+    log_redact.install()  # the MCP token in /api/mcp/<token> and Bearer values never reach the logs
+    # Innermost first (each add wraps the previous): the security headers end up on every response, also a 403 or 413.
     app.middleware("http")(example.refuse_writes)
+    app.add_middleware(OriginCheckMiddleware, allowed_origins=settings.public_origins, cookie_name=auth.COOKIE, exempt_paths=("/api/mcp",))
+    app.add_middleware(BodyLimitMiddleware, default=JSON_BODY_MAX, limits={
+        "/api/activities/upload": uploads.MAX_BYTES + 1024,
+        "/api/apple/import": apple.MAX_BYTES + 1024,
+        "/api/apple/upload": apple.CHUNK_BYTES + 1024,
+    })
+    app.add_middleware(SecurityHeadersMiddleware, csp=site.API_CSP, hsts=settings.cookie_secure)
     app.state.engine, app.state.stores, app.state.examples = engine, stores, examples
     runner = SyncRunner(engine, stores, client_factory=garmin_client, **sync_kwargs)
     app.state.sync = runner
@@ -97,7 +115,7 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
     def health():
         return {"status": "ok"}
 
-    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.token_days))
+    app.include_router(users.make_router(engine, stores, current_user, settings.jwt_secret, settings.cookie_secure, settings.session_days))
 
     @app.get("/api/dashboard")
     def dashboard(u=Depends(current_user)):
@@ -177,5 +195,5 @@ def create_app(engine=None, static_dir: Path | None = None, settings: Settings |
 
     static_dir = static_dir or ROOT / "web" / "out"
     if static_dir.exists():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="site")
+        app.mount("/", site.SiteFiles(directory=static_dir, html=True), name="site")
     return app

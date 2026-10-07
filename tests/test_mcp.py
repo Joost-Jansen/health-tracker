@@ -82,10 +82,10 @@ def test_batch(client):
 def test_token_in_path_is_redacted_in_access_log():
     import logging
 
-    from api.mcp import RedactToken
+    from api.websec.log_redact import RedactSecrets
 
     rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4", "POST", "/api/mcp/geheim123", "1.1", 200), None)
-    RedactToken().filter(rec)
+    RedactSecrets().filter(rec)
     assert "geheim123" not in rec.getMessage() and "/api/mcp/***" in rec.getMessage()
 
 

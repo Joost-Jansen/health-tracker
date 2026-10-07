@@ -7,18 +7,22 @@ synced from Garmin) is merged into it, not added twice; Garmin's values stay lea
 
 from __future__ import annotations
 
+import io
+import os
 from typing import Callable
 
 from fastapi import APIRouter, Depends, Query, Request
 
 from api.errors import ApiError
+from api.websec.uploads import UnsafeZip, UploadTooLarge, check_zip, read_limited
 
 from tools import db
 from tools.derive import derive
 from tools.fit import read_fit_activity
 from tools.store import from_fit, same_start
 
-MAX_BYTES = 25 * 1024 * 1024
+MAX_BYTES = int(os.environ.get("MAX_UPLOAD_MB") or 25) * 1024 * 1024  # a FIT file of a long ride is a few MB
+MAX_UNZIPPED = 100 * 1024 * 1024  # a .fit inside a zip: unpacked in memory, so bounded (zip bombs)
 
 
 def make_router(current_user: Callable) -> APIRouter:
@@ -27,11 +31,17 @@ def make_router(current_user: Callable) -> APIRouter:
     @r.post("/api/activities/upload")
     async def upload(request: Request, name: str = Query("activity.fit", max_length=200), recompute: bool = True, u=Depends(current_user)):
         """`recompute=false` skips zones and routes for this file; send it on every file but the last of a batch."""
-        data = await request.body()
+        try:
+            data = await read_limited(request.stream(), MAX_BYTES)  # counted while it streams in, never read whole first
+        except UploadTooLarge:
+            raise ApiError(413, "upload_too_large", max_mb=MAX_BYTES // (1024 * 1024))
         if not data:
             raise ApiError(400, "upload_empty")
-        if len(data) > MAX_BYTES:
-            raise ApiError(413, "upload_too_large", max_mb=MAX_BYTES // (1024 * 1024))
+        if data[:2] == b"PK":
+            try:
+                check_zip(io.BytesIO(data), max_members=100, max_total_uncompressed=MAX_UNZIPPED, max_ratio=200)
+            except UnsafeZip as err:
+                raise ApiError(422, "fit_unreadable") from err
         try:
             activity = read_fit_activity(data)
         except ValueError as err:

@@ -90,7 +90,9 @@ http://health.{$DOMAIN}:80 {
 	import health
 }
 
-http://stocks.{$DOMAIN}:80 {
+# wealth.{$DOMAIN}, {$DOMAIN} and www.{$DOMAIN} (the money app and the front door) need stock-tracker's web built
+# with NEXT_PUBLIC_APP_MODE=money, a second container; that comes with the move to joosts-trackers.
+http://stocks.{$DOMAIN}:80, http://stock.{$DOMAIN}:80 {
 	import stocks
 }
 

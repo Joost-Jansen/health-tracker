@@ -89,10 +89,13 @@ One Cloudflare Tunnel and one Caddy in front of both apps; each app keeps its ow
 
 ### 5.1 health-tracker
 
-- [ ] **Code (S):** add `docker-compose.yml` (web + postgres 16, healthchecks, `restart: unless-stopped`, log rotation)
-      and `.env.example`; document it in the README next to Railway
+- [x] **Code (S):** add `docker-compose.yml` (web + postgres 16, healthchecks, `restart: unless-stopped`, log rotation)
+      and `.env.example`; document it in the README next to Railway. Done: `docker-compose.yml`, `.env.example`,
+      `docs/SELF_HOSTING.md`
 - [ ] Copy from Railway: `TRAINING_JWT_SECRET` (or a new one: logs everyone out once), **`TOKEN_ENCRYPTION_KEY` (must
-      be the same, otherwise every stored Garmin and Wahoo session is unreadable)**, `WAHOO_*`, `FEEDBACK_NTFY_URL`
+      be the same, otherwise every stored Garmin and Wahoo session is unreadable; set it as `APP_ENCRYPTION_KEY` now.
+      Not set on Railway? Then `python -m tools.secretbox --print-derived-key` with the old JWT secret gives the key
+      that was used)**, `WAHOO_*`, `FEEDBACK_NTFY_URL`
 - [ ] **Delete the `sync` service on Railway**: it still runs older code next to the web service's own daily sync
 - [ ] Stop the web service on Railway; `pg_dump --no-owner` via the public database URL; `pg_restore` at home
 - [ ] Start; check over Tailscale: login, Today, a workout, Trends, an MCP call from Claude Code
@@ -121,7 +124,8 @@ One Cloudflare Tunnel and one Caddy in front of both apps; each app keeps its ow
 
 ## 6. Backups and monitoring
 
-- [ ] Nightly at 03:00 (`/srv/backup/backup.sh`, cron):
+- [ ] Nightly at 03:00 (`/srv/backup/backup.sh`, cron; the script is in health-tracker `deploy/backup/`, restore in
+      `deploy/backup/restore.md`):
   - health-tracker: `pg_dump -Fc`
   - stock-tracker: `sqlite3 <db> ".backup <copy>"` for every user database and `feedback.db`; copy `auth_config.yaml`,
     `admin_audit.log`, uploads
@@ -140,6 +144,9 @@ tokens, encrypted Garmin/Wahoo sessions, per-user data, registration closed/invi
 
 | # | Change | Why | Effort |
 |---|---|---|---|
+Status (October 2026): H1-H10 are implemented in health-tracker (see the commits and `docs/SELF_HOSTING.md`); the
+shared building blocks are in `api/websec/` (stock-tracker mirrors them in `backend/app/websec/`).
+
 | H1 | **Chunked Apple Health upload**: the browser sends ~50 MB parts, the server joins them, then imports | Cloudflare's free plan refuses request bodies over 100 MB; real exports are often bigger | M |
 | H2 | **Login and registration limit per IP**, using `CF-Connecting-IP` only when the request comes from Caddy/cloudflared (a trusted-proxy list) | today only per username; behind the tunnel every visitor has the tunnel's address | S |
 | H3 | **Security headers** (in Caddy or a FastAPI middleware): HSTS, CSP (`default-src 'self'`; map tiles and Leaflet), `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` | none set today | S |
@@ -201,17 +208,13 @@ Because stock-tracker holds financial data and bank access, the simplest safe ch
 
 | Repo | PR | Contents | Effort |
 |---|---|---|---|
-| health-tracker | 1 | `docker-compose.yml`, `.env.example`, README self-hosting section | S |
-| health-tracker | 2 | H2, H3, H4, H5, H8 (security basics) | M |
-| health-tracker | 3 | H1 chunked Apple upload | M |
-| health-tracker | 4 | H6, H7 (account deletion, export, consent) | M |
-| health-tracker | 5 | H9 CI | S |
+| health-tracker | 1-5 | done on one branch, one commit per theme: security basics (H2-H5, H8), H1, H6, H7, H9, H10, compose and edge | — |
 | stock-tracker | 1 | 5.2 compose changes, canary path, pinned images | S |
 | stock-tracker | 2 | S1, S2, S3, S4, S5, S6, S7, S11 (uploads, proxy, headers, CSRF, passwords, sessions) | M |
 | stock-tracker | 3 | S8, S9, S15 (MCP tokens, encryption key, labelling opt-in) | M |
 | stock-tracker | 4 | S10 account deletion and export | M |
 | stock-tracker | 5 | S12 CI and pinned dependencies | S |
-| server | — | `/srv/edge` compose, Caddyfile, tunnel config, backup script (can live in a small private repo, or in `docs/`) | S |
+| server | — | `/srv/edge` compose, Caddyfile, tunnel config, backup script: done in health-tracker `deploy/` | — |
 
 ## 12. Open questions
 

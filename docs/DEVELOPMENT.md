@@ -14,8 +14,9 @@ Postgres                         single source of truth (tools/db.py schema); SQ
 sync (optional cron)             Dockerfile.sync: tools/sync.py run_all_users, same work as the in-process sync
 ```
 
-Garmin sessions are stored per user, encrypted with `TOKEN_ENCRYPTION_KEY` (fallback: derived from `TRAINING_JWT_SECRET`);
-give `web` and `sync` the same key. If Garmin invalidates a session, the user reconnects under Settings, Connections.
+Garmin and Wahoo sessions and two-step login secrets are stored per user, encrypted with `APP_ENCRYPTION_KEY`
+(`TOKEN_ENCRYPTION_KEY` is the older name; without either the key is derived from `TRAINING_JWT_SECRET`, which production
+refuses unless `ALLOW_INSECURE_DEFAULTS=true`); give `web` and `sync` the same key. If Garmin invalidates a session, the user reconnects under Settings, Connections.
 
 ## Repo layout
 
@@ -30,6 +31,9 @@ give `web` and `sync` the same key. If Garmin invalidates a session, the user re
 | `scripts/seed_demo.py` | Demo user with six months of synthetic data (also seeds the example account, `api/example.py`) |
 | `scripts/make_apple_export.py` | A synthetic Apple Health `export.zip` (iPhone + Watch, old and new export shapes) to test the Apple import |
 | `scripts/screenshots.mjs` | Retakes the README screenshots (`docs/screenshots/`) from a local instance with the demo user, in English (Playwright) |
+| `api/websec/` | Shared with stock-tracker (keep both copies identical, stdlib + Starlette only): client IP behind trusted proxies, rate limiter, security headers, CSRF origin check, log redaction, password rules, TOTP, upload guards; tested in `tests/test_websec.py` |
+| `api/site.py`, `api/account.py` | The static site with a CSP per page (hashes of its inline scripts); export and deletion of your own account |
+| `docker-compose.yml`, `deploy/` | Self-hosting: the app with Postgres, the shared edge (Caddy + cloudflared), backups (`docs/SELF_HOSTING.md`) |
 | `tests/` | pytest, one file per module |
 
 ## Working on it
@@ -41,8 +45,8 @@ cd web && npm ci && npm run build        # static export to web/out
 ```
 
 Local run: `DATABASE_URL=sqlite:///dev.db .venv/bin/python scripts/seed_demo.py` (demo data; `dev.db` is git-ignored), create
-`.env.dev` (git-ignored) with `DATABASE_URL=sqlite:///<absolute path>/dev.db`, a random `TRAINING_JWT_SECRET` and
-`COOKIE_SECURE=false`, then `set -a; . ./.env.dev; set +a; .venv/bin/uvicorn api.main:create_app --factory --port 8765` and open
+`.env.dev` (git-ignored) with `DATABASE_URL=sqlite:///<absolute path>/dev.db`, a random `TRAINING_JWT_SECRET`,
+`COOKIE_SECURE=false` and `ALLOW_INSECURE_DEFAULTS=true` (or an `APP_ENCRYPTION_KEY`), then `set -a; . ./.env.dev; set +a; .venv/bin/uvicorn api.main:create_app --factory --port 8765` and open
 http://localhost:8765.
 For frontend work with hot reload: run the API on port 8000 and `cd web && npm run dev` (dev rewrites `/api/*` to :8000).
 
@@ -81,6 +85,11 @@ Docker check before touching the Dockerfile: `docker build -t health-tracker:tes
    (`ds/useFitRows.ts`, e.g. recent activities), and put a list card last in a column with `fill` (upcoming sessions).
    Charts with a time axis (Trends, Form on Today) take the full width.
 12. **Commits**: small and descriptive.
+13. **Security**: a new state-changing route is covered by the CSRF origin check and the body limit automatically;
+    a new upload streams with a limit (`api/websec/uploads.py`) and checks a zip before unpacking it; markdown is only
+    rendered through `components/log/Markdown.tsx`; never `dangerouslySetInnerHTML` with user or agent text; no inline
+    `<script>` beyond the one in `app/layout.tsx` (the CSP allows each page's inline scripts by hash, computed from the
+    built HTML); no external scripts, styles or images (the CSP allows only this site and the OSM tiles).
 
 ## Languages
 
@@ -136,12 +145,16 @@ Every route except `/api/health`, `/api/auth/config`, `/api/login`,
 
 | Method | Path | What |
 |---|---|---|
-| GET | `/api/auth/config` | `{registration: closed\|invite\|open, first_user}` (public) |
-| POST | `/api/register` | `{username, password, display_name?, invite?, locale?: nl\|en}`; first user on an empty install becomes admin; `example` is reserved (409 `username_reserved`) |
-| GET | `/api/me` | `{id, username, display_name, is_admin, via, locale: nl\|en\|null}`; `null` = never chosen, the site follows the browser |
+| GET | `/api/auth/config` | `{registration: closed\|invite\|open, first_user, privacy: {controller, contact, version}}` (public) |
+| POST | `/api/register` | `{username, password, display_name?, invite?, locale?: nl\|en, consent: true}` (422 `consent_required` without consent; time and privacy version stored); first user on an empty install becomes admin; `example` is reserved (409 `username_reserved`); 5 per hour per IP |
+| POST | `/api/login` | `{username, password, totp?}`; 401 `bad_credentials`, `totp_required` (password right, two-step login on), `totp_invalid`; 429 `too_many_attempts` after 10 failures per username or 30 per IP in 15 min |
+| GET | `/api/me` | `{id, username, display_name, is_admin, via, totp_enabled, locale: nl\|en\|null}`; `null` = never chosen, the site follows the browser |
+| POST | `/api/account/totp/setup`, `/api/account/totp/enable` `{code}`, `/api/account/totp/disable` `{password, code}` | two-step login: `{secret, otpauth_uri}`, then `{backup_codes}` (shown once); enable and disable end every other session |
+| GET | `/api/account/export` | a zip: JSON per table of your data and the FIT files (site login only) |
+| DELETE | `/api/account` | `{password, totp?}`: the account and all its data; 409 `last_admin`, `account_busy` |
 | PATCH | `/api/account` | `{display_name?, locale?: nl\|en}` (site login only); returns the user with `locale` |
-| POST | `/api/account/password` | `{current, new}` |
-| GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>` | admins only (cookie) |
+| POST | `/api/account/password` | `{current, new}`; new passwords: ≥ 10 characters, not common (`password_too_common`), not the username; ends every other session |
+| GET/PATCH/POST/DELETE | `/api/admin/users`, `/api/admin/users/{id}` (`{is_admin?, suspended?}`), `/api/admin/users/{id}/reset-password`, `DELETE /api/admin/users/{id}?confirm=<username>`, `DELETE /api/admin/users/{id}/totp` (turn off two-step login) | admins only (cookie) |
 | GET | `/api/admin/overview` | `{accounts, admins, suspended, files_bytes, open_feedback, audit[]}`: the figures at the top of the admin page and the last 30 admin actions (`admin_audit`) |
 | GET/PATCH | `/api/admin/settings` | `{registration, invites[]}` |
 | POST/DELETE | `/api/admin/invites`, `/api/admin/invites/{code}` | invite codes (`{days}`) |
@@ -173,7 +186,10 @@ Existing:
 | GET | `/api/dashboard` | see `web/lib/training.ts` type `Dashboard` Also: `form.until`, `form.stopped_at_sync` (series ends at the last synced day when the sync is older than yesterday), `form.load {band: low\|build\|high\|unknown, acwr, ramp, reason, thresholds}`; `recent[]` may carry `parts`, `activity_ids`, `race`; with an active plan `plan_week {start, end, sports, sessions}` and `race {date, days, name, distance_km, sport}`; `readiness {verdict, date, no_night, signals: [{key: resting_hr\|respiration\|sleep_h\|body_battery\|tsb, value, level, note: {code, params}}], illness_hint}` (codes, no sentences). |
 | GET | `/api/activities?sport=&from=&to=` | `ActivitySummary[]`, newest first; runs with implausible wrist HR carry `hr_flags: [low_start\|flat\|dropout]` |
 | POST | `/api/activities/upload?name=&recompute=true` | one FIT file (or a zip with one) as the raw body: a ride or run from a Wahoo or any other device. Merged into an activity that starts within 2 min (Garmin stays leading), else added; `{status: added\|merged, id, sport, start_local, distance_km, source: wahoo\|fit, merged_with[]}`. Errors: `upload_empty`, `upload_too_large`, `fit_unreadable` |
-| POST | `/api/apple/import?name=export.zip` | the Apple Health export (`export.zip`, or `export.xml` alone) as the raw body, streamed to a temporary file (max 4 GB); read in the background -> 202 `{running, progress, last}`. Errors: `upload_empty`, `upload_too_large`, `not_an_export` (not a zip or XML), `apple_import_running` (409) |
+| POST | `/api/apple/upload` `{name, size}` | start a chunked upload (what the site uses) -> 201 `{upload_id, chunk_size, max_bytes}` |
+| PUT | `/api/apple/upload/{id}/{index}` | part `index` as the raw body, exactly `chunk_size` bytes (the last one the rest), in order; the last part again is fine -> `{received, size}`. Errors: `upload_not_found` (404, also someone else's id), `upload_out_of_order` (409), `upload_size_mismatch` (422) |
+| POST/DELETE | `/api/apple/upload/{id}/finish`, `/api/apple/upload/{id}` | all parts in: checked and imported in the background -> 202 as below (`upload_incomplete` 409) / give up |
+| POST | `/api/apple/import?name=export.zip` | the whole export (`export.zip`, or `export.xml` alone) as one raw body (scripts; Cloudflare refuses bodies over 100 MB), streamed to a temporary file (max `APPLE_IMPORT_MAX_MB`, 2 GB); a zip is checked before it is read; read in the background -> 202 `{running, progress, last}`. Errors: `upload_empty`, `upload_too_large`, `not_an_export` (not a zip or XML, or a zip that unpacks to too much), `apple_import_running` (409) |
 | GET | `/api/apple/import` | `{running, progress: {step: read\|workouts\|days\|derive, done, total} \| null, last: {status: done\|failed, file, workouts, added, merged, days, nights, staged_nights, kept_garmin_days, intraday_days, first, last, sports, exported, imported_at, error} \| null}` |
 | DELETE | `/api/apple/import` | remove what the import brought in (activities with source `apple`, wellness days and intraday rows with `source: apple`) -> `{removed, changed, days, intraday_days}` |
 | POST | `/api/activities/recompute` | zones and routes again, after a batch uploaded with `recompute=false` |
@@ -214,7 +230,8 @@ and real data never share the cache.
 ### MCP
 
 `api/mcp.py`: Model Context Protocol over streamable HTTP (stateless, JSON responses, no SSE). `POST /api/mcp` with
-`Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers.
+`Authorization: Bearer <agent token>`, or `POST /api/mcp/<agent token>` for clients that cannot send headers. Tokens
+only (no session cookie); 20 failed tokens per IP in 15 minutes; the path token is masked in the logs.
 Tools: `get_context`, `list_activities`, `get_activity`, `get_day`, `get_trends`, `get_plan`, `create_plan` and `replace_plan_sessions`
 (markdown/CSV table, `preview`), `set_plan_status`, `add_log`, `list_log`, `get_doc`, `update_doc`, `suggest_route`.
 Results are markdown text (trends as JSON). Writes are authored `agent`.

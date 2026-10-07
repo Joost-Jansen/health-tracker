@@ -1,0 +1,80 @@
+# health-tracker on your own server: the web service (FastAPI + the static site, built from ./Dockerfile) and Postgres.
+# Shares the layout with stock-tracker (docs/SELF_HOSTING.md): no published ports; the edge (deploy/edge: Caddy +
+# cloudflared) reaches `health-web` over the shared external network `edge`. Create that network once:
+#
+#   docker network create --subnet 172.30.0.0/24 edge
+#
+# Then: cp .env.example .env, fill it in, `docker compose up -d --build`.
+name: health
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  web:
+    build: .
+    image: health-tracker:local
+    container_name: health-web
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://health:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/health
+      HOST: 0.0.0.0
+      PORT: "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - web-data:/data  # temporary uploads and exports, the example account (Dockerfile sets TMPDIR and friends)
+    networks:
+      - default
+      - edge
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1g
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').getcode()==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging: *logging
+
+  postgres:
+    image: postgres:16.15
+    container_name: health-postgres
+    environment:
+      POSTGRES_USER: health
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: health
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - default  # internal only: never published, never on `edge`
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U health -d health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    logging: *logging
+
+networks:
+  default:
+    internal: true  # web <-> postgres only; web reaches the internet (Garmin, Wahoo) through `edge`
+  edge:
+    external: true
+
+volumes:
+  pgdata:
+  web-data:

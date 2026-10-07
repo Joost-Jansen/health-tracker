@@ -18,6 +18,7 @@ can run their own instance, invite friends, and each account only ever sees its 
 - [Architecture](#architecture)
 - [Notable engineering decisions](#notable-engineering-decisions)
 - [Deploy your own](#deploy-your-own)
+- [Self-hosting (Docker Compose)](#self-hosting-docker-compose)
 - [Try it locally with demo data](#try-it-locally-with-demo-data)
 - [Development](#development)
 - [Connect an AI agent (MCP)](#connect-an-ai-agent-mcp)
@@ -138,7 +139,8 @@ CORS. In development `next dev` proxies `/api/*` to the API.
 
 **Auth and multi-user.** Accounts live in a `users` table (bcrypt password hashes, admin flag, suspended flag). The browser
 gets an httpOnly, `SameSite` session cookie carrying a signed JWT (HS256, `TRAINING_JWT_SECRET`); logins are throttled per
-username. Agents use personal access tokens created on the site; only their SHA-256 hash is stored. Every data table has a
+username and per IP (behind trusted proxies only), sessions last 14 days from their last use and end on a password change,
+and two-step login (TOTP) is optional for every account. Agents use personal access tokens created on the site; only their SHA-256 hash is stored. Every data table has a
 `user_id` column (with composite primary keys where ids are natural, like activity ids), and every function in
 `tools/db.py` that touches user data takes a `Scope(engine, user_id)` instead of an engine, so a query cannot forget the
 user. The single auth dependency `current_user` returns the caller with their own data store; routers never see another
@@ -146,10 +148,10 @@ user's data. Registration has three modes, set by an admin: `closed` (default), 
 On an empty install the first person to register becomes the admin.
 
 **Secrets.** The Garmin password is only used once, to log in; it is never stored. What is stored is Garmin's session
-token, encrypted with Fernet (AES-128-CBC + HMAC-SHA256) using `TOKEN_ENCRYPTION_KEY` (`tools/secretbox.py`). Encrypted
+token, encrypted with Fernet (AES-128-CBC + HMAC-SHA256) using `APP_ENCRYPTION_KEY` (`tools/secretbox.py`). Encrypted
 values carry a short key id, so a process with a different key reports "reconnect Garmin" instead of failing with a
-decryption error. Garmin rotates the session; the rotated copy is re-encrypted after every sync. Without
-`TOKEN_ENCRYPTION_KEY` a key is derived from `TRAINING_JWT_SECRET`, which works for a single service but is less clean.
+decryption error. Garmin rotates the session; the rotated copy is re-encrypted after every sync. The web service
+refuses to start without the key (older installs used one derived from `TRAINING_JWT_SECRET`; see the variables).
 
 ## Notable engineering decisions
 
@@ -182,7 +184,7 @@ You need a Garmin Connect account with a watch that records heart rate. Everythi
 3. Add a service from your fork (New, GitHub Repo). Railway finds the `Dockerfile` in the root; leave the root directory
    empty. Name the service `web`.
 4. On `web`, set the variables from the table below. At minimum:
-   `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `PORT=8000`, `HOST=0.0.0.0`.
+   `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `TRAINING_JWT_SECRET`, `APP_ENCRYPTION_KEY`, `PORT=8000`, `HOST=0.0.0.0`.
 5. Under Settings, set the healthcheck path to `/api/health`, and under Networking generate a public domain.
 6. Deploy. Open the domain and follow **Create the first one (admin)** on the login page: on an empty database the first
    account becomes the admin. Registration then switches to `closed`; open it or create invite codes under
@@ -192,7 +194,7 @@ You need a Garmin Connect account with a watch that records heart rate. Everythi
 8. Set your heart-rate zones under Settings, Zones and profile (the page suggests a max HR from your own data).
 
 Optional: a separate **cron service** for the sync, if you prefer it outside the web process. Add a second service from the
-same repo with `Dockerfile.sync`, cron schedule `0 4 * * *`, and the same `DATABASE_URL` and `TOKEN_ENCRYPTION_KEY`; then
+same repo with `Dockerfile.sync`, cron schedule `0 4 * * *`, and the same `DATABASE_URL` and `APP_ENCRYPTION_KEY`; then
 set `SYNC_IN_WEB=false` on `web`.
 
 Every push to your fork's `main` redeploys `web`.
@@ -202,8 +204,17 @@ Every push to your fork's `main` redeploys `web`.
 | Variable | Service | Required | What it does | How to get a value |
 |---|---|---|---|---|
 | `DATABASE_URL` | web, sync | yes | SQLAlchemy URL of the database. `postgresql://...` (Railway: `${{Postgres.DATABASE_URL}}`) or `sqlite:///path/to/file.db` | from your database |
-| `TRAINING_JWT_SECRET` | web | yes | Signs session cookies. Changing it logs everyone out | `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `TOKEN_ENCRYPTION_KEY` | web, sync | recommended | Fernet key that encrypts stored Garmin sessions. Use the same value on every service. Changing it means every user reconnects Garmin | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `TRAINING_JWT_SECRET` | web | yes | Signs session cookies, at least 32 characters (the web service refuses to start otherwise). Changing it logs everyone out | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `APP_ENCRYPTION_KEY` | web, sync | yes | Fernet key that encrypts stored Garmin and Wahoo sessions and two-step login secrets. Use the same value on every service. Changing it means every user reconnects and sets up two-step login again. The web service refuses to start without it. `TOKEN_ENCRYPTION_KEY` is the older name and still read. An install that ran without either used a key derived from `TRAINING_JWT_SECRET`: `python -m tools.secretbox --print-derived-key` prints it, set that | `python -m tools.secretbox --new-key` |
+| `ALLOW_INSECURE_DEFAULTS` | web | no | `true` skips the start-up checks above (missing encryption key, short JWT secret). Local development only | `true` locally |
+| `PUBLIC_ORIGINS` | web | behind a proxy with another name | Comma-separated origins (`https://host[:port]`) besides the request's own host that may send state-changing requests (the CSRF origin check) | `https://health.example.org,https://box.tailnet.ts.net` |
+| `TRUSTED_PROXIES` | web | behind a proxy | Comma-separated IPs/CIDRs of your reverse proxies. Only requests from them have their `CF-Connecting-IP` (else the rightmost untrusted `X-Forwarded-For` hop) used as the client IP for the per-IP limits. Empty: the socket peer. The proxy must overwrite `CF-Connecting-IP` on any listener Cloudflare does not front (see `deploy/edge/Caddyfile`) | `172.30.0.10` |
+| `SESSION_DAYS` | web | no | Days a login stays valid after its last use (renewed while in use). Default 14 | `14` |
+| `PRIVACY_CONTROLLER`, `PRIVACY_CONTACT` | web | when others use it | Name and contact of whoever runs the installation (the GDPR controller), shown on /privacy | `Jane Doe`, `privacy@example.org` |
+| `MAX_UPLOAD_MB` | web | no | Largest FIT upload (default 25) | `25` |
+| `APPLE_IMPORT_MAX_MB`, `APPLE_CHUNK_MB`, `APPLE_UPLOAD_TTL_MIN` | web | no | Largest Apple Health export (default 2048), the parts the site uploads it in (default 32; below Cloudflare's 100 MB), minutes before an unfinished upload is removed (default 60) | `2048`, `32`, `60` |
+| `APPLE_UPLOAD_DIR`, `EXAMPLE_DATA_DIR`, `TMPDIR` | web | no | Where uploads in progress, the example account and temporary files (exports) go; the image sets them under `/data` | `/data/uploads` |
+| `PUBLIC_URL` | web | no | The site's address for links in the feedback ping | `https://health.example.org` |
 | `PORT` | web | Railway: yes | Port uvicorn listens on (default 8000) | `8000` |
 | `HOST` | web | no | Bind address (default `0.0.0.0`). Keep it IPv4; `::` breaks Railway's healthcheck in new environments | `0.0.0.0` |
 | `TZ` | web, sync | no | Container time zone (the image defaults to `Europe/Amsterdam`) | e.g. `Europe/Amsterdam` |
@@ -216,7 +227,7 @@ Every push to your fork's `main` redeploys `web`.
 | `WAHOO_REDIRECT_URI` | web | no | The callback registered at Wahoo; default: this server's `/api/connections/wahoo/callback` | `https://<your-app>/api/connections/wahoo/callback` |
 | `GARMINTOKENS` | sync | no | Legacy: an initial Garmin session for the first admin, used by the cron service if the stored one is missing or stale. Prefer connecting on the site | `tools/setup_garmin.py` |
 
-Never commit any of these; set them in Railway (or a git-ignored `.env.dev` locally).
+Never commit any of these; set them in Railway (or `.env` for Docker Compose, a git-ignored `.env.dev` locally).
 
 ### Docker (any host)
 
@@ -225,13 +236,31 @@ docker build -t health-tracker .
 docker run -d -p 8000:8000 \
   -e DATABASE_URL=postgresql://user:password@db-host:5432/health \
   -e TRAINING_JWT_SECRET=<random hex> \
-  -e TOKEN_ENCRYPTION_KEY=<fernet key> \
+  -e APP_ENCRYPTION_KEY=<fernet key> \
   health-tracker
 curl localhost:8000/api/health   # {"status":"ok"}
 ```
 
 For a quick try without Postgres, `-e DATABASE_URL=sqlite:////tmp/health.db` works too (the data is gone with the
 container). Put a TLS-terminating proxy in front for anything public; the cookie is `Secure` by default.
+
+## Self-hosting (Docker Compose)
+
+For a server of your own (a mini PC at home, a VPS): [`docker-compose.yml`](docker-compose.yml) runs `health-web` (this
+image) and Postgres 16 on an internal network, with healthchecks, log rotation and `restart: unless-stopped`; every
+setting is in [`.env.example`](.env.example). It joins the shared external network `edge`, where
+[`deploy/edge/`](deploy/edge) puts Caddy and a Cloudflare Tunnel in front of this app and stock-tracker (hostnames,
+body limits per path, the Tailscale listener, no MCP tokens in logs), and [`deploy/backup/`](deploy/backup) has the
+nightly `pg_dump` + restic backup and the restore procedure.
+
+```bash
+cp .env.example .env && $EDITOR .env          # secrets: see the comments in the file
+docker network create --subnet 172.30.0.0/24 edge
+docker compose up -d --build
+```
+
+The whole procedure (edge, Tailscale, Cloudflare phases, moving from Railway, backups, upgrading, security notes):
+[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md).
 
 ## Try it locally with demo data
 
@@ -243,7 +272,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 # a fresh SQLite database with the synthetic "demo" user (about six months of training)
 DATABASE_URL=sqlite:///demo.db .venv/bin/python scripts/seed_demo.py   # prints the demo password
 
-TRAINING_JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))") \
+TRAINING_JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))") ALLOW_INSECURE_DEFAULTS=true \
 COOKIE_SECURE=false SYNC_IN_WEB=false DATABASE_URL=sqlite:///demo.db \
 .venv/bin/uvicorn api.main:create_app --factory --port 8000
 ```
